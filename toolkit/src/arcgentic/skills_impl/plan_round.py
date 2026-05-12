@@ -23,8 +23,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 
-from arcgentic.adapters import detect_adapter
-from arcgentic.adapters.base import IDEAdapter
+from arcgentic.adapters import IDEAdapter, detect_adapter
 
 # ── Constants ──────────────────────────────────────────────────────────
 
@@ -38,6 +37,16 @@ _ROUND_TYPE_TO_TEMPLATE_SIZE: dict[str, int] = {
     "close-admin": 10,
     # v0.2.0 P0: all admin types use 10-section (8-section deferred to v0.3+)
     "meta-admin-sweep": 10,
+}
+
+# Maps round_type to the spec section that defines its handoff template structure.
+# Used in planner briefs so the agent can reference the canonical spec section.
+_ROUND_TYPE_TO_SPEC_SECTION: dict[str, str] = {
+    "substrate-touching": "7.1",
+    "fix-round": "7.2",
+    "entry-admin": "7.3",
+    "close-admin": "7.3",
+    "meta-admin-sweep": "7.3",
 }
 
 _MUST_SECTION_MIN_LENGTH = 50  # chars — per planner agent's quality bar
@@ -135,7 +144,8 @@ TASK:
 Generate a complete handoff doc for {round_name} using the {template_size_label} template
 ({_ROUND_TYPE_TO_TEMPLATE_SIZE[round_type]} sections).
 
-REQUIRED SECTIONS: per templates/handoff_{_ROUND_TYPE_TO_TEMPLATE_SIZE[round_type]}_section.md
+REQUIRED SECTIONS: exactly {_ROUND_TYPE_TO_TEMPLATE_SIZE[round_type]} numbered `## ` sections \
+(per spec § {_ROUND_TYPE_TO_SPEC_SECTION[round_type]} template structure).
 
 QUALITY BAR:
 - No `TBD` / `TODO` / `XXX` / `(fill in)` markers in MUST sections
@@ -150,13 +160,24 @@ final `*<type> handoff written by planner agent (arcgentic vX.Y.Z).*` line.
 """
 
 
-def _read_prior_handoff(adapter: IDEAdapter, prior_anchor: str) -> str:
+def _discover_repo_root(adapter: IDEAdapter) -> Path:
+    """Return the git repo root path, or CWD if not in a git repo."""
+    try:
+        stdout, code = adapter.shell("git rev-parse --show-toplevel")
+        if code == 0 and stdout.strip():
+            return Path(stdout.strip())
+    except Exception:
+        pass
+    return Path.cwd()
+
+
+def _read_prior_handoff(adapter: IDEAdapter, prior_anchor: str, repo_root: Path) -> str:
     """Best-effort read of prior-round handoff. Returns summary string (empty on miss).
 
     In v0.2.0 P0 this is a stub: searches docs/superpowers/plans/ for any file containing
     the anchor SHA. Future versions may use git log + structured parsing.
     """
-    plans_dir = Path("docs/superpowers/plans")
+    plans_dir = repo_root / "docs/superpowers/plans"
     if not plans_dir.is_dir():
         return ""
     for p in sorted(plans_dir.glob("*.md"), reverse=True):
@@ -173,15 +194,27 @@ def _read_prior_handoff(adapter: IDEAdapter, prior_anchor: str) -> str:
 def _validate_planner_output(output: str, expected_sections: int) -> tuple[list[str], int, int]:
     """Validate planner output. Returns (warnings, section_count, loc).
 
-    Raises PlanRoundError on hard failures (section count mismatch, structural issues).
+    Section counting skips fenced code blocks (lines between ``` markers) so embedded
+    code with `##` comments doesn't inflate the count.
+
+    Raises PlanRoundError on hard failures (section count mismatch).
     Adds non-fatal warnings to the list (e.g. TBD/TODO markers in MUST sections).
     """
     warnings: list[str] = []
     lines = output.splitlines()
     loc = len(lines)
 
-    section_headers = [ln for ln in lines if ln.startswith("## ")]
-    section_count = len(section_headers)
+    section_count = 0
+    in_fence = False
+    for ln in lines:
+        stripped = ln.lstrip()
+        if stripped.startswith("```"):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        if ln.startswith("## "):
+            section_count += 1
 
     if section_count != expected_sections:
         raise PlanRoundError(
@@ -198,10 +231,10 @@ def _validate_planner_output(output: str, expected_sections: int) -> tuple[list[
     return warnings, section_count, loc
 
 
-def _handoff_path(round_name: str) -> Path:
-    """Compute the handoff file path."""
+def _handoff_path(round_name: str, repo_root: Path) -> Path:
+    """Compute the handoff file path under repo_root."""
     today = date.today().isoformat()  # YYYY-MM-DD
-    return Path("docs/superpowers/plans") / f"{today}-{round_name}-handoff.md"
+    return repo_root / "docs/superpowers/plans" / f"{today}-{round_name}-handoff.md"
 
 
 # ── Public entry point ─────────────────────────────────────────────────
@@ -213,10 +246,19 @@ def run(
     prior_round_anchor: str,
     scope_description: str = "",
     adapter: IDEAdapter | None = None,
+    repo_root: Path | None = None,
 ) -> RunResult:
     """Generate a complete round handoff doc.
 
     `adapter` defaults to detect_adapter() — tests can inject InlineAdapter or a mock.
+    `repo_root` defaults to discovery via `git rev-parse --show-toplevel`. Tests should
+    explicitly pass repo_root=tmp_path to isolate filesystem operations.
+
+    Exit code semantics:
+    - 0: success (handoff written). Non-fatal warnings (e.g. TBD/TODO markers in MUST sections)
+      populate `RunResult.warnings` but do not change exit_code.
+    - 1: validation failure (planner output had wrong section count, or dispatch failed).
+    - 2: input validation failure (bad round_name / SHA / round_type).
     """
     try:
         _validate_inputs(round_name, round_type, prior_round_anchor)
@@ -231,11 +273,14 @@ def run(
         )
 
     resolved_adapter: IDEAdapter = adapter if adapter is not None else detect_adapter()
+    resolved_root: Path = (
+        repo_root if repo_root is not None else _discover_repo_root(resolved_adapter)
+    )
 
     template_size_label = _template_size_label(round_type)
     expected_sections = _ROUND_TYPE_TO_TEMPLATE_SIZE[round_type]
 
-    prior_summary = _read_prior_handoff(resolved_adapter, prior_round_anchor)
+    prior_summary = _read_prior_handoff(resolved_adapter, prior_round_anchor, resolved_root)
 
     brief = _build_planner_brief(
         round_name=round_name,
@@ -279,7 +324,7 @@ def run(
             error=str(e),
         )
 
-    handoff_path = _handoff_path(round_name)
+    handoff_path = _handoff_path(round_name, resolved_root)
     handoff_path.parent.mkdir(parents=True, exist_ok=True)
     resolved_adapter.write_file(str(handoff_path), dispatch_result.output)
 

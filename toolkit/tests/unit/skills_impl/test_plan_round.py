@@ -76,6 +76,24 @@ class _StubAdapter(InlineAdapter):
         )
 
 
+class _TrackingStubAdapter(_StubAdapter):
+    """Adapter that captures the prompt passed to dispatch_agent."""
+
+    def __init__(self, canned_output: str) -> None:
+        super().__init__(canned_output=canned_output)
+        self.last_prompt: str | None = None
+
+    def dispatch_agent(
+        self,
+        agent_name: str,
+        prompt: str,
+        timeout_seconds: int = 600,
+        isolation: Literal["worktree"] | None = None,
+    ) -> AgentDispatchResult:
+        self.last_prompt = prompt
+        return super().dispatch_agent(agent_name, prompt, timeout_seconds, isolation)
+
+
 # ---------------------------------------------------------------------------
 # 1. Input validation — invalid round_name
 # ---------------------------------------------------------------------------
@@ -135,14 +153,14 @@ def test_bad_round_type_returns_exit_code_2() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_round_name_three_component(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_round_name_three_component(tmp_path: Path) -> None:
     """R1.6.1 three-component format validates correctly."""
-    monkeypatch.chdir(tmp_path)
     result = run(
         round_name="R1.6.1",
         round_type="fix-round",
         prior_round_anchor=_VALID_SHA,
         adapter=_StubAdapter(_make_sections(12)),
+        repo_root=tmp_path,
     )
     assert result.exit_code == 0, result.error
 
@@ -152,14 +170,14 @@ def test_round_name_three_component(tmp_path: Path, monkeypatch: pytest.MonkeyPa
 # ---------------------------------------------------------------------------
 
 
-def test_round_name_dash_format(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_round_name_dash_format(tmp_path: Path) -> None:
     """R10-L3-aletheia dash format validates correctly."""
-    monkeypatch.chdir(tmp_path)
     result = run(
         round_name="R10-L3-aletheia",
         round_type="substrate-touching",
         prior_round_anchor=_VALID_SHA,
         adapter=_StubAdapter(_make_sections(18)),
+        repo_root=tmp_path,
     )
     assert result.exit_code == 0, result.error
 
@@ -169,14 +187,14 @@ def test_round_name_dash_format(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
 # ---------------------------------------------------------------------------
 
 
-def test_round_name_minimal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_round_name_minimal(tmp_path: Path) -> None:
     """R1 minimal format validates correctly."""
-    monkeypatch.chdir(tmp_path)
     result = run(
         round_name="R1",
         round_type="entry-admin",
         prior_round_anchor=_VALID_SHA,
         adapter=_StubAdapter(_make_sections(10)),
+        repo_root=tmp_path,
     )
     assert result.exit_code == 0, result.error
 
@@ -271,15 +289,15 @@ def test_section_count_mismatch_returns_exit_code_1() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_successful_substrate_touching(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_successful_substrate_touching(tmp_path: Path) -> None:
     """Stub returns 18-section output; file written, RunResult fields populated."""
-    monkeypatch.chdir(tmp_path)
     stub = _StubAdapter(_make_sections(18))
     result = run(
         round_name="R1.0",
         round_type="substrate-touching",
         prior_round_anchor=_VALID_SHA,
         adapter=stub,
+        repo_root=tmp_path,
     )
     assert result.exit_code == 0, result.error
     assert result.section_count == 18
@@ -294,11 +312,8 @@ def test_successful_substrate_touching(tmp_path: Path, monkeypatch: pytest.Monke
 # ---------------------------------------------------------------------------
 
 
-def test_tbd_marker_produces_warning_not_failure(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_tbd_marker_produces_warning_not_failure(tmp_path: Path) -> None:
     """18-section output with TBD marker → warnings list populated, exit_code=0."""
-    monkeypatch.chdir(tmp_path)
     canned = _make_sections(18) + "\nTBD: fill this in later"
     stub = _StubAdapter(canned)
     result = run(
@@ -306,15 +321,15 @@ def test_tbd_marker_produces_warning_not_failure(
         round_type="substrate-touching",
         prior_round_anchor=_VALID_SHA,
         adapter=stub,
+        repo_root=tmp_path,
     )
     assert result.exit_code == 0, result.error
     assert len(result.warnings) >= 1
     assert any("TBD" in w for w in result.warnings)
 
 
-def test_todo_marker_produces_warning(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_todo_marker_produces_warning(tmp_path: Path) -> None:
     """18-section output with TODO marker → warnings list populated."""
-    monkeypatch.chdir(tmp_path)
     canned = _make_sections(18) + "\nTODO: implement later"
     stub = _StubAdapter(canned)
     result = run(
@@ -322,6 +337,7 @@ def test_todo_marker_produces_warning(tmp_path: Path, monkeypatch: pytest.Monkey
         round_type="substrate-touching",
         prior_round_anchor=_VALID_SHA,
         adapter=stub,
+        repo_root=tmp_path,
     )
     assert result.exit_code == 0, result.error
     assert any("TODO" in w for w in result.warnings)
@@ -332,9 +348,8 @@ def test_todo_marker_produces_warning(tmp_path: Path, monkeypatch: pytest.Monkey
 # ---------------------------------------------------------------------------
 
 
-def test_prior_handoff_missing_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_prior_handoff_missing_dir(tmp_path: Path) -> None:
     """No docs/superpowers/plans/ dir → returns gracefully (empty prior_summary)."""
-    monkeypatch.chdir(tmp_path)
     # No plans dir exists in tmp_path — function must not crash
     stub = _StubAdapter(_make_sections(10))
     result = run(
@@ -342,6 +357,7 @@ def test_prior_handoff_missing_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPat
         round_type="entry-admin",
         prior_round_anchor=_VALID_SHA,
         adapter=stub,
+        repo_root=tmp_path,
     )
     assert result.exit_code == 0, result.error
 
@@ -351,26 +367,29 @@ def test_prior_handoff_missing_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPat
 # ---------------------------------------------------------------------------
 
 
-def test_prior_handoff_found(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """docs/superpowers/plans/ file containing the anchor → non-empty summary."""
-    monkeypatch.chdir(tmp_path)
+def test_prior_handoff_found(tmp_path: Path) -> None:
+    """docs/superpowers/plans/ file containing the anchor → brief includes its filename."""
     plans_dir = tmp_path / "docs" / "superpowers" / "plans"
     plans_dir.mkdir(parents=True)
     prior_sha = "b" * 40
-    (plans_dir / "2026-05-01-R0-handoff.md").write_text(
-        f"# Prior Round\n\nanchor: {prior_sha}\n",
+    prior_file = plans_dir / "2026-05-12-prior-handoff.md"
+    prior_file.write_text(
+        f"# Prior handoff\n\nAnchor: {prior_sha}\n",
         encoding="utf-8",
     )
-    # The brief should contain the prior_summary (non-empty)
-    # We verify indirectly: run completes successfully
-    stub = _StubAdapter(_make_sections(12))
+    real_sections = "\n".join(f"## {i}. section\n\nbody\n" for i in range(1, 13))
+    canned = f"# Test\n\n{real_sections}\n"
+    tracking_stub = _TrackingStubAdapter(canned_output=canned)
     result = run(
         round_name="R1.1",
         round_type="fix-round",
         prior_round_anchor=prior_sha,
-        adapter=stub,
+        adapter=tracking_stub,
+        repo_root=tmp_path,
     )
     assert result.exit_code == 0, result.error
+    assert tracking_stub.last_prompt is not None
+    assert "2026-05-12-prior-handoff.md" in tracking_stub.last_prompt
 
 
 # ---------------------------------------------------------------------------
@@ -378,9 +397,8 @@ def test_prior_handoff_found(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
 # ---------------------------------------------------------------------------
 
 
-def test_custom_adapter_is_used(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_custom_adapter_is_used(tmp_path: Path) -> None:
     """Custom adapter passed via `run(..., adapter=stub)` is used (not detect_adapter())."""
-    monkeypatch.chdir(tmp_path)
     call_log: list[str] = []
 
     class _TrackingStub(_StubAdapter):
@@ -403,6 +421,7 @@ def test_custom_adapter_is_used(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
         round_type="close-admin",
         prior_round_anchor=_VALID_SHA,
         adapter=stub,
+        repo_root=tmp_path,
     )
     assert result.exit_code == 0, result.error
     assert call_log == ["planner"]  # planner was dispatched exactly once
@@ -493,3 +512,50 @@ def test_planner_dispatch_failure_returns_exit_code_1() -> None:
     assert result.exit_code == 1
     assert result.error is not None
     assert "dispatch failed" in result.error or "planner" in result.error.lower()
+
+
+# ---------------------------------------------------------------------------
+# New: Fix 1 — fence-aware section counting
+# ---------------------------------------------------------------------------
+
+
+def test_section_count_ignores_fenced_code_blocks(tmp_path: Path) -> None:
+    """`## ` inside fenced code blocks must NOT count as a section header."""
+    # 18 real sections + 1 fake `## comment` inside a code block; should still count 18.
+    real_sections = "\n".join(f"## {i}. real section\n\nbody\n" for i in range(1, 19))
+    code_block = "```bash\n## this is a comment, not a section\n```\n"
+    canned_output = f"# Test handoff\n\n{real_sections}\n{code_block}\n"
+    stub = _StubAdapter(canned_output=canned_output)
+    result = run(
+        round_name="R1.0",
+        round_type="substrate-touching",
+        prior_round_anchor="a" * 40,
+        adapter=stub,
+        repo_root=tmp_path,
+    )
+    assert result.exit_code == 0
+    assert result.section_count == 18
+
+
+# ---------------------------------------------------------------------------
+# New: Fix 2 — repo_root parameter anchors paths absolutely
+# ---------------------------------------------------------------------------
+
+
+def test_run_with_explicit_repo_root(tmp_path: Path) -> None:
+    """repo_root parameter is respected; no chdir required."""
+    real_sections = "\n".join(f"## {i}. real section\n\nbody\n" for i in range(1, 19))
+    canned = f"# Test handoff\n\n{real_sections}\n"
+    stub = _StubAdapter(canned_output=canned)
+    result = run(
+        round_name="R1.0",
+        round_type="substrate-touching",
+        prior_round_anchor="a" * 40,
+        adapter=stub,
+        repo_root=tmp_path,
+    )
+    assert result.exit_code == 0
+    assert result.handoff_path is not None
+    # handoff_path is absolute and rooted at tmp_path
+    assert result.handoff_path.is_absolute()
+    assert str(result.handoff_path).startswith(str(tmp_path))
