@@ -53,7 +53,11 @@ Run all 4 gates. Report PASS/FAIL for each:
 1. **mypy**: `python3 -m mypy --strict <source-dirs>` → expect 0 errors
 2. **pytest**: `python3 -m pytest --tb=no -q` → expect 0 failures, 0 errors
 3. **ruff**: `python3 -m ruff check .` → expect "All checks passed!"
-4. **audit-check** (if present): `python3 arcgentic/audit_check.py --round {round_name}` → expect PASS
+4. **audit-check**: `arcgentic audit-check <handoff> --strict-extended` → expect `N/N PASS + AC-1 + AC-3 PASS`
+   - If `arcgentic` CLI is not present (e.g. running before sub-phase d ships audit_check.py):
+     **MUST report `STATUS: DONE_WITH_CONCERNS` and include a "Deviations" section explaining
+     gate 4 was skipped because the CLI dependency was not yet installed.** Do NOT silently
+     report PASS for a skipped gate.
 
 If any gate fails:
 - Attempt to fix the failure (one fix pass)
@@ -92,7 +96,7 @@ List each file from BA § N with:
 mypy --strict: PASS | FAIL (N errors)
 pytest:        PASS | FAIL (N failures)
 ruff:          PASS | FAIL (N violations)
-audit-check:   PASS | FAIL (N issues) | SKIPPED (not present)
+audit-check:   PASS | FAIL (N issues) | SKIPPED — see Deviations § 4 (triggers DONE_WITH_CONCERNS)
 ```
 
 ### 3. Forward-debts registered
@@ -107,7 +111,7 @@ List any file, method, or behavior that diverges from the BA design doc, with ra
 
 ## Quality bar (you self-enforce — output validation)
 
-Before reporting back, verify your own output against all 6 checks:
+Before reporting back, verify your own output against all 7 checks:
 
 1. **All 4 quality gates PASS** (or DONE_WITH_CONCERNS with specific failure details)
 2. **File count matches BA decomposition** — count files created vs count in BA § N
@@ -115,6 +119,7 @@ Before reporting back, verify your own output against all 6 checks:
 4. **No undeclared deviations** — every divergence from BA is listed in § 4 of your summary
 5. **TDD order respected** — you can confirm: for each source file, the test was written before implementation
 6. **Forward-debts complete** — every known limitation has a registered entry in tech-debt.md
+7. **Skipped gates declared** — if any quality gate was skipped, § 4 Deviations explains why and status is DONE_WITH_CONCERNS (not DONE)
 
 ## Operating principles inherited from spec § 1
 

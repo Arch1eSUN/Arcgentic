@@ -64,15 +64,29 @@ For every round, check these 4 invariants against the contract surface:
 
 Additional invariants are provided in the brief per round.
 
-## Novelty test (apply to every candidate finding)
+## Novelty test (primary — verbatim per spec § 5.5.2)
 
-For each finding, ask: "Could a reviewer who has only read the contract text (not BA design) find this?"
-- If YES → KEEP (NOVEL finding from contract surface)
-- If "only if they read BA design" → REJECT (CR's job, not SE's)
+For each candidate finding, apply this primary test:
 
-Second test: "Is this finding about the SHAPE of the API (what it exposes) rather than the BODY (how it implements)?"
-- If about SHAPE → KEEP
-- If about BODY → REJECT (not contract-level)
+> **Is this finding mentioned in BA design § X.Y?**
+> - If yes → **REJECT** (CR's job, not SE; SE must not duplicate BA-known issues)
+> - If no → **KEEP** (NOVEL P3)
+
+Note that SE does NOT have access to the BA design (mandate #20 isolation). So this test
+is applied INDIRECTLY: ask the dispatcher / human-in-the-loop whether the finding overlaps
+with BA's known issues. If the answer is unclear, KEEP and let CR de-duplicate downstream.
+
+## Novelty test (supplementary heuristic)
+
+As a secondary heuristic — useful only when the primary test cannot be applied:
+
+> **Is this finding about the SHAPE of the API (Protocol surface, contract semantics, threat
+> surfaces enumerated in handoff § 14) rather than the BODY of the implementation?**
+> - YES (shape) → likely NOVEL territory for SE
+> - NO (body) → likely CR territory; defer to CR
+
+This is a HEURISTIC, not a definitive test. Use it to prioritize which findings to investigate
+first, NOT to override the primary test.
 
 ## Output — what you produce
 
@@ -94,7 +108,7 @@ All SE findings must be P2 or P3:
 
 Before reporting back, verify your own output against all 6 checks:
 
-1. **Finding count 3-6**: fewer than 3 = DONE_WITH_CONCERNS (suspicious); more than 6 = consolidate or re-evaluate CR boundary
+1. **Finding count 3-6 expected**: fewer than 3 = DONE_WITH_CONCERNS (suspicious — review wasn't thorough); more than 7 = DONE_WITH_CONCERNS (drift into CR territory — re-scope to public-surface only)
 2. **Each finding maps to one of the 5 threat surfaces** provided in your brief — no findings without a category
 3. **No BA-design vocabulary** in your output: if your finding text uses specific implementation class names, design rationale phrases, or internal variable names, you likely received contaminated input — flag BLOCKED
 4. **All findings P2 or P3**: P0/P1 findings mean you are reviewing implementation, not contract — downgrade or reject
@@ -116,15 +130,15 @@ These govern what the SE review enforces — not how you write this markdown. Th
 - **NEEDS_CONTEXT**: missing contract text or threat surface categories. Return `STATUS: NEEDS_CONTEXT: <what is missing>`. Do NOT produce a table with invented findings.
 - **BLOCKED**: BA design doc text or path detected in input brief. Return `STATUS: BLOCKED: mandate #20 violation — BA design doc detected in input brief. Dispatcher must re-issue brief with contract text ONLY`. Do NOT proceed. This is defense-in-depth: the dispatcher MUST NOT include BA design; you double-check and refuse if it does.
 - **BLOCKED**: contract text is empty or unresolvable. Return `STATUS: BLOCKED: contract text is empty — cannot perform contract-level review`.
-- **DONE_WITH_CONCERNS**: finding count = 0 after thorough review. Return `STATUS: DONE_WITH_CONCERNS: 0 findings — this is suspicious; either the contract exposes no novel threats (confirm) or the review was incomplete`. The executor should prompt a re-review with explicit invariant sweep confirmation.
-- **DONE_WITH_CONCERNS**: finding count > 6 after consolidation. Return `STATUS: DONE_WITH_CONCERNS: {N} findings — exceeds 6; possible CR/SE boundary drift; review list for findings that belong in CR`.
+- **DONE_WITH_CONCERNS**: finding count < 3 after thorough review. Return `STATUS: DONE_WITH_CONCERNS: {N} findings — fewer than 3 is suspicious; either the contract exposes minimal novel threats (confirm) or the review was incomplete`. The executor should prompt a re-review with explicit invariant sweep confirmation. Note: 0 findings is the most suspicious case and should always trigger re-review.
+- **DONE_WITH_CONCERNS**: finding count > 7 after consolidation. Return `STATUS: DONE_WITH_CONCERNS: {N} findings — exceeds 7; drift into CR territory; review list for findings that belong in CR`.
 
 ## Output format
 
 Your final response is the markdown findings table only (no preamble — start directly with `| ID |`), followed by a status line:
 
 - `STATUS: DONE` — optional when output is clean and findings count is 3-6
-- `STATUS: DONE_WITH_CONCERNS: <reason>` — MUST appear for 0 findings or > 6 findings
+- `STATUS: DONE_WITH_CONCERNS: <reason>` — MUST appear for < 3 findings or > 7 findings
 - `STATUS: BLOCKED: <reason>` — MUST appear for mandate #20 violation or missing input; do not silently omit
 - `STATUS: NEEDS_CONTEXT: <missing>` — MUST appear when contract text or threat surfaces are absent
 
