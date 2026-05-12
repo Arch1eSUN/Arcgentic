@@ -7,15 +7,11 @@ They verify parse_facts, execute_fact, check_ac1_clause_*, check_ac3, run(), mai
 from __future__ import annotations
 
 import subprocess
-import sys
 import textwrap
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from arcgentic.audit_check import (
-    AuditCheckResult,
     Fact,
     FactResult,
     _strip_backticks,
@@ -29,7 +25,6 @@ from arcgentic.audit_check import (
     parse_facts,
     run,
 )
-
 
 # ── Helpers ────────────────────────────────────────────────────────────
 
@@ -231,7 +226,6 @@ def test_execute_fact_recognized_prefix_git() -> None:
 
 
 def test_execute_fact_pass_when_output_matches_expected() -> None:
-    fact = _make_fact(command="git --version", expected="git --version")
     # We can't guarantee the exact git version output, so mock subprocess.run
     with patch("arcgentic.audit_check.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(
