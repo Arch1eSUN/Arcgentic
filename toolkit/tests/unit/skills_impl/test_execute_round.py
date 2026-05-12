@@ -15,15 +15,21 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal
 
-from arcgentic.adapters.base import AgentDispatchResult
+import pytest as _pytest
+
+from arcgentic.adapters.base import AgentDispatchResult  # noqa: I001
 from arcgentic.adapters.inline import InlineAdapter
 from arcgentic.skills_impl.execute_round import (
+    ExecuteRoundError,
     ExecuteRoundResult,
     _audit_handoff_path,
     _ba_design_path,
     _extract_ba_brief_from_handoff,
     _extract_se_threat_surfaces,
+    _phase_dev_body,
+    _phase_entry_admin,
     _round_to_upper,
+    _run_quality_gates,
     run,
 )
 
@@ -414,16 +420,17 @@ def test_se_findings_count(tmp_path: Path) -> None:
 
 
 def test_mandate_20_enforcement_ba_in_dev_output(tmp_path: Path) -> None:
-    """If developer output contains '_BA_DESIGN', MANDATE #20 check raises ExecuteRoundError.
+    """If developer output contains round-specific BA design marker, MANDATE #20 raises.
 
     The SE brief is built partly from dev_result.output (the contract surface).
-    If that output accidentally carries '_BA_DESIGN' text, the mandate #20 check
-    should fire and return exit_code=1.
+    If that output accidentally carries the round-prefixed `{ROUND_UPPER}_BA_DESIGN` marker,
+    the mandate #20 check should fire and return exit_code=1.
     """
     handoff = tmp_path / "handoff.md"
     handoff.write_text(_MINIMAL_HANDOFF, encoding="utf-8")
-    # Developer output contains _BA_DESIGN string — simulates accidental BA content leak
-    poisoned_dev_output = "Implemented core module.\n_BA_DESIGN reference leaked here.\n"
+    # Developer output contains round-specific BA design marker — simulates accidental leak
+    # round_name="R10-L3-aletheia" → round_upper="R10_L3_ALETHEIA"
+    poisoned_dev_output = "Implemented core module.\nR10_L3_ALETHEIA_BA_DESIGN reference leaked.\n"
     stub = _make_default_stub(dev_output=poisoned_dev_output)
     result = run(
         round_name="R10-L3-aletheia",
@@ -844,3 +851,98 @@ def test_audit_check_pass_is_false(tmp_path: Path) -> None:
     )
     assert result.exit_code == 0, result.error
     assert result.audit_check_pass is False
+
+
+# ---------------------------------------------------------------------------
+# New tests for code-review fixes applied to 349b4e2
+# ---------------------------------------------------------------------------
+
+
+def test_run_quality_gates_handles_paths_with_spaces(tmp_path: Path) -> None:
+    """repo_root with space in path must not break shell command construction."""
+    captured_commands: list[str] = []
+
+    class _CapturingStub(_MultiStubAdapter):
+        def shell(self, command: str, timeout_seconds: int = 120) -> tuple[str, int]:
+            captured_commands.append(command)
+            return "ok", 0
+
+    stub = _CapturingStub(canned_outputs={})
+    repo_with_space = tmp_path / "Arc Studio" / "arcgentic"
+    repo_with_space.mkdir(parents=True, exist_ok=True)
+    _run_quality_gates(stub, repo_with_space)
+    # Each captured command must use POSIX-quoting (single quotes) around the spaced path
+    for cmd in captured_commands[:3]:  # first 3 are mypy/pytest/ruff
+        assert "'" in cmd, f"command should be POSIX-quoted: {cmd}"
+        assert "Arc Studio" in cmd
+
+
+def test_phase_entry_admin_skips_when_handoff_already_committed(tmp_path: Path) -> None:
+    """If handoff has no uncommitted changes, Phase 1 returns no-op PhaseResult."""
+    handoff = tmp_path / "handoff.md"
+    handoff.write_text("# handoff", encoding="utf-8")
+
+    class _CleanStub(_MultiStubAdapter):
+        def shell(self, command: str, timeout_seconds: int = 120) -> tuple[str, int]:
+            # git status returns empty → already-committed
+            if "git status" in command:
+                return "", 0
+            return super().shell(command, timeout_seconds)
+
+    stub = _CleanStub(canned_outputs={})
+    result = _phase_entry_admin(stub, "R1.0", handoff, tmp_path, dry_run=False)
+    assert result.commit_sha is None
+    assert result.deviations is not None and len(result.deviations) >= 1
+    assert "handoff already committed" in (result.deviations[0] if result.deviations else "")
+
+
+def test_phase_dev_body_raises_on_empty_staged(tmp_path: Path) -> None:
+    """Empty staged area after developer dispatch should raise ExecuteRoundError."""
+    class _EmptyStagedStub(_MultiStubAdapter):
+        def shell(self, command: str, timeout_seconds: int = 120) -> tuple[str, int]:
+            if "git diff --staged" in command:
+                return "", 0  # empty — no staged files
+            if "mypy" in command or "pytest" in command or "ruff" in command:
+                return "ok", 0
+            return super().shell(command, timeout_seconds)
+
+    stub = _EmptyStagedStub(canned_outputs={
+        "developer": "dev output",
+        "cr-reviewer": "| CR-1 | P3 | ok | inline |",
+        "se-contract": "| SE-1 | P3 | ok | ok | inline |",
+    })
+    # Write a minimal handoff for _phase_dev_body to consume
+    handoff = tmp_path / "handoff.md"
+    handoff.write_text(_MINIMAL_HANDOFF, encoding="utf-8")
+    with _pytest.raises(ExecuteRoundError, match="no staged files"):
+        _phase_dev_body(
+            stub,
+            "R1.0",
+            "BA design content",
+            _MINIMAL_HANDOFF,
+            tmp_path,
+            dry_run=False,
+        )
+
+
+def test_mandate_20_allows_benign_ba_design_substring(tmp_path: Path) -> None:
+    """Benign substring `config_BA_DESIGN` should NOT trigger MANDATE #20 violation."""
+    handoff = tmp_path / "handoff.md"
+    handoff.write_text(_MINIMAL_HANDOFF, encoding="utf-8")
+
+    stub = _MultiStubAdapter(canned_outputs={
+        "ba-designer": "# R10_L3_ALETHEIA_BA_DESIGN\n\nBA content\n",
+        # Dev output has benign substring (NOT round-prefixed — should not fire M#20)
+        "developer": "config_BA_DESIGN_constant = 42  # benign use of substring",
+        "cr-reviewer": "| CR-1 | P3 | ok | inline |",
+        "se-contract": "| SE-1 | P3 | ok | ok | inline |",
+    })
+    result = run(
+        round_name="R10-L3-aletheia",
+        handoff_path=handoff,
+        dry_run=True,
+        adapter=stub,
+        repo_root=tmp_path,
+    )
+    # Should NOT raise; benign substring != round-specific marker R10_L3_ALETHEIA_BA_DESIGN
+    assert result.exit_code == 0, result.error

@@ -17,11 +17,13 @@ Spec reference: docs/plans/2026-05-13-arcgentic-v0.2.0-spec.md § 4.2
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 
 from arcgentic.adapters import IDEAdapter, detect_adapter
+from arcgentic.adapters._local_env import shquote
 
 # ── Phase result structures ────────────────────────────────────────────
 
@@ -183,20 +185,25 @@ def _run_quality_gates(
 ) -> dict[str, str]:
     """Run mypy + pytest + ruff. Returns {gate_name: PASS/FAIL/SKIPPED}.
 
-    Gate 4 (audit-check) is SKIPPED for v0.2.0 P0 — record as DONE_WITH_CONCERNS
-    deviation per developer agent's contract.
+    Uses POSIX shell-quoting on repo_root path (the actual arcgentic repo path
+    `/Users/archiesun/Desktop/Arc Studio/arcgentic` contains a space — unquoted
+    interpolation would break every gate silently).
+
+    Gate 4 (audit-check) is SKIPPED for v0.2.0 P0 — record as DONE_WITH_CONCERNS deviation.
     """
     results: dict[str, str] = {}
+    rr = shquote(str(repo_root))
+    rr_toolkit = shquote(str(repo_root / "toolkit"))
     # mypy
-    _, code = adapter.shell(f"cd {repo_root} && mypy --strict toolkit/src/ toolkit/tests/")
+    _, code = adapter.shell(f"cd {rr} && mypy --strict toolkit/src/ toolkit/tests/")
     results["mypy"] = "PASS" if code == 0 else "FAIL"
     # pytest
-    _, code = adapter.shell(f"cd {repo_root}/toolkit && pytest --tb=no -q")
+    _, code = adapter.shell(f"cd {rr_toolkit} && pytest --tb=no -q")
     results["pytest"] = "PASS" if code == 0 else "FAIL"
     # ruff
-    _, code = adapter.shell(f"cd {repo_root}/toolkit && ruff check .")
+    _, code = adapter.shell(f"cd {rr_toolkit} && ruff check .")
     results["ruff"] = "PASS" if code == 0 else "FAIL"
-    # gate 4 audit-check (SKIPPED in v0.2.0 P0)
+    # gate 4 audit-check SKIPPED for v0.2.0 P0 (forward-debt ER-AUDIT-GATE-4)
     results["audit-check"] = "SKIPPED (v0.2.0 P0 forward-debt ER-AUDIT-GATE-4)"
     return results
 
@@ -358,6 +365,8 @@ def _phase_entry_admin(
     """Phase 1: entry-admin commit — handoff doc + state-row updates (no code).
 
     v0.2.0 P0: state-row update is NO-OP (ER-STATE-ROW forward-debt).
+    If the handoff is already committed (the typical case after plan-round wrote it),
+    Phase 1 is a no-op: returns PhaseResult with commit_sha=None + deviation note.
     """
     files_touched = [str(handoff_path)]
     if dry_run:
@@ -366,7 +375,20 @@ def _phase_entry_admin(
             commit_sha=None,
             files_touched=files_touched,
         )
-    # Real: handoff already on disk; stage + commit
+
+    # Check if handoff has any uncommitted changes
+    stdout, _ = adapter.shell(
+        f"cd {shquote(str(repo_root))} && git status --porcelain {shquote(str(handoff_path))}"
+    )
+    if not stdout.strip():
+        # Handoff already committed — Phase 1 is a no-op
+        return PhaseResult(
+            phase_name="entry-admin",
+            commit_sha=None,
+            files_touched=files_touched,
+            deviations=["handoff already committed; Phase 1 no-op"],
+        )
+
     subject = f"docs({round_name}): entry-admin handoff"
     sha = adapter.git_commit(subject, files=files_touched)
     return PhaseResult(
@@ -495,17 +517,17 @@ def _phase_dev_body(
     # MANDATE #20 enforcement: assert BA design is NOT in se_brief
     # Check for BA design content markers that should NOT appear in the SE brief's
     # contract_text (which comes from dev_result.output).
-    # Any of these patterns indicate BA design content bled into the contract surface:
-    _ba_markers = [
-        _round_to_upper(round_name) + "_BA_DESIGN",  # e.g. R10_L3_ALETHEIA_BA_DESIGN
-        "_BA_DESIGN",  # shorter form that also unambiguously identifies BA doc references
-    ]
-    for _marker in _ba_markers:
-        if _marker in contract_text:
-            raise ExecuteRoundError(
-                f"MANDATE #20 violation: BA design content detected in SE brief "
-                f"(found '{_marker}' in contract_text). Refusing to dispatch SE."
-            )
+    # Use round-specific word-boundary regex to avoid false positives on benign
+    # substrings like `config_BA_DESIGN_constant` — only the exact round-prefixed
+    # marker `{ROUND_UPPER}_BA_DESIGN` (word-bounded) triggers the violation.
+    round_upper = _round_to_upper(round_name)
+    ba_design_marker_re = re.compile(rf"\b{re.escape(round_upper)}_BA_DESIGN\b")
+    if ba_design_marker_re.search(contract_text) or ba_design_marker_re.search(se_brief):
+        raise ExecuteRoundError(
+            f"MANDATE #20 violation: round-specific BA design marker "
+            f"`{round_upper}_BA_DESIGN` detected in dev output / SE brief. "
+            f"Refusing to dispatch se-contract (CONTRACT-ONLY isolation must hold)."
+        )
 
     se_result = adapter.dispatch_agent(
         agent_name="se-contract",
@@ -526,10 +548,16 @@ def _phase_dev_body(
             quality_gates=quality_gates,
         ), quality_gates, cr_findings_count, se_findings_count, cr_findings_md, se_findings_md
 
-    subject = f"feat({round_name}): {round_name} dev body"
-    # Get list of modified files via git status
-    stdout, _ = adapter.shell("git diff --staged --name-only")
+    stdout, _ = adapter.shell(
+        f"cd {shquote(str(repo_root))} && git diff --staged --name-only"
+    )
     files_touched = [ln.strip() for ln in stdout.splitlines() if ln.strip()]
+    if not files_touched:
+        raise ExecuteRoundError(
+            "Phase 3: developer dispatch produced no staged files. The developer agent "
+            "should stage its output before reporting done."
+        )
+    subject = f"feat({round_name}): {round_name} dev body"
     sha = adapter.git_commit(subject)
     return PhaseResult(
         phase_name="dev-body",
@@ -595,7 +623,11 @@ def run(
     Args:
         round_name: e.g. "R10-L3-aletheia"
         handoff_path: path to the planned handoff doc (from plan-round)
-        dry_run: if True, skip all git commits; return result with commit_sha=None
+        dry_run: if True, skip all git commits but **still write generated files to disk**
+            (BA design doc at docs/design/{ROUND_UPPER}_BA_DESIGN.md and self-audit handoff
+            at docs/audits/{round_name}.md). Use dry_run to preview the orchestration's
+            artifact production without polluting git history; the on-disk files allow
+            inspection of what would have been committed.
         adapter: defaults to detect_adapter()
         repo_root: defaults to git rev-parse --show-toplevel
 
