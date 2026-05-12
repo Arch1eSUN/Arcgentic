@@ -33,3 +33,6 @@ build/
 
 # Local-only references (huge, gitignored per arcgentic ref-first discipline)
 references/
+# But skill reference docs inside the plugin itself ARE tracked
+!skills/*/references/
+!skills/*/references/**
