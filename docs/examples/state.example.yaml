@@ -1,0 +1,42 @@
+# .agentic-rounds/state.yaml — single source of truth for arcgentic round state.
+# Validated against schema/state.schema.json. Read by every role skill on entry.
+schema_version: "0.1"
+
+project:
+  name: "example-project"
+  root: "/var/folders/f3/gfvf4kzd4lx2pwhz8f3ysx640000gn/T/tmp.52eC33BYpW"
+  round_naming: "phase.round[.fix]"
+  paths:
+    plans_dir: "docs/plans"
+    audits_dir: "docs/audits"
+  verification_command: ""
+  audit_check_command: ""
+
+current_round:
+  id: ""
+  state: "intake"
+  state_history:
+    - state: "intake"
+      ts: "2026-05-12T09:58:37Z"
+      by: "init.sh"
+
+states:
+  intake:               { next: ["planning"] }
+  planning:             { next: ["awaiting_dev_start"], gate: "handoff-doc-gate.sh" }
+  awaiting_dev_start:   { next: ["dev_in_progress"] }
+  dev_in_progress:      { next: ["awaiting_audit"], gate: "round-commit-chain-gate.sh" }
+  awaiting_audit:       { next: ["audit_in_progress"] }
+  audit_in_progress:    { next: ["passed", "needs_fix"], gate: "verdict-fact-table-gate.sh" }
+  needs_fix:            { next: ["fix_in_progress"] }
+  fix_in_progress:      { next: ["awaiting_audit"], gate: "round-commit-chain-gate.sh" }
+  passed:               { next: ["closed"] }
+  closed:               { next: [] }
+
+last_passed_round: null
+mandates: []
+lessons: []
+active_debts:
+  p0: 0
+  p1: 0
+  p2: 0
+  p3: 0
