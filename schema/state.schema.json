@@ -50,7 +50,7 @@
       "additionalProperties": false,
       "required": ["id", "state", "state_history"],
       "properties": {
-        "id": { "type": "string", "minLength": 1, "description": "Round identifier following project.round_naming convention." },
+        "id": { "type": "string", "description": "Round identifier following project.round_naming convention. Empty string allowed in intake state before a round id is assigned." },
         "state": {
           "type": "string",
           "enum": ["intake", "planning", "awaiting_dev_start", "dev_in_progress", "awaiting_audit", "audit_in_progress", "passed", "needs_fix", "fix_in_progress", "closed"]
