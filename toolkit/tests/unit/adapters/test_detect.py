@@ -150,8 +150,9 @@ def test_detect_codex_cli_via_env(monkeypatch: pytest.MonkeyPatch) -> None:
     _clear_all_envs(monkeypatch)
     monkeypatch.setenv("CODEX_SESSION", "1")
     monkeypatch.setattr("arcgentic.adapters._has_dir", lambda _: False)
-    # which returning something exercises a different code path; make it truthy
-    # so we know CODEX_SESSION (not binary) fires
+    # Set `which` to None so that ONLY CODEX_SESSION (not the binary) drives
+    # the match for rule 4. Otherwise rule 4 would match via the binary fallback
+    # and we couldn't distinguish which condition fired.
     monkeypatch.setattr("arcgentic.adapters.which", lambda _: None)
 
     adapter = detect_adapter()
@@ -236,3 +237,42 @@ def test_priority_vscode_codex_over_codex_cli(monkeypatch: pytest.MonkeyPatch) -
 
     assert isinstance(adapter, VSCodeCodexAdapter)
     assert not isinstance(adapter, CodexCLIAdapter)
+
+
+# ---------------------------------------------------------------------------
+# Test 11: VSCODE_PID="" (empty string) falls through to rule 4 (Codex CLI)
+# ---------------------------------------------------------------------------
+
+
+def test_detect_vscode_pid_empty_string_falls_through(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Empty-string VSCODE_PID falls through to rule 4 (Codex CLI) since "" is
+    falsy in Python. This is intentional — empty-string env-var values are
+    semantically equivalent to unset, and an empty-string PID is not a valid
+    VSCode marker. With `codex` on PATH, the detection correctly assigns
+    CodexCLIAdapter rather than VSCodeCodexAdapter.
+    """
+    _clear_all_envs(monkeypatch)
+    monkeypatch.setenv("VSCODE_PID", "")  # explicitly empty
+    monkeypatch.setattr("arcgentic.adapters._has_dir", lambda _: False)
+    monkeypatch.setattr("arcgentic.adapters.which", lambda _: "/usr/bin/codex")
+    adapter = detect_adapter()
+    assert isinstance(adapter, CodexCLIAdapter)
+    assert not isinstance(adapter, VSCodeCodexAdapter)
+
+
+# ---------------------------------------------------------------------------
+# Test 12: CURSOR_SESSION="" (empty string) falls through to rule 5 (Inline)
+# ---------------------------------------------------------------------------
+
+
+def test_detect_cursor_session_empty_string_falls_through(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Empty-string CURSOR_SESSION falls through to rules 3-5 (Python truthiness).
+    Same intentional behavior as VSCODE_PID="" — empty-string env vars don't fire.
+    With no other markers, lands on Inline fallback.
+    """
+    _clear_all_envs(monkeypatch)
+    monkeypatch.setenv("CURSOR_SESSION", "")  # explicitly empty
+    monkeypatch.setattr("arcgentic.adapters._has_dir", lambda _: False)
+    monkeypatch.setattr("arcgentic.adapters.which", lambda _: None)
+    adapter = detect_adapter()
+    assert isinstance(adapter, InlineAdapter)

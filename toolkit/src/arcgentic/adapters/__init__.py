@@ -4,12 +4,14 @@
 binary availability to select the appropriate adapter for the current host.
 Falls back to InlineAdapter if no LLM host can be confidently identified.
 
-Detection priority (first match wins):
-  1. Claude Code  — env CLAUDE_CODE_SESSION OR ~/.claude/skills exists
-  2. Cursor       — env CURSOR_SESSION OR .cursor/rules directory in CWD
-  3. VSCode+Codex — env VSCODE_PID present AND `codex` binary on PATH
-  4. Codex CLI    — env CODEX_SESSION OR `codex` binary on PATH (without VSCODE_PID)
-  5. Inline       — fallback; no LLM host
+Detection rules (each: env-var checks use Python truthiness — empty-string
+env-var values fall through, which is the intended behavior since empty-string
+markers are semantically equivalent to unset):
+  1. Claude Code  — CLAUDE_CODE_SESSION (non-empty) OR ~/.claude/skills dir exists (home-relative)
+  2. Cursor       — CURSOR_SESSION (non-empty) OR .cursor/rules dir exists (CWD-relative)
+  3. VSCode+Codex — VSCODE_PID (non-empty) AND `codex` binary on PATH
+  4. Codex CLI    — CODEX_SESSION (non-empty) OR `codex` binary on PATH
+  5. Inline       — fallback when no LLM host can be identified
 
 Public API:
   detect_adapter() -> IDEAdapter
@@ -42,7 +44,8 @@ def detect_adapter() -> IDEAdapter:
         from .claude_code import ClaudeCodeAdapter
         return ClaudeCodeAdapter()
 
-    # 2. Cursor
+    # rule 2 — Cursor (.cursor/rules is project-local, CWD-relative;
+    # detect_adapter() picks up the marker only when called from project root)
     if os.environ.get("CURSOR_SESSION") or _has_dir(".cursor/rules"):
         from .cursor import CursorAdapter
         return CursorAdapter()
@@ -63,5 +66,12 @@ def detect_adapter() -> IDEAdapter:
 
 
 def _has_dir(path: str) -> bool:
-    """Return True if `path` (with ~ expansion) is a directory."""
+    """Return True if `path` is a directory (after ~-expansion).
+
+    Paths starting with `~` are home-relative (expand to $HOME).
+    Other paths are interpreted relative to the current working directory.
+    Used by detect_adapter() for both home-scoped markers (e.g. ~/.claude/skills,
+    Claude Code installation) and project-scoped markers (e.g. .cursor/rules,
+    Cursor project rules).
+    """
     return Path(path).expanduser().is_dir()
