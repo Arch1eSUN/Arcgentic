@@ -291,14 +291,15 @@ This is non-negotiable, derived from the original Moirai project's `§ 4 cost-di
 
 ## Status & roadmap
 
-### Current — `v0.1.0-alpha`
+### Current — `v0.1.0-alpha.2`
 
 - ✅ Plugin scaffold + JSON Schema (`schema/state.schema.json`)
-- ✅ Foundation: 4 state scripts + 3 gate scripts + lib helpers + tests (100% passing per TDD discipline)
+- ✅ Foundation: 4 state scripts + 3 gate scripts + lib helpers + tests (9 test files / 48 assertions, 100% passing per TDD discipline)
 - ✅ 5 skills: `using-arcgentic`, `pre-round-scan`, `verify-gates`, `audit-round`, `orchestrate-round`
+- ✅ 13 reference docs (8 audit-round + 3 orchestrate-round + 1 pre-round-scan + 1 verify-gates)
 - ✅ 2 sub-agents: `orchestrator`, `auditor`
-- ⏳ Dogfood Gate 1 (replay validation)
-- ⏳ Dogfood Gate 2 (live run on arcgentic-on-arcgentic)
+- ✅ Dogfood Gate 1 (structural-fidelity replay against Moirai R10-L3-llm verdict — PASS)
+- ✅ Dogfood Gate 2 (live run on arcgentic-on-arcgentic — `v0.1.0-alpha.2-meta` round closed PASS)
 - ⏳ Dogfood Gate 3 (cross-project portability) — deferred to pre-stable
 
 ### Next — `v0.2.0`

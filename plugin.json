@@ -1,6 +1,6 @@
 {
   "name": "arcgentic",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "description": "Agentic harness for rigorous round-driven development. Orchestrates planning, execution, external audit, and reference tracking across roles — with mechanically verifiable state machine, fact-table audit gates, and lesson codification.",
   "author": "Arc Studio",
   "license": "MIT",
@@ -45,5 +45,5 @@
   "scripts_dir": "scripts/",
   "schemas_dir": "schema/",
   "hooks_dir": "hooks/",
-  "status": "alpha — MVP scope: orchestrate-round + audit-round + pre-round-scan + verify-gates four-pack first; remaining skills land incrementally with dogfood gates"
+  "status": "alpha.2 — MVP four-pack landed (5 skills + 2 sub-agents + state machine + 3 gates + 9 test files / 48 assertions). Gate 1 structural-fidelity PASS against Moirai R10-L3-llm; Gate 2 live-run dogfood PASS; Gate 3 cross-project deferred to pre-v1.0"
 }
