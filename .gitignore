@@ -1,0 +1,32 @@
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Node (for tooling)
+node_modules/
+
+# Python (for tooling / tests)
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Dogfood state (gitignore by default; projects opt-in to committing it)
+.agentic-rounds/
+
+# Local-only references (huge, gitignored per arcgentic ref-first discipline)
+references/

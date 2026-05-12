@@ -1,0 +1,49 @@
+{
+  "name": "arcgentic",
+  "version": "0.1.0-alpha.1",
+  "description": "Agentic harness for rigorous round-driven development. Orchestrates planning, execution, external audit, and reference tracking across roles — with mechanically verifiable state machine, fact-table audit gates, and lesson codification.",
+  "author": "Arc Studio",
+  "license": "MIT",
+  "homepage": "https://github.com/Arch1eSUN/arcgentic",
+  "keywords": [
+    "agentic-harness",
+    "workflow",
+    "round-driven-development",
+    "external-audit",
+    "reference-first",
+    "lesson-codification",
+    "rigorous-engineering"
+  ],
+  "dependencies": {
+    "claude-code": ">=1.0.0",
+    "superpowers": "^5.0.0",
+    "plugin-dev": "^0.1.0"
+  },
+  "skills": [
+    "using-arcgentic",
+    "pre-round-scan",
+    "orchestrate-round",
+    "plan-round",
+    "execute-round",
+    "audit-round",
+    "track-refs",
+    "codify-lesson",
+    "cross-session-handoff",
+    "verify-gates"
+  ],
+  "agents": [
+    "orchestrator",
+    "planner",
+    "developer",
+    "auditor",
+    "ref-tracker",
+    "lesson-codifier",
+    "ba-designer",
+    "cr-reviewer",
+    "se-contract"
+  ],
+  "scripts_dir": "scripts/",
+  "schemas_dir": "schema/",
+  "hooks_dir": "hooks/",
+  "status": "alpha — MVP scope: orchestrate-round + audit-round + pre-round-scan + verify-gates four-pack first; remaining skills land incrementally with dogfood gates"
+}

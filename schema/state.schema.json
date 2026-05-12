@@ -1,0 +1,188 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Arch1eSUN/arcgentic/schema/state.schema.json",
+  "title": "arcgentic round-state",
+  "description": "v0.1 schema for .agentic-rounds/state.yaml. The state.yaml file is the single source of truth for the current round and accumulated project history under the arcgentic plugin. All role skills and sub-agents read this file as their first action.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project", "current_round", "states"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$",
+      "description": "arcgentic state schema version. v0.1 is alpha; will be promoted to v1.0 after MVP gates pass."
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "root", "round_naming", "paths"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "root": { "type": "string", "minLength": 1, "description": "Absolute path to project root." },
+        "round_naming": {
+          "type": "string",
+          "description": "Free-form description of project's round-id convention (e.g. 'phase.round[.fix]' or 'sprint.story' or 'epic.task'). Skills read this to format output correctly."
+        },
+        "paths": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["plans_dir", "audits_dir"],
+          "properties": {
+            "plans_dir": { "type": "string", "description": "Project-relative path where handoff docs (= round plans) live." },
+            "audits_dir": { "type": "string", "description": "Project-relative path where audit verdicts live (may use {N} placeholder for phase/sprint number)." },
+            "refs_index": { "type": "string", "description": "Project-relative path to the reference categorization index (e.g. references/INDEX.md). Optional; omit if project doesn't track external refs." },
+            "memory_store": { "type": "string", "description": "URI or path to the project's persistent memory store (e.g. obsidian://VaultName, file:///path/to/notes, github://owner/repo)." },
+            "tech_debt_registry": { "type": "string", "description": "Project-relative path to tech-debt registry (e.g. docs/tech-debt.md). Optional." }
+          }
+        },
+        "verification_command": {
+          "type": "string",
+          "description": "Project's standard verification command (run by verify-gates before commit, e.g. './scripts/dev.sh check' or 'npm test')."
+        },
+        "audit_check_command": {
+          "type": "string",
+          "description": "Project's audit-fact verification command template. Use {file} as placeholder for the verdict file path."
+        }
+      }
+    },
+    "current_round": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "state", "state_history"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "description": "Round identifier following project.round_naming convention." },
+        "state": {
+          "type": "string",
+          "enum": ["intake", "planning", "awaiting_dev_start", "dev_in_progress", "awaiting_audit", "audit_in_progress", "passed", "needs_fix", "fix_in_progress", "closed"]
+        },
+        "state_history": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["state", "ts", "by"],
+            "properties": {
+              "state": { "type": "string" },
+              "ts": { "type": "string", "format": "date-time" },
+              "by": { "type": "string", "description": "Actor who triggered the transition (e.g. 'planner-agent', 'developer-agent', 'auditor-agent', 'orchestrator', 'human:founder')." },
+              "artifact": { "type": "string", "description": "Optional reference to artifact produced at this transition (e.g. 'docs/.../handoff.md@a15d5a4')." }
+            }
+          }
+        },
+        "handoff_doc": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "path": { "type": "string" },
+            "commit": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
+            "sections_present": { "type": "integer", "minimum": 0 },
+            "sections_required": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "expected_dev_commits": { "type": "integer", "minimum": 1, "description": "How many commits this round expects (4 by default for entry-admin → design → dev → state-refresh chain; projects may override)." },
+        "dev_commits": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" }
+        },
+        "audit_verdict": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "path": { "type": "string" },
+            "commit": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
+            "outcome": { "type": "string", "enum": ["PASS", "NEEDS_FIX"] },
+            "fact_table_total": { "type": "integer", "minimum": 0 },
+            "fact_table_pass": { "type": "integer", "minimum": 0 },
+            "findings": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "priority"],
+                "properties": {
+                  "id": { "type": "string" },
+                  "priority": { "type": "string", "enum": ["P0", "P1", "P2", "P3"] },
+                  "summary": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "states": {
+      "type": "object",
+      "description": "State-machine definition. Plugin ships defaults; project may override via init.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "next": { "type": "array", "items": { "type": "string" } },
+          "gate": { "type": "string", "description": "Optional gate script path (relative to plugin scripts/gates/). Transition refuses if gate fails." }
+        }
+      }
+    },
+    "last_passed_round": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "commit": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
+        "verdict_doc": { "type": "string" },
+        "closed_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "mandates": {
+      "type": "array",
+      "description": "Project-specific mandates accumulated over time. The plugin ships default mandate hooks (e.g. reference-first); projects can extend.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "version", "location"],
+        "properties": {
+          "id": { "type": "string" },
+          "version": { "type": "integer", "minimum": 1 },
+          "location": { "type": "string", "description": "Where this mandate is canonically defined (e.g. 'CLAUDE.md#section-8')." }
+        }
+      }
+    },
+    "lessons": {
+      "type": "array",
+      "description": "Project-specific lessons codified via codify-lesson skill. Each lesson tracks streak + novel-type observations.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "streak"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "streak": { "type": "integer", "minimum": 0, "description": "How many consecutive rounds applied this lesson successfully." },
+          "novel_types_seen": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["type", "first_seen"],
+              "properties": {
+                "type": { "type": "string" },
+                "first_seen": { "type": "string", "description": "Round id where this novel type was first observed." }
+              }
+            }
+          },
+          "last_application": { "type": "string", "description": "Most recent round id where this lesson applied." }
+        }
+      }
+    },
+    "active_debts": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Mirrored counts from tech-debt registry (if project tracks tech-debt).",
+      "properties": {
+        "p0": { "type": "integer", "minimum": 0 },
+        "p1": { "type": "integer", "minimum": 0 },
+        "p2": { "type": "integer", "minimum": 0 },
+        "p3": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}
