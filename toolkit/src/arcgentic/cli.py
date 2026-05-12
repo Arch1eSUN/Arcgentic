@@ -107,6 +107,29 @@ def main(argv: list[str] | None = None) -> int:
         help="Also run AC-1 (3 clauses) + AC-3 checks; exit 1 on violation",
     )
 
+    # quality-gate-enforce
+    quality_gate_parser = subparsers.add_parser(
+        "quality-gate-enforce",
+        help="Run all 4 quality gates (mypy + pytest + ruff + audit-check).",
+    )
+    quality_gate_parser.add_argument(
+        "--repo-root",
+        dest="repo_root",
+        default=None,
+        help="Repo root path (defaults to git rev-parse --show-toplevel)",
+    )
+    quality_gate_parser.add_argument(
+        "--audit-handoff",
+        dest="audit_handoff",
+        default=None,
+        help="Path to audit handoff for gate 4",
+    )
+    quality_gate_parser.add_argument(
+        "--skip-audit-check",
+        action="store_true",
+        help="Skip gate 4 (audit-check)",
+    )
+
     args = parser.parse_args(argv)
 
     if args.command == "plan-round-impl":
@@ -143,6 +166,18 @@ def main(argv: list[str] | None = None) -> int:
         if args.strict_extended:
             extra.append("--strict-extended")
         return ac_main([args.audit_file, *extra])
+
+    elif args.command == "quality-gate-enforce":
+        from .hooks.quality_gate_enforce import main as qg_main
+
+        qg_extra: list[str] = []
+        if args.repo_root:
+            qg_extra.extend(["--repo-root", args.repo_root])
+        if args.audit_handoff:
+            qg_extra.extend(["--audit-handoff", args.audit_handoff])
+        if args.skip_audit_check:
+            qg_extra.append("--skip-audit-check")
+        return qg_main(qg_extra)
 
     parser.print_help()
     return 1
