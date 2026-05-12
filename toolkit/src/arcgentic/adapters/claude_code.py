@@ -114,13 +114,17 @@ class ClaudeCodeAdapter:
             raise RuntimeError(f"`{self._claude_binary}` not found on PATH")
 
         prompt = f"Invoke /{skill_name} {args}".strip()
-        result = subprocess.run(
-            [self._claude_binary, "-p", prompt],
-            capture_output=True,
-            text=True,
-            timeout=600,
-            check=False,
-        )
+        try:
+            result = subprocess.run(
+                [self._claude_binary, "-p", prompt],
+                capture_output=True,
+                text=True,
+                timeout=600,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            raise RuntimeError(f"/{skill_name} timed out after 600s") from None
+
         if result.returncode != 0:
             raise RuntimeError(
                 f"`/{skill_name}` exited {result.returncode}: {result.stderr.strip()}"
@@ -130,10 +134,10 @@ class ClaudeCodeAdapter:
     # ── Filesystem (no LLM mediation) ─────────────────────────────────────
 
     def read_file(self, path: str) -> str:
-        return Path(path).read_text()
+        return Path(path).read_text(encoding="utf-8")
 
     def write_file(self, path: str, content: str) -> None:
-        Path(path).write_text(content)
+        Path(path).write_text(content, encoding="utf-8")
 
     def edit_file(self, path: str, old: str, new: str) -> None:
         p = Path(path)
@@ -164,31 +168,51 @@ class ClaudeCodeAdapter:
             return "", 124
 
     def git_diff_staged(self) -> str:
-        out, code = self.shell("git diff --staged")
+        stdout, stderr, code = self._run_git(["diff", "--staged"])
         if code != 0:
-            raise RuntimeError(f"git diff --staged failed (exit {code})")
-        return out
+            raise RuntimeError(f"git diff --staged failed (exit {code}): {stderr.strip()}")
+        return stdout
 
     def git_commit(self, message: str, files: list[str] | None = None) -> str:
         if files is not None:
             # Stage explicitly listed files first.
             for f in files:
-                _, code = self.shell(f"git add -- {self._shquote(f)}")
+                _, stderr, code = self._run_git(["add", "--", f])
                 if code != 0:
-                    raise RuntimeError(f"git add {f} failed (exit {code})")
+                    raise RuntimeError(f"git add {f} failed (exit {code}): {stderr.strip()}")
 
         # Commit using -m; avoid --no-verify / --no-gpg-sign / --amend per Protocol contract.
-        out, code = self.shell(f"git commit -m {self._shquote(message)}")
+        _, stderr, code = self._run_git(["commit", "-m", message])
         if code != 0:
-            raise RuntimeError(f"git commit failed (exit {code}): {out}")
+            raise RuntimeError(f"git commit failed (exit {code}): {stderr.strip()}")
 
         # Return the new commit SHA.
-        sha, code = self.shell("git rev-parse HEAD")
+        stdout, stderr, code = self._run_git(["rev-parse", "HEAD"])
         if code != 0:
-            raise RuntimeError("git rev-parse HEAD failed after commit")
-        return sha.strip()
+            raise RuntimeError(f"git rev-parse HEAD failed (exit {code}): {stderr.strip()}")
+        return stdout.strip()
 
     # ── Internals ──────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _run_git(args: list[str], timeout_seconds: int = 60) -> tuple[str, str, int]:
+        """Run `git <args>` via list-form subprocess (no shell).
+
+        Returns (stdout, stderr, exit_code). Used by git-specific adapter methods
+        that need stderr surfaced for error diagnostics. shell() can't return
+        stderr without breaking the IDEAdapter Protocol's tuple[str, int] contract.
+        """
+        try:
+            result = subprocess.run(
+                ["git", *args],
+                capture_output=True,
+                text=True,
+                timeout=timeout_seconds,
+                check=False,
+            )
+            return result.stdout, result.stderr, result.returncode
+        except subprocess.TimeoutExpired:
+            return "", f"git {args[0] if args else ''} timed out", 124
 
     def _has_claude_binary(self) -> bool:
         return shutil.which(self._claude_binary) is not None

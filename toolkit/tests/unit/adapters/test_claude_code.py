@@ -247,6 +247,31 @@ def test_invoke_skill_failure() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Test 13b: invoke_skill timeout
+# ---------------------------------------------------------------------------
+
+
+def test_invoke_skill_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    """invoke_skill catches TimeoutExpired and raises RuntimeError (consistent
+    exception contract with dispatch_agent's exit_code=124 path)."""
+    adapter = ClaudeCodeAdapter()
+    monkeypatch.setattr(
+        "arcgentic.adapters.claude_code.shutil.which",
+        lambda _: "/usr/local/bin/claude",
+    )
+
+    def _raise_timeout(*args: object, **kwargs: object) -> None:
+        raise subprocess.TimeoutExpired(cmd="claude", timeout=1)
+
+    monkeypatch.setattr(
+        "arcgentic.adapters.claude_code.subprocess.run", _raise_timeout
+    )
+
+    with pytest.raises(RuntimeError, match=r"timed out"):
+        adapter.invoke_skill("plan-round", "R10-test")
+
+
+# ---------------------------------------------------------------------------
 # Test 14: shell (real subprocess)
 # ---------------------------------------------------------------------------
 
