@@ -4578,3 +4578,28 @@ After v0.1.0-alpha.2 MVP completes + all 3 dogfood gates PASS:
 
 ---
 
+
+---
+
+## Completion Record
+
+**Status:** COMPLETED at 2026-05-12
+**Tag:** `v0.1.0-alpha.2` (annotated)
+**Tasks 1-30:** ALL done
+
+**Files created:** 43 in `scripts/ + skills/ + agents/ + schema/ + tests/` (excluding docs/plans/, README, plugin.json, etc.)
+**Tests passing:** 9 test files / 48 assertions, 100% PASS
+**Commits since scaffold (`70b6773`):** 36 (mix of task commits, plan-bug fix, Task 13 split, dogfood Gate 2 artifacts)
+
+**Dogfood gates:**
+- **Gate 1 (Replay)**: STRUCTURAL PASS — see `tests/dogfood/replay-r10-l3-llm/RESULT.md`. arcgentic verdict-template can faithfully express the Moirai R10-L3-llm verdict content; 4/4 material-equivalence criteria match; 7/9 section mappings clean (2 weak mappings represent arcgentic improvements over Moirai's patterns, not gaps).
+- **Gate 2 (Live run)**: PASS — see `tests/dogfood/gate-2-live-run/RESULT.md`. The `v0.1.0-alpha.2-meta` round was driven end-to-end through the state machine; all 3 mechanical gates fired and PASSED on real artifacts; state walked `intake → planning → awaiting_dev_start → dev_in_progress → awaiting_audit → audit_in_progress → passed → closed` with zero `--skip-gates` overrides.
+- **Gate 3 (Cross-project)**: DEFERRED — see `tests/dogfood/gate-3-cross-project/PROTOCOL.md`. Documented protocol with 7-item portability checklist; actual run scheduled pre-v1.0.0 stable.
+
+**Plan-bug fixes (surfaced during execution):**
+- Fix #1 (commit `38d6c2f`): `test-helpers.sh` `ARCGENTIC_ROOT` path-resolution missing `/..` + `assert_contains` / `assert_not_contains` missing `grep --` separator. Cascade bug; founder approved source-fix policy P1.
+- Plan note inline (commit `e7efcf3`): `state.test.sh` test #5/#6 corrected to source-side gate semantics (matched the function's documented behavior + `transition.sh` usage).
+- Plan note inline (commit `53c9de8`): `schema/state.schema.json` `current_round.id` `minLength: 1` removed — intake state has empty id; constraint was incorrectly strict.
+- Plan checkpoint arithmetic note (Phase 1: 17 vs 19 actual; Phase 2: 12 vs 13 actual; Phase 3: ok). Plan's checkpoint count formulas had typos; real component counts are healthy.
+
+**Forward plan:** v0.2 will add the remaining 6 skills + 7 agents (plan-round + execute-round + track-refs + codify-lesson + cross-session-handoff + their sub-agents) per the post-MVP roadmap section. Gate 3 (cross-project execution) is scheduled for pre-v0.1.0-stable tagging (i.e., after v0.2 functionality lands and before removing the `-alpha` tag).
