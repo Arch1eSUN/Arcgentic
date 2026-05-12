@@ -1,0 +1,65 @@
+#!/opt/homebrew/bin/bash
+# pre-commit hook — arcgentic audit-check enforcement on staged audit handoffs.
+#
+# Triggered on every `git commit`. Scans the staged file list (excluding deletions
+# and external-audit-verdict files) for paths under docs/audits/ that match
+# the audit-handoff pattern. For each match, runs `arcgentic audit-check
+# --strict-extended` and aborts the commit on any failure.
+#
+# Install:
+#   git config core.hooksPath .githooks
+#
+# Bypass (use sparingly + only for emergencies):
+#   git commit --no-verify
+#
+# Per arcgentic spec § 6.1.
+
+set -euo pipefail
+
+# Exit gracefully if not a git repo (defensive — should never happen)
+if ! git rev-parse --git-dir > /dev/null 2>&1; then
+    echo "[pre-commit] not in a git repo; skipping audit-check hook"
+    exit 0
+fi
+
+# Find staged audit handoffs under docs/audits/ (excluding deletions + external verdicts)
+mapfile -t staged_audits < <(
+    git diff --cached --name-only --diff-filter=ACMR \
+        | grep -E '^docs/audits/.*\.md$' \
+        | grep -vE 'external-audit-verdict\.md$' \
+        || true
+)
+
+if [ "${#staged_audits[@]}" -eq 0 ]; then
+    # No audit handoffs staged → nothing to check
+    exit 0
+fi
+
+# Verify arcgentic CLI is available
+if ! command -v arcgentic >/dev/null 2>&1; then
+    echo "[pre-commit] arcgentic CLI not found on PATH"
+    echo "[pre-commit] install via: pipx install arcgentic   (or: cd toolkit && pip install -e \".[dev]\")"
+    echo "[pre-commit] to bypass this hook: git commit --no-verify   (NOT recommended)"
+    exit 1
+fi
+
+# Run audit-check on each staged audit handoff
+failed=0
+for audit_path in "${staged_audits[@]}"; do
+    echo "[pre-commit] running audit-check --strict-extended on $audit_path"
+    if ! arcgentic audit-check "$audit_path" --strict-extended; then
+        failed=$((failed + 1))
+        echo "[pre-commit] FAIL: $audit_path"
+    fi
+done
+
+if [ "$failed" -gt 0 ]; then
+    echo ""
+    echo "[pre-commit] $failed audit handoff(s) failed audit-check; refusing to commit."
+    echo "[pre-commit] fix the failing facts + re-stage, then commit again."
+    echo "[pre-commit] emergency bypass: git commit --no-verify   (audit-trail will show the deviation)"
+    exit 1
+fi
+
+echo "[pre-commit] ${#staged_audits[@]} audit handoff(s) passed audit-check --strict-extended"
+exit 0
