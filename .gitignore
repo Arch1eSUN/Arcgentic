@@ -7,6 +7,9 @@
 *.swp
 *.swo
 
+# Claude Code agent state (worktree metadata + per-session settings)
+.claude/
+
 # Logs
 *.log
 
