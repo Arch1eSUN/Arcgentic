@@ -16,7 +16,7 @@
 
 set -uo pipefail
 
-ARCGENTIC_ROOT="${ARCGENTIC_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+ARCGENTIC_ROOT="${ARCGENTIC_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 export ARCGENTIC_ROOT
 
 __TESTS_RUN=0
@@ -45,10 +45,10 @@ assert_neq() {
   if [ "$1" != "$2" ]; then __pass; else __fail "expected != '$2', got '$1'"; fi
 }
 assert_contains() {
-  if printf "%s" "$1" | grep -qF "$2"; then __pass; else __fail "missing '$2' in: $1"; fi
+  if printf "%s" "$1" | grep -qF -- "$2"; then __pass; else __fail "missing '$2' in: $1"; fi
 }
 assert_not_contains() {
-  if printf "%s" "$1" | grep -qF "$2"; then __fail "unexpected '$2' in: $1"; else __pass; fi
+  if printf "%s" "$1" | grep -qF -- "$2"; then __fail "unexpected '$2' in: $1"; else __pass; fi
 }
 assert_file_exists() {
   if [ -f "$1" ]; then __pass; else __fail "file missing: $1"; fi
