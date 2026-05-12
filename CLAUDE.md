@@ -11,6 +11,7 @@ You are a **dev session** continuing arcgentic development.
 - **Previous milestone:** v0.1.0-alpha.2 MVP, tagged @ `2efea61` on `main`, fully pushed to `origin/main`. See `CLAUDE-v0.1.0-handoff.md` for that session's context (archived).
 - **Current milestone:** v0.2.0 — full role coverage (the P0 group in spec § 19.3 three-phase split).
 - **Build contract for this session:** [`docs/plans/2026-05-13-arcgentic-v0.2.0-spec.md`](docs/plans/2026-05-13-arcgentic-v0.2.0-spec.md) (3366 LOC / 23 sections, self-contained — read in full before Task 1).
+- **⚠ Spec Amendment 01 — AUTHORITATIVE** (overrides spec § 18 / § 21.5 / § 22 directory paths): [`docs/plans/2026-05-13-arcgentic-v0.2.0-spec-amendment-01-layout.md`](docs/plans/2026-05-13-arcgentic-v0.2.0-spec-amendment-01-layout.md). **Read this BEFORE spec § 18.** Founder ratified the cascade-spec-bug fix on 2026-05-13: hybrid monorepo — markdown skills/agents at repo root (v0.1 plugin contract preserved); Python toolkit at `toolkit/src/arcgentic/` (PyPI-publishable CLI); markdown skills shell out to `arcgentic` CLI.
 
 You execute the spec end-to-end for the **P0 release only** (v0.2.0 release; ~18h estimated). P1 (v0.2.1) and P2 (v0.2.2) are out of scope for this session.
 
@@ -116,7 +117,8 @@ Per spec § 19.3:
 ## 5. Read first (in this order, before sub-phase a)
 
 1. **`CLAUDE.md`** (this file) — orientation (you're doing it now)
-2. **[`docs/plans/2026-05-13-arcgentic-v0.2.0-spec.md`](docs/plans/2026-05-13-arcgentic-v0.2.0-spec.md)** — THE BUILD CONTRACT. Read fully, especially:
+2. **[`docs/plans/2026-05-13-arcgentic-v0.2.0-spec-amendment-01-layout.md`](docs/plans/2026-05-13-arcgentic-v0.2.0-spec-amendment-01-layout.md)** — **AUTHORITATIVE** Path C hybrid-monorepo layout (overrides spec § 18 / § 21.5 / § 22). Read BEFORE the spec.
+3. **[`docs/plans/2026-05-13-arcgentic-v0.2.0-spec.md`](docs/plans/2026-05-13-arcgentic-v0.2.0-spec.md)** — THE BUILD CONTRACT. Read fully, especially:
    - § 0 (scope + reading order)
    - § 1 (8 foundational principles)
    - § 2 (16-term domain vocabulary)
@@ -124,10 +126,11 @@ Per spec § 19.3:
    - § 5 (5 P0+P1+P2 agents — read planner / developer / ba-designer / cr-reviewer / se-contract entries for sub-phase c)
    - § 19 (implementation order + dependency graph — your task structure)
    - § 20 (acceptance criteria — your verification checklist)
-3. **`plugin.json`** — current declared skills + agents list (8 of 10 skills + 2 of 9 agents implemented; v0.2.0 adds 2 skills + 5 agents)
-4. **`schema/state.schema.json`** — state.yaml schema (current); may need extension for `4-commit chain` field + ba_design_doc + self_audit_doc fields per spec § 13
-5. **`CLAUDE-v0.1.0-handoff.md`** — for historical context on Phase 1-4 patterns + plan-bug discoveries
-6. **`docs/plans/2026-05-12-arcgentic-mvp-plan.md` § Completion Record** — final state of v0.1.0; do not re-execute, only reference
+   - When § 18 / § 21.5 / § 22 conflict with amendment 01: amendment wins
+4. **`plugin.json`** — current declared skills + agents list (5 of 10 skills + 2 of 9 agents implemented; v0.2.0 P0 adds 2 skills + 5 agents)
+5. **`schema/state.schema.json`** — state.yaml schema (current); may need extension for `4-commit chain` field + ba_design_doc + self_audit_doc fields per spec § 13
+6. **`CLAUDE-v0.1.0-handoff.md`** — for historical context on Phase 1-4 patterns + plan-bug discoveries
+7. **`docs/plans/2026-05-12-arcgentic-mvp-plan.md` § Completion Record** — final state of v0.1.0; do not re-execute, only reference
 
 ---
 
