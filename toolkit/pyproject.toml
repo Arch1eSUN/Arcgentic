@@ -1,0 +1,73 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "arcgentic"
+version = "0.2.0-alpha.1"
+description = "Agentic harness for rigorous round-driven development — Python CLI for the arcgentic Claude Code plugin"
+readme = "README.md"
+requires-python = ">=3.13"
+license = { file = "../LICENSE" }
+authors = [{ name = "Arc Studio" }]
+keywords = ["agentic-harness", "round-driven-development", "claude-code", "ide-adapter"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Quality Assurance",
+]
+dependencies = [
+    "pyyaml>=6.0",
+    "jsonschema>=4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "mypy>=1.14",
+    "pytest>=8.0",
+    "ruff>=0.15",
+]
+
+[project.scripts]
+arcgentic = "arcgentic.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/Arch1eSUN/Arcgentic"
+Repository = "https://github.com/Arch1eSUN/Arcgentic"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/arcgentic"]
+
+# === Quality gates per spec § 17 ===
+
+[tool.mypy]
+strict = true
+python_version = "3.13"
+files = ["src/", "tests/"]
+exclude = ["build/", "dist/"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "--strict-markers"
+markers = [
+    "integration: slow integration tests (deselect with '-m \"not integration\"')",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+exclude = ["build/", "dist/"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F",   # default
+    "I",             # isort
+    "UP",            # pyupgrade
+    "B",             # bugbear
+    "A",             # builtins shadowing
+    "N",             # pep8-naming
+]
+ignore = []
