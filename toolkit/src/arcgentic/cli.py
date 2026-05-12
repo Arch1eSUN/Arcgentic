@@ -5,9 +5,8 @@ Subcommands wired in this module:
   → calls skills_impl.plan_round.run(...)
 - `arcgentic execute-round-impl --round=R --handoff=PATH [--dry-run]`
   → calls skills_impl.execute_round.run(...)
-
-Future subcommands (later tasks):
-- `arcgentic audit-check <handoff> [--strict|--strict-extended]` (d.1)
+- `arcgentic audit-check <audit_file> [--strict|--strict-extended]`
+  → calls audit_check.main(...)
 
 CLI is the bridge between markdown skills (which shell out via Claude Code's
 Bash tool) and the Python toolkit (which holds the actual algorithms).
@@ -87,6 +86,27 @@ def main(argv: list[str] | None = None) -> int:
         help="Skip all git commits; return planned phases",
     )
 
+    # audit-check
+    audit_check_parser = subparsers.add_parser(
+        "audit-check",
+        help="Verify mechanical facts in an audit handoff doc.",
+    )
+    audit_check_parser.add_argument(
+        "audit_file",
+        help="Path to audit handoff markdown",
+    )
+    audit_check_parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Exit 1 on any FAIL or SKIP",
+    )
+    audit_check_parser.add_argument(
+        "--strict-extended",
+        action="store_true",
+        dest="strict_extended",
+        help="Also run AC-1 (3 clauses) + AC-3 checks; exit 1 on violation",
+    )
+
     args = parser.parse_args(argv)
 
     if args.command == "plan-round-impl":
@@ -113,6 +133,16 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(er_result.summary())
         return er_result.exit_code
+
+    elif args.command == "audit-check":
+        from .audit_check import main as ac_main
+
+        extra: list[str] = []
+        if args.strict:
+            extra.append("--strict")
+        if args.strict_extended:
+            extra.append("--strict-extended")
+        return ac_main([args.audit_file, *extra])
 
     parser.print_help()
     return 1
