@@ -1,6 +1,6 @@
 {
   "name": "arcgentic",
-  "version": "0.1.0-alpha.2",
+  "version": "0.2.0-alpha.1",
   "description": "Agentic harness for rigorous round-driven development. Orchestrates planning, execution, external audit, and reference tracking across roles — with mechanically verifiable state machine, fact-table audit gates, and lesson codification.",
   "author": "Arc Studio",
   "license": "MIT",
@@ -45,5 +45,5 @@
   "scripts_dir": "scripts/",
   "schemas_dir": "schema/",
   "hooks_dir": "hooks/",
-  "status": "alpha.2 — MVP four-pack landed (5 skills + 2 sub-agents + state machine + 3 gates + 9 test files / 48 assertions). Gate 1 structural-fidelity PASS against Moirai R10-L3-llm; Gate 2 live-run dogfood PASS; Gate 3 cross-project deferred to pre-v1.0"
+  "status": "v0.2.0-alpha.1 — v0.2.0 P0 complete: full role coverage (plan-round + execute-round skills + 5 new agents [planner / developer / ba-designer / cr-reviewer / se-contract] + audit_check engine + 2 hooks). 251 pytest tests + 6 bash tests; mypy --strict + ruff clean. 4 forward-debts registered (ER-RETRY / ER-AUDIT-GATE-4 / ER-AUDIT-FACTS / ER-STATE-ROW) for v0.2.1+. P1/P2 (codify-lesson, track-refs, cross-session-handoff) remain declarative-ahead."
 }

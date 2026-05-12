@@ -291,31 +291,36 @@ arcgentic/
 
 ## 状态与路线图
 
-### 当前 —— `v0.1.0-alpha`
+### 当前 —— `v0.2.0-alpha.1`
 
 - ✅ 插件 scaffold + JSON Schema (`schema/state.schema.json`)
-- ✅ Foundation：4 个 state 脚本 + 3 个 gate 脚本 + lib 辅助函数 + 测试（按 TDD 纪律 100% 通过）
-- ✅ 5 个 skill：`using-arcgentic`, `pre-round-scan`, `verify-gates`, `audit-round`, `orchestrate-round`
-- ✅ 2 个 sub-agent：`orchestrator`, `auditor`
-- ⏳ Dogfood Gate 1（回放验证）
-- ⏳ Dogfood Gate 2（在 arcgentic-on-arcgentic 上跑 live run）
+- ✅ Foundation：4 个 state 脚本 + 3 个 gate 脚本 + lib 辅助函数 + 测试（48 个 bash assertion，按 TDD 纪律 100% 通过）—— 来自 v0.1.0
+- ✅ **新增 Python toolkit**（`toolkit/` 目录，Path C hybrid monorepo）：
+  - 6 个 IDE adapter 实现（ClaudeCode 标准 + Cursor + VSCode-Codex + Codex CLI + Inline 兜底）+ `detect_adapter()` 自动检测
+  - audit_check 引擎，支持 AC-1 + AC-3 机械事实核查
+  - 4 质量门聚合器（`quality-gate-enforce`）
+  - 251 个 pytest 单元 + 属性 + 集成测试；mypy --strict 通过；ruff 通过
+- ✅ 7 个 markdown skill（5 个来自 v0.1.0 + plan-round + execute-round 新增）
+- ✅ 7 个 markdown agent（2 个来自 v0.1.0 + planner + developer + ba-designer + cr-reviewer + se-contract 新增）
+- ✅ 2 个 git/CC hook（pre-commit-fact-check Bash + quality-gate-enforce Python）
+- ✅ 3 个 handoff 模板 + 3 个收尾模板（18/12/10 章节 handoff + BA 设计 + 自审 + 外审 verdict）
+- ✅ Dogfood Gate 1（对 Moirai R10-L3-llm verdict 回放验证 —— PASS，来自 v0.1.0）
+- ✅ Dogfood Gate 2（v0.1.0-alpha.2-meta round 闭环 PASS —— 来自 v0.1.0）
+- ✅ Dogfood Gate 2 v0.2.0（协议已记录于 `tests/dogfood/gate-2-v0.2.0/PROTOCOL.md`；live execute-round 运行计划在 release 后执行）
 - ⏳ Dogfood Gate 3（跨项目可移植性）—— 推迟到 pre-stable
 
-### 下一版 —— `v0.2.0`
+### 下一版 —— `v0.2.1`
 
-完整角色覆盖：
-- `plan-round` skill + `planner` sub-agent
-- `execute-round` skill + `developer` sub-agent
-- `track-refs` skill + `ref-tracker` sub-agent
 - `codify-lesson` skill + `lesson-codifier` sub-agent
-- `cross-session-handoff` skill
+- `track-refs` skill + `ref-tracker` sub-agent
+- `round-boundary-lesson-scan` hook（P1）
+- ER-AUDIT-GATE-4 集成（execute-round Phase 3 调用 audit-check）
+- ER-AUDIT-FACTS 自动生成（从 commit chain 机械提取 fact table）
+- ER-RETRY：sub-agent 派遣的带上下文重试循环
 
-### 之后 —— `v0.3.0`
+### 之后 —— `v0.2.2`
 
-Hooks 层：
-- `pre-commit-round-id-required.sh`
-- `post-commit-update-state.sh`
-- `pre-push-gate-verification.sh`
+- `cross-session-handoff` skill（P2）
 
 ### `v1.0.0` 稳定版
 

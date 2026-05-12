@@ -291,32 +291,36 @@ This is non-negotiable, derived from the original Moirai project's `§ 4 cost-di
 
 ## Status & roadmap
 
-### Current — `v0.1.0-alpha.2`
+### Current — `v0.2.0-alpha.1`
 
 - ✅ Plugin scaffold + JSON Schema (`schema/state.schema.json`)
-- ✅ Foundation: 4 state scripts + 3 gate scripts + lib helpers + tests (9 test files / 48 assertions, 100% passing per TDD discipline)
-- ✅ 5 skills: `using-arcgentic`, `pre-round-scan`, `verify-gates`, `audit-round`, `orchestrate-round`
-- ✅ 13 reference docs (8 audit-round + 3 orchestrate-round + 1 pre-round-scan + 1 verify-gates)
-- ✅ 2 sub-agents: `orchestrator`, `auditor`
-- ✅ Dogfood Gate 1 (structural-fidelity replay against Moirai R10-L3-llm verdict — PASS)
-- ✅ Dogfood Gate 2 (live run on arcgentic-on-arcgentic — `v0.1.0-alpha.2-meta` round closed PASS)
+- ✅ Foundation: 4 state scripts + 3 gate scripts + lib helpers + tests (9 test files / 48 bash assertions, 100% passing per TDD discipline) — from v0.1.0
+- ✅ **NEW Python toolkit** at `toolkit/` (Path C hybrid monorepo):
+  - 6 IDE adapter implementations (ClaudeCode canonical + Cursor + VSCode-Codex + Codex CLI + Inline fallback) + `detect_adapter()` auto-detection
+  - audit_check engine with AC-1 + AC-3 mechanical fact-verification
+  - 4 quality gates aggregator (`quality-gate-enforce`)
+  - 251 pytest unit + property + integration tests; mypy --strict clean; ruff clean
+- ✅ 7 markdown skills (5 from v0.1.0 + plan-round + execute-round NEW)
+- ✅ 7 markdown agents (2 from v0.1.0 + planner + developer + ba-designer + cr-reviewer + se-contract NEW)
+- ✅ 2 git/CC hooks (pre-commit-fact-check Bash + quality-gate-enforce Python)
+- ✅ 3 handoff templates + 3 finalization templates (18/12/10-section handoff + BA design + self-audit + external verdict)
+- ✅ Dogfood Gate 1 (structural-fidelity replay against Moirai R10-L3-llm verdict — PASS, from v0.1.0)
+- ✅ Dogfood Gate 2 (v0.1.0-alpha.2-meta round closed PASS — from v0.1.0)
+- ✅ Dogfood Gate 2 v0.2.0 (protocol documented at `tests/dogfood/gate-2-v0.2.0/PROTOCOL.md`; live execute-round run scheduled for post-release)
 - ⏳ Dogfood Gate 3 (cross-project portability) — deferred to pre-stable
 
-### Next — `v0.2.0`
+### Next — `v0.2.1`
 
-Full role coverage:
-- `plan-round` skill + `planner` sub-agent
-- `execute-round` skill + `developer` sub-agent
-- `track-refs` skill + `ref-tracker` sub-agent
 - `codify-lesson` skill + `lesson-codifier` sub-agent
-- `cross-session-handoff` skill
+- `track-refs` skill + `ref-tracker` sub-agent
+- `round-boundary-lesson-scan` hook (P1)
+- ER-AUDIT-GATE-4 integration (execute-round Phase 3 calls audit-check)
+- ER-AUDIT-FACTS auto-generation (mechanical fact table from commit chain)
+- ER-RETRY: retry-with-context loops for sub-agent dispatches
 
-### Later — `v0.3.0`
+### Later — `v0.2.2`
 
-Hooks layer:
-- `pre-commit-round-id-required.sh`
-- `post-commit-update-state.sh`
-- `pre-push-gate-verification.sh`
+- `cross-session-handoff` skill (P2)
 
 ### `v1.0.0` stable
 

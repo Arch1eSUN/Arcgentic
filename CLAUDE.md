@@ -38,9 +38,9 @@ You execute the spec end-to-end for the **P0 release only** (v0.2.0 release; ~18
 | Repo local | `/Users/archiesun/Desktop/Arc Studio/arcgentic/` |
 | Repo remote | `git@github.com:Arch1eSUN/Arcgentic.git` (PUBLIC) |
 | Branch | `main` (tracking `origin/main`) |
-| HEAD at handoff | (will be updated by the next commit — this CLAUDE.md rotation commit) |
+| HEAD at handoff | `4813e4e` (sub-phase d.3 + ruff fix; v0.2.0-alpha.1 release happening now) |
 | Most recent tag | `v0.1.0-alpha.2` @ `2efea61` (annotated, pushed) |
-| Total commits in repo | ~38 (10 pre-MVP + 28 MVP arc since scaffold `70b6773`) |
+| Total commits in repo | ~62 (38 pre-MVP/MVP + ~24 v0.2.0 P0) |
 | Test files | 9 (`scripts/**/*.test.sh` + `tests/integration/full-lifecycle.test.sh`) — 48 assertions, 100% PASS as of v0.1.0-alpha.2 close |
 | Plan file (this session) | [`docs/plans/2026-05-13-arcgentic-v0.2.0-spec.md`](docs/plans/2026-05-13-arcgentic-v0.2.0-spec.md) (3366 LOC) |
 | Prior plan (reference) | [`docs/plans/2026-05-12-arcgentic-mvp-plan.md`](docs/plans/2026-05-12-arcgentic-mvp-plan.md) (4580 LOC, COMPLETED) — read for historical patterns; do NOT re-execute |
