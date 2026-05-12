@@ -64,12 +64,15 @@ def shell(command: str, timeout_seconds: int = 120) -> tuple[str, int]:
         return "", 124
 
 
-def run_git(args: list[str], timeout_seconds: int = 60) -> tuple[str, str, int]:
+def _run_git(args: list[str], timeout_seconds: int = 60) -> tuple[str, str, int]:
     """Run `git <args>` via list-form subprocess (no shell=True).
 
     Returns (stdout, stderr, exit_code). Used by git_diff_staged / git_commit
     which need stderr for error diagnostics — shell() can't return stderr
     without breaking the IDEAdapter Protocol's tuple[str, int] signature.
+
+    Underscore-prefix signals this is an internal helper; callers should use
+    git_diff_staged() and git_commit() (the public surface).
     """
     try:
         result = subprocess.run(
@@ -89,7 +92,7 @@ def git_diff_staged() -> str:
 
     Raises RuntimeError if git exits non-zero (e.g., not in a git repo).
     """
-    stdout, stderr, code = run_git(["diff", "--staged"])
+    stdout, stderr, code = _run_git(["diff", "--staged"])
     if code != 0:
         raise RuntimeError(f"git diff --staged failed (exit {code}): {stderr.strip()}")
     return stdout
@@ -103,15 +106,15 @@ def git_commit(message: str, files: list[str] | None = None) -> str:
     """
     if files is not None:
         for f in files:
-            _, stderr, code = run_git(["add", "--", f])
+            _, stderr, code = _run_git(["add", "--", f])
             if code != 0:
                 raise RuntimeError(f"git add {f} failed (exit {code}): {stderr.strip()}")
 
-    _, stderr, code = run_git(["commit", "-m", message])
+    _, stderr, code = _run_git(["commit", "-m", message])
     if code != 0:
         raise RuntimeError(f"git commit failed (exit {code}): {stderr.strip()}")
 
-    stdout, stderr, code = run_git(["rev-parse", "HEAD"])
+    stdout, stderr, code = _run_git(["rev-parse", "HEAD"])
     if code != 0:
         raise RuntimeError(f"git rev-parse HEAD failed (exit {code}): {stderr.strip()}")
     return stdout.strip()

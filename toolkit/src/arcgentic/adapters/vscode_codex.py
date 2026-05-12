@@ -92,16 +92,22 @@ class VSCodeCodexAdapter:
             )
 
     def invoke_skill(self, skill_name: str, args: str = "") -> str:
-        """Invoke a skill via `codex skill invoke <skill_name> <args>`.
+        """Invoke a skill via `codex skill invoke <skill_name> [<args>]`.
 
         Raises RuntimeError if codex is not on PATH, exits non-zero, or times out.
+        When `args` is empty, it is omitted from the subprocess argv entirely —
+        passing "" as a positional arg is ambiguous for the codex CLI.
         """
         if not shutil.which(self._codex_binary):
             raise RuntimeError(f"`{self._codex_binary}` not found on PATH")
 
+        cmd = [self._codex_binary, "skill", "invoke", skill_name]
+        if args:  # only append args if non-empty
+            cmd.append(args)
+
         try:
             result = subprocess.run(
-                [self._codex_binary, "skill", "invoke", skill_name, args],
+                cmd,
                 capture_output=True,
                 text=True,
                 timeout=600,

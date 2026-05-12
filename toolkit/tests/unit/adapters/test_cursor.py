@@ -135,6 +135,43 @@ def test_dispatch_agent_missing_binary() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Test dispatch_agent call_args pinning
+# ---------------------------------------------------------------------------
+
+
+def test_dispatch_agent_pins_call_args(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin the exact subprocess command Cursor adapter constructs.
+
+    CursorAdapter wraps the prompt with role-prefix because cursor-agent CLI does
+    not accept agent_name as a separate parameter. This contract diverges from
+    the codex adapters (which pass agent_name as a positional argv) and must be
+    preserved.
+    """
+    adapter = CursorAdapter()
+    monkeypatch.setattr(
+        "arcgentic.adapters.cursor.shutil.which",
+        lambda _: "/usr/local/bin/cursor-agent",
+    )
+
+    captured: dict[str, list[str]] = {}
+
+    def _capture(args: list[str], **_kwargs: object) -> object:
+        captured["cmd"] = args
+        return type("R", (), {"stdout": "ok", "stderr": "", "returncode": 0})()
+
+    monkeypatch.setattr(
+        "arcgentic.adapters.cursor.subprocess.run", _capture
+    )
+    adapter.dispatch_agent("developer", "write a test")
+
+    cmd = captured["cmd"]
+    assert cmd[0] == "cursor-agent"
+    assert cmd[1] == "--prompt"
+    assert "Acting as the developer agent:" in cmd[2]
+    assert "write a test" in cmd[2]
+
+
+# ---------------------------------------------------------------------------
 # Test 7: invoke_skill raises NotImplementedError
 # ---------------------------------------------------------------------------
 

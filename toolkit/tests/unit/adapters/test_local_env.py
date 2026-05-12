@@ -109,24 +109,24 @@ def test_shell_timeout() -> None:
 
 
 # ---------------------------------------------------------------------------
-# run_git
+# _run_git
 # ---------------------------------------------------------------------------
 
 
-def test_run_git_success() -> None:
-    """run_git executes `git --version` and returns exit_code=0."""
-    stdout, stderr, code = _local_env.run_git(["--version"])
+def test__run_git_success() -> None:
+    """_run_git executes `git --version` and returns exit_code=0."""
+    stdout, stderr, code = _local_env._run_git(["--version"])
     assert code == 0
     assert "git" in stdout.lower()
 
 
-def test_run_git_empty_args_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
-    """run_git handles TimeoutExpired for empty args list."""
+def test__run_git_empty_args_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    """_run_git handles TimeoutExpired for empty args list."""
     def _raise(*a: object, **k: object) -> None:
         raise subprocess.TimeoutExpired(cmd=["git"], timeout=1)
 
     monkeypatch.setattr("arcgentic.adapters._local_env.subprocess.run", _raise)
-    stdout, stderr, code = _local_env.run_git([])
+    stdout, stderr, code = _local_env._run_git([])
     assert code == 124
     assert stdout == ""
     assert "timed out" in stderr

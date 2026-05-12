@@ -208,6 +208,38 @@ def test_invoke_skill_missing_binary() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Test dispatch_agent call_args pinning
+# ---------------------------------------------------------------------------
+
+
+def test_dispatch_agent_pins_call_args(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin the exact subprocess command CodexCLIAdapter constructs.
+
+    Identical wire format to VSCodeCodexAdapter — codex CLI's `agent dispatch`
+    subcommand is platform-agnostic.
+    """
+    adapter = CodexCLIAdapter()
+    monkeypatch.setattr(
+        "arcgentic.adapters.codex_cli.shutil.which",
+        lambda _: "/usr/local/bin/codex",
+    )
+
+    captured: dict[str, list[str]] = {}
+
+    def _capture(args: list[str], **_kwargs: object) -> object:
+        captured["cmd"] = args
+        return type("R", (), {"stdout": "ok", "stderr": "", "returncode": 0})()
+
+    monkeypatch.setattr(
+        "arcgentic.adapters.codex_cli.subprocess.run", _capture
+    )
+    adapter.dispatch_agent("developer", "write a test")
+
+    cmd = captured["cmd"]
+    assert cmd == ["codex", "agent", "dispatch", "developer", "write a test"]
+
+
+# ---------------------------------------------------------------------------
 # Tests 12-13: filesystem delegation
 # ---------------------------------------------------------------------------
 
@@ -226,3 +258,27 @@ def test_write_file_delegates(tmp_path: Path) -> None:
     adapter = CodexCLIAdapter()
     adapter.write_file(str(target), "codex-cli write")
     assert target.read_text(encoding="utf-8") == "codex-cli write"
+
+
+def test_edit_file_delegates_to_local_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """edit_file delegates to _local_env.edit_file."""
+    adapter = CodexCLIAdapter()
+    calls: list[tuple[str, str, str]] = []
+    monkeypatch.setattr(
+        "arcgentic.adapters._local_env.edit_file",
+        lambda p, o, n: calls.append((p, o, n)),
+    )
+    adapter.edit_file("/some/path", "old", "new")
+    assert calls == [("/some/path", "old", "new")]
+
+
+def test_shell_delegates_to_local_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """shell delegates to _local_env.shell."""
+    adapter = CodexCLIAdapter()
+    monkeypatch.setattr(
+        "arcgentic.adapters._local_env.shell",
+        lambda cmd, timeout_seconds: ("stub-out", 0),
+    )
+    out, code = adapter.shell("echo x")
+    assert out == "stub-out"
+    assert code == 0
