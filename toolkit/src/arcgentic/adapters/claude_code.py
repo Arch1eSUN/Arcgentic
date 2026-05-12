@@ -141,7 +141,7 @@ class ClaudeCodeAdapter:
 
     def edit_file(self, path: str, old: str, new: str) -> None:
         p = Path(path)
-        text = p.read_text()
+        text = p.read_text(encoding="utf-8")
         count = text.count(old)
         if count == 0:
             raise ValueError(f"edit_file: `old` not found in {path}")
@@ -149,7 +149,7 @@ class ClaudeCodeAdapter:
             raise ValueError(
                 f"edit_file: `old` appears {count} times in {path} (ambiguous)"
             )
-        p.write_text(text.replace(old, new, 1))
+        p.write_text(text.replace(old, new, 1), encoding="utf-8")
 
     # ── Shell + git ────────────────────────────────────────────────────────
 
