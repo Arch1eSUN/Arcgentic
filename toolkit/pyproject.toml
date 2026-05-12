@@ -8,7 +8,7 @@ version = "0.2.0-alpha.1"
 description = "Agentic harness for rigorous round-driven development — Python CLI for the arcgentic Claude Code plugin"
 readme = "README.md"
 requires-python = ">=3.13"
-license = { file = "../LICENSE" }
+license = { text = "MIT" }
 authors = [{ name = "Arc Studio" }]
 keywords = ["agentic-harness", "round-driven-development", "claude-code", "ide-adapter"]
 classifiers = [

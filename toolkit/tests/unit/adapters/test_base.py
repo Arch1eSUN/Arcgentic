@@ -98,7 +98,7 @@ class _FullAdapter:
 
 
 def test_ide_adapter_runtime_check_positive() -> None:
-    """An object implementing all 9 methods + platform_name passes isinstance check."""
+    """All 9 Protocol members (8 methods + platform_name attribute) pass isinstance check."""
     adapter = _FullAdapter()
     assert isinstance(adapter, IDEAdapter), (
         "A fully duck-typed adapter must be recognized by runtime_checkable isinstance"

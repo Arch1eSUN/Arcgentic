@@ -15,7 +15,7 @@ Spec reference: docs/plans/2026-05-13-arcgentic-v0.2.0-spec.md § 3.1
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
+from typing import Literal, Protocol, runtime_checkable
 
 
 @dataclass(frozen=True)
@@ -56,7 +56,7 @@ class IDEAdapter(Protocol):
         agent_name: str,
         prompt: str,
         timeout_seconds: int = 600,
-        isolation: str | None = None,  # "worktree" or None
+        isolation: Literal["worktree"] | None = None,
     ) -> AgentDispatchResult:
         """Dispatch a sub-agent.
 
@@ -79,7 +79,15 @@ class IDEAdapter(Protocol):
 
     def write_file(self, path: str, content: str) -> None: ...
 
-    def edit_file(self, path: str, old: str, new: str) -> None: ...
+    def edit_file(self, path: str, old: str, new: str) -> None:
+        """Replace exactly one occurrence of `old` with `new` in file at `path`.
+
+        Match is exact-string (no regex). Implementations MUST raise an error if
+        `old` is not found, or if `old` appears more than once (ambiguous match).
+        For multi-occurrence replacement, callers should invoke `edit_file` multiple
+        times with disambiguating context, or use a higher-level batch API.
+        """
+        ...
 
     def shell(self, command: str, timeout_seconds: int = 120) -> tuple[str, int]:
         """Run a shell command; return (output, exit_code)."""
@@ -88,5 +96,13 @@ class IDEAdapter(Protocol):
     def git_diff_staged(self) -> str: ...
 
     def git_commit(self, message: str, files: list[str] | None = None) -> str:
-        """Stage given files (or all staged if None) and commit. Returns commit SHA."""
+        """Commit staged changes; return the commit SHA.
+
+        If `files` is provided (non-None), stage those files first via `git add <file>...`
+        then commit. If `files` is None, commit whatever is currently in the index without
+        staging anything (caller has already staged).
+
+        Implementations must NOT use `--no-verify`, `--no-gpg-sign`, or `--amend` unless
+        the adapter explicitly documents otherwise.
+        """
         ...
