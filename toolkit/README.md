@@ -13,7 +13,17 @@ Python implementation that markdown skills shell out to.
 ```bash
 cd toolkit
 pip install -e ".[dev]"
-arcgentic --help  # entry point lands in later task (a.4+)
+arcgentic --help
+```
+
+## CLI commands
+
+```bash
+arcgentic plan-round-impl --round R1.0 --type substrate-touching --anchor <sha40>
+arcgentic execute-round-impl --round R1.0 --handoff docs/superpowers/plans/R1.0.md
+arcgentic audit-check docs/audits/R1.0.md --strict-extended
+arcgentic quality-gate-enforce --repo-root .
+arcgentic validate-handoff docs/superpowers/plans/R1.0.md
 ```
 
 ## Quality gates (run from `toolkit/`)
@@ -26,6 +36,9 @@ ruff check .
 
 ## Layout
 
-- `src/arcgentic/adapters/` — IDE adapter Protocol + 5 implementations (this task ships `base.py` only)
-- `src/arcgentic/` (later tasks) — `cli.py`, `audit_check.py`, `skills_impl/`
+- `src/arcgentic/adapters/` — IDE adapter Protocol + implementations
+- `src/arcgentic/skills_impl/` — `plan-round` + `execute-round` implementation backends
+- `src/arcgentic/audit_check.py` — mechanical audit fact checker
+- `src/arcgentic/source_rules.py` — Moirai-derived source-rule contract validators
+- `src/arcgentic/cli.py` — command-line bridge for skills, gates, and validators
 - `tests/unit/`, `tests/integration/` — pytest suites

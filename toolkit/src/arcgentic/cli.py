@@ -7,6 +7,8 @@ Subcommands wired in this module:
   → calls skills_impl.execute_round.run(...)
 - `arcgentic audit-check <audit_file> [--strict|--strict-extended]`
   → calls audit_check.main(...)
+- `arcgentic validate-handoff <handoff_file>`
+  → validates Moirai-derived source-rule handoff contract
 
 CLI is the bridge between markdown skills (which shell out via Claude Code's
 Bash tool) and the Python toolkit (which holds the actual algorithms).
@@ -130,19 +132,29 @@ def main(argv: list[str] | None = None) -> int:
         help="Skip gate 4 (audit-check)",
     )
 
+    # validate-handoff
+    validate_handoff_parser = subparsers.add_parser(
+        "validate-handoff",
+        help="Validate a planning handoff against the source-rule contract.",
+    )
+    validate_handoff_parser.add_argument(
+        "handoff_file",
+        help="Path to planning handoff markdown",
+    )
+
     args = parser.parse_args(argv)
 
     if args.command == "plan-round-impl":
         from .skills_impl.plan_round import run
 
-        result = run(
+        plan_result = run(
             round_name=args.round_name,
             round_type=args.round_type,
             prior_round_anchor=args.prior_round_anchor,
             scope_description=args.scope_description,
         )
-        print(result.summary())
-        return result.exit_code
+        print(plan_result.summary())
+        return plan_result.exit_code
 
     elif args.command == "execute-round-impl":
         from pathlib import Path as _Path
@@ -178,6 +190,15 @@ def main(argv: list[str] | None = None) -> int:
         if args.skip_audit_check:
             qg_extra.append("--skip-audit-check")
         return qg_main(qg_extra)
+
+    elif args.command == "validate-handoff":
+        from pathlib import Path as _Path
+
+        from .source_rules import validate_handoff_file
+
+        handoff_result = validate_handoff_file(_Path(args.handoff_file))
+        print(handoff_result.summary())
+        return 0 if handoff_result.ok else 1
 
     parser.print_help()
     return 1

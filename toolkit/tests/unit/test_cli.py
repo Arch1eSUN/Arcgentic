@@ -212,3 +212,68 @@ def test_default_scope_is_empty_string() -> None:
         )
         call_kwargs = mock_run.call_args.kwargs
         assert call_kwargs["scope_description"] == ""
+
+
+# ---------------------------------------------------------------------------
+# 9. validate-handoff dispatch → returns 0 when source-rule contract passes
+# ---------------------------------------------------------------------------
+
+
+def test_validate_handoff_passes_for_valid_file(tmp_path: Path) -> None:
+    """validate-handoff reads a markdown handoff and returns 0 when valid."""
+    handoff = tmp_path / "handoff.md"
+    handoff.write_text(
+        """# R1.0 — Handoff
+
+## 1. Scope
+Allowed scope: validator only.
+Forbidden scope: no runtime adapters.
+
+## 2. References
+| Reference | Use mode | Why relevant | Exact surfaces to inspect |
+|---|---|---|---|
+| example/repo | Rebuild | Similar state machine | `src/state.ts` |
+
+## 3. Tooling Plan
+Required skills: arcgentic:plan-round.
+Considered but not used: Browser.
+Forbidden tools: paid API calls.
+
+## 4. Implementation tasks
+Add validator.
+
+## 5. Required tests
+Run pytest.
+
+## 6. Required audit facts
+Use fixed commit range.
+
+## 7. Stop condition
+Stop after: commit + push + CI green + audit handoff + worktree clean.
+
+## 8. Devsession message
+Read: docs/plans/R1.0-handoff.md
+Start round: R1.0
+Allowed scope: validator only
+Forbidden scope: no runtime adapters
+Required references/tools: example/repo + pytest
+Required verification: pytest
+Stop after: commit + push + CI green + audit handoff + worktree clean
+""",
+        encoding="utf-8",
+    )
+
+    assert main(["validate-handoff", str(handoff)]) == 0
+
+
+# ---------------------------------------------------------------------------
+# 10. validate-handoff dispatch → returns 1 when source-rule contract fails
+# ---------------------------------------------------------------------------
+
+
+def test_validate_handoff_fails_for_invalid_file(tmp_path: Path) -> None:
+    """validate-handoff returns 1 when required source-rule fields are missing."""
+    handoff = tmp_path / "handoff.md"
+    handoff.write_text("# R1.0 — Handoff\n\n## 1. Scope\nOnly vibes.\n", encoding="utf-8")
+
+    assert main(["validate-handoff", str(handoff)]) == 1
