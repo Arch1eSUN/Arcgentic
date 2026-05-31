@@ -5,6 +5,7 @@ PyPI: https://pypi.org/project/arcgentic/
 
 Assets:
 - GitHub/X/LinkedIn preview: `assets/social-preview.jpg`
+- Minimal X launch card: `assets/x-launch-minimal.jpg`
 - Xiaohongshu cover: `assets/xhs-cover.jpg`
 
 ## One-line positioning
@@ -13,24 +14,17 @@ Arcgentic adds mechanical plan/dev/self-audit/external-audit gates to AI coding 
 
 ## X post
 
-I open-sourced Arcgentic.
+Launching Arcgentic.
 
-It is a Claude Code / Codex / OpenClaw workflow plugin plus a Python CLI for people who do not want AI coding sessions to drift.
+Mechanical gates for AI coding agents:
+plan, build, self-audit, external audit.
 
-The loop is simple:
+Claude Code / Codex / OpenClaw compatible.
+Python CLI on PyPI.
 
-plan -> dev+self-audit -> external audit -> reference tracking
-
-Every step has mechanical gates. If the fact table, handoff, commit chain, or audit contract is wrong, the workflow refuses to advance.
-
-Install:
-
-```bash
 pipx install arcgentic
-arcgentic audit-check --help
-```
 
-Repo: https://github.com/Arch1eSUN/Arcgentic
+https://github.com/Arch1eSUN/Arcgentic
 
 ## X thread
 
