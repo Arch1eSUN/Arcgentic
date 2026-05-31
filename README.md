@@ -1,5 +1,9 @@
 # Arcgentic
 
+<p align="center">
+  <img src="./assets/arcgentic-logo.png" alt="Arcgentic logo" width="168">
+</p>
+
 > **A**rc + **agentic** — agentic harness for rigorous round-driven development.
 
 **中文文档 → [README.zh-CN.md](./README.zh-CN.md)**
@@ -7,12 +11,14 @@
 [![status](https://img.shields.io/badge/status-alpha-orange.svg)](#status)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![version](https://img.shields.io/badge/version-v0.2.2--alpha.3-blueviolet.svg)](#status)
+[![PyPI](https://img.shields.io/pypi/v/arcgentic.svg)](https://pypi.org/project/arcgentic/)
 
-`arcgentic` is a [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) plugin that turns four-role engineering discipline — *planning / development+self-audit / external-audit / reference-tracking* — into a **mechanically-enforced, state-machine-driven workflow**.
+`arcgentic` is a [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) / Codex-compatible plugin plus a Python CLI that turns four-role engineering discipline — *planning / development+self-audit / external-audit / reference-tracking* — into a **mechanically-enforced, state-machine-driven workflow**.
 
 It works as:
-- A **single-session orchestrator** that dispatches role sub-agents via the Claude Code Task tool, OR
-- A **multi-session toolkit** where each Claude session loads one role's skill while a shared `state.yaml` is the inter-session protocol.
+- A **Python CLI** (`arcgentic`) for gates, audits, handoffs, and round utilities
+- A **single-session orchestrator** that dispatches role sub-agents via the Claude Code Task tool
+- A **multi-session toolkit** where each Claude/Codex session loads one role's skill while a shared `state.yaml` is the inter-session protocol
 
 Either way, the state machine + gate scripts make discipline mechanical: if the gate fails, the state machine refuses to advance. No "remember to run audit-check" — the system runs it for you and blocks if it doesn't pass.
 
@@ -55,24 +61,35 @@ Most LLM-assisted development workflows have rigorous *intent* but loose *enforc
 ### Prerequisites
 
 - Bash 4+
-- Python 3.8+
+- Python 3.13+ for the CLI toolkit
 - Git
 - Claude Code ≥ 1.0 (https://claude.com/claude-code)
+- Codex, if you want local Codex plugin use
 - Optional but recommended: `superpowers` plugin + `plugin-dev` plugin
 
 ```bash
 # verify
 bash --version       # >= 4
-python3 --version    # >= 3.8
-python3 -c "import yaml, jsonschema; print('ok')"
+python3 --version    # >= 3.13 for the Python package
 ```
 
-If the last command fails:
+### Method 1 — Python CLI from PyPI
+
+Use this when you want the `arcgentic` command without cloning the repo:
+
 ```bash
-python3 -m pip install --user PyYAML jsonschema
+pipx install arcgentic
+
+# or
+uv tool install arcgentic
+
+arcgentic --help
+arcgentic audit-check --help
 ```
 
-### Method 1 — Claude Code marketplace
+PyPI package: https://pypi.org/project/arcgentic/
+
+### Method 2 — Claude Code marketplace
 
 ```
 /plugin marketplace add Arch1eSUN/Arcgentic
@@ -82,7 +99,7 @@ python3 -m pip install --user PyYAML jsonschema
 This installs the Claude Code plugin from the marketplace manifest at
 `.claude-plugin/marketplace.json`.
 
-### Method 2 — Manual install (alpha + dev)
+### Method 3 — Manual Claude Code install (alpha + dev)
 
 ```bash
 # Clone into Claude Code's user-level skills directory
@@ -104,7 +121,7 @@ Now in any Claude Code session, you can invoke arcgentic skills:
 - `arcgentic:orchestrate-round`
 - ...
 
-### Method 3 — Codex local plugin (alpha + dev)
+### Method 4 — Codex local plugin (alpha + dev)
 
 `arcgentic` also ships a Codex plugin manifest at `.codex-plugin/plugin.json`.
 For local Codex use, copy or clone the repo under your personal plugin folder:
@@ -138,11 +155,12 @@ If you manage Codex plugins through a personal marketplace, add this entry to
 }
 ```
 
-The Python CLI is still installed from `toolkit/`:
+### Method 5 — Source install for toolkit development
 
 ```bash
-cd ~/plugins/arcgentic/toolkit
-python3 -m pip install -e .
+git clone https://github.com/Arch1eSUN/Arcgentic.git arcgentic
+cd arcgentic/toolkit
+python3 -m pip install -e ".[dev]"
 arcgentic --help
 ```
 
@@ -188,7 +206,7 @@ You write the scope. Claude (in planner role) writes the handoff document. State
 
 ### 4. Run dev / audit / close
 
-The orchestrator skill (`arcgentic:orchestrate-round`) walks you through every state, dispatches sub-agents where supported (auditor in MVP, more in v0.2+), and runs every gate before transitions.
+The orchestrator skill (`arcgentic:orchestrate-round`) walks you through every state, dispatches the planner / developer / auditor / reference-tracker sub-agents where appropriate, and runs every gate before transitions.
 
 When the round reaches `closed`, you've completed one full disciplined cycle.
 
@@ -210,11 +228,21 @@ arcgentic/
 │   ├── orchestrate-round/     #   orchestrator role
 │   ├── audit-round/           #   external auditor role
 │   ├── verify-gates/          #   manual gate runner
-│   └── (post-MVP) plan-round, execute-round, track-refs, codify-lesson, ...
+│   ├── plan-round/            #   planner role
+│   ├── execute-round/         #   developer + self-audit role
+│   ├── track-refs/            #   reference tracker role
+│   ├── codify-lesson/         #   lesson codification role
+│   └── cross-session-handoff/ #   multi-session handoff role
 ├── agents/                    # Layer 2: platform-neutral sub-agent definitions
 │   ├── orchestrator.md        #   top-level round driver
 │   ├── auditor.md             #   Task-tool-dispatched external auditor
-│   └── (post-MVP) planner, developer, ref-tracker, lesson-codifier, ...
+│   ├── planner.md             #   planning sub-agent
+│   ├── developer.md           #   development sub-agent
+│   ├── ba-designer.md         #   design review sub-agent
+│   ├── cr-reviewer.md         #   code review sub-agent
+│   ├── se-contract.md         #   contract verification sub-agent
+│   ├── lesson-codifier.md     #   lesson pattern sub-agent
+│   └── ref-tracker.md         #   reference tracker sub-agent
 ├── scripts/                   # Layer 3: state-machine + gate enforcement (Bash)
 │   ├── state/                 #   init / transition / pickup / validate-schema
 │   ├── gates/                 #   handoff-doc / round-commit-chain / verdict-fact-table
@@ -228,12 +256,12 @@ Four layers, top to bottom: skills tell Claude *how to think* in a given role; a
 
 ## The four roles
 
-| Role | Responsibilities | MVP-supported skill | MVP-supported agent |
+| Role | Responsibilities | Current skill | Current agent |
 |------|------------------|--------------------|--------------------|
-| **Planner** | Read scope → write 16-section handoff doc → advance state to `awaiting_dev_start` | ⏳ (post-MVP `plan-round`) | ⏳ |
-| **Developer** | Read handoff → execute task-by-task with inline self-finalization (BA + CR + SE) → produce N-commit chain | ⏳ (post-MVP `execute-round`) | ⏳ |
+| **Planner** | Read scope → write 16-section handoff doc → advance state to `awaiting_dev_start` | ✅ `plan-round` | ✅ `planner` |
+| **Developer** | Read handoff → execute task-by-task with inline self-finalization (BA + CR + SE) → produce N-commit chain | ✅ `execute-round` | ✅ `developer` |
 | **External auditor** | Read handoff + commit chain → write verdict with mechanically-verifiable fact table → apply lesson codification protocol → advance to `passed` or `needs_fix` | ✅ `audit-round` | ✅ `auditor` |
-| **Reference tracker** | Daily git fetch over `references/` → categorize new clones → maintain `INDEX.md` | ⏳ (post-MVP `track-refs`) | ⏳ |
+| **Reference tracker** | Daily git fetch over `references/` → categorize new clones → maintain `INDEX.md` | ✅ `track-refs` | ✅ `ref-tracker` |
 
 Plus a meta-role:
 - **Orchestrator** — drives the state machine end-to-end, dispatches sub-agents when role-switching is needed. ✅ `orchestrate-round` skill + `orchestrator` agent.
@@ -340,7 +368,7 @@ This is non-negotiable, derived from the original Moirai project's `§ 4 cost-di
 
 - ✅ Plugin scaffold + JSON Schema (`schema/state.schema.json`)
 - ✅ Foundation: 4 state scripts + 3 gate scripts + lib helpers + tests (9 test files / 48 bash assertions, 100% passing per TDD discipline) — from v0.1.0
-- ✅ **NEW Python toolkit** at `toolkit/` (Path C hybrid monorepo):
+- ✅ Python toolkit at `toolkit/` (Path C hybrid monorepo):
   - 6 IDE adapter implementations (ClaudeCode canonical + Cursor + VSCode-Codex + Codex CLI + Inline fallback) + `detect_adapter()` auto-detection
   - audit_check engine with AC-1 + AC-3 mechanical fact-verification
   - 4 quality gates aggregator (`quality-gate-enforce`)
@@ -352,6 +380,8 @@ This is non-negotiable, derived from the original Moirai project's `§ 4 cost-di
 - ✅ P1 complete: `codify-lesson`, `track-refs`, `round-boundary-lesson-scan`, RT classifier, pattern detection
 - ✅ P2 complete: `cross-session-handoff` with TTL lock + atomic state writes + history snapshots
 - ✅ execute-round self-audit now runs audit-check instead of reporting ER-AUDIT-GATE-4 skipped
+- ✅ Python CLI published on PyPI as `arcgentic==0.2.2a3`
+- ✅ GitHub Actions trusted publishing workflow for PyPI releases
 - ✅ Claude Code plugin manifest + marketplace at `.claude-plugin/`
 - ✅ Codex local plugin manifest at `.codex-plugin/plugin.json`
 - ✅ Dogfood Gate 1 (structural-fidelity replay against Moirai R10-L3-llm verdict — PASS, from v0.1.0)

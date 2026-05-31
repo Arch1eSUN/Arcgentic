@@ -1,5 +1,9 @@
 # Arcgentic
 
+<p align="center">
+  <img src="./assets/arcgentic-logo.png" alt="Arcgentic logo" width="168">
+</p>
+
 > **A**rc + **agentic** —— 严格轮次驱动开发的 agentic harness（agent 约束容器）。
 
 **English → [README.md](./README.md)**
@@ -7,14 +11,16 @@
 [![status](https://img.shields.io/badge/status-alpha-orange.svg)](#状态与路线图)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![version](https://img.shields.io/badge/version-v0.2.2--alpha.3-blueviolet.svg)](#状态与路线图)
+[![PyPI](https://img.shields.io/pypi/v/arcgentic.svg)](https://pypi.org/project/arcgentic/)
 
-`arcgentic` 是一个 [Claude Code](https://docs.claude.com/zh-CN/docs/claude-code/overview) 插件，把四角色工程纪律 ——*规划 / 开发+自审 / 外审 / 引用追踪* —— 变成一套**机械强制 + 状态机驱动**的工作流。
+`arcgentic` 是一个兼容 [Claude Code](https://docs.claude.com/zh-CN/docs/claude-code/overview) / Codex 的插件，加上一套 Python CLI。它把四角色工程纪律 ——*规划 / 开发+自审 / 外审 / 引用追踪* —— 变成一套**机械强制 + 状态机驱动**的工作流。
 
-它支持两种运行模式：
+它支持三种入口 / 运行模式：
+- **Python CLI**（`arcgentic`）：运行 gate、audit、handoff 和 round 工具
 - **单 session orchestrator 模式**：一个 Claude session 作为总编排器，通过 Task tool 派遣角色 sub-agent
-- **多 session 工具集模式**：每个 Claude session 加载一个角色的 skill，共享的 `state.yaml` 作为 session 间通信协议
+- **多 session 工具集模式**：每个 Claude/Codex session 加载一个角色的 skill，共享的 `state.yaml` 作为 session 间通信协议
 
-两种模式都靠状态机 + 门控脚本把纪律**机械化**：如果质量门没过，状态机拒绝前进。**不需要"记得跑 audit-check"** —— 系统替你跑，不过就拦下来。
+这些入口都靠状态机 + 门控脚本把纪律**机械化**：如果质量门没过，状态机拒绝前进。**不需要"记得跑 audit-check"** —— 系统替你跑，不过就拦下来。
 
 ---
 
@@ -55,24 +61,35 @@
 ### 前置依赖
 
 - Bash 4+
-- Python 3.8+
+- Python 3.13+（CLI toolkit）
 - Git
 - Claude Code ≥ 1.0 (https://claude.com/claude-code)
+- Codex（如果要用 Codex 本地插件）
 - 推荐配套：`superpowers` plugin + `plugin-dev` plugin
 
 ```bash
 # 验证环境
 bash --version       # >= 4
-python3 --version    # >= 3.8
-python3 -c "import yaml, jsonschema; print('ok')"
+python3 --version    # Python package 需要 >= 3.13
 ```
 
-如果最后一条命令报错：
+### 方式 1 —— 从 PyPI 安装 Python CLI
+
+只想使用 `arcgentic` 命令、不想 clone repo 时用这个：
+
 ```bash
-python3 -m pip install --user PyYAML jsonschema
+pipx install arcgentic
+
+# 或者
+uv tool install arcgentic
+
+arcgentic --help
+arcgentic audit-check --help
 ```
 
-### 方式 1 —— Claude Code 插件市场
+PyPI package: https://pypi.org/project/arcgentic/
+
+### 方式 2 —— Claude Code 插件市场
 
 ```
 /plugin marketplace add Arch1eSUN/Arcgentic
@@ -81,7 +98,7 @@ python3 -m pip install --user PyYAML jsonschema
 
 这会从 `.claude-plugin/marketplace.json` 声明的 marketplace 安装 Claude Code 插件。
 
-### 方式 2 —— 手动安装（alpha + 开发模式）
+### 方式 3 —— 手动安装 Claude Code 插件（alpha + 开发模式）
 
 ```bash
 # 克隆到 Claude Code 的用户级 skills 目录
@@ -103,7 +120,7 @@ claude plugin validate ~/.claude/skills/arcgentic
 - `arcgentic:orchestrate-round`
 - ……
 
-### 方式 3 —— Codex 本地插件（alpha + 开发模式）
+### 方式 4 —— Codex 本地插件（alpha + 开发模式）
 
 `arcgentic` 现在也包含 Codex 插件入口：`.codex-plugin/plugin.json`。
 本地 Codex 使用时，把 repo clone 到个人插件目录：
@@ -137,11 +154,12 @@ python3 ~/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py ~/plug
 }
 ```
 
-Python CLI 仍从 `toolkit/` 安装：
+### 方式 5 —— Toolkit 开发者源码安装
 
 ```bash
-cd ~/plugins/arcgentic/toolkit
-python3 -m pip install -e .
+git clone https://github.com/Arch1eSUN/Arcgentic.git arcgentic
+cd arcgentic/toolkit
+python3 -m pip install -e ".[dev]"
 arcgentic --help
 ```
 
@@ -187,7 +205,7 @@ Claude 会加载 `arcgentic:using-arcgentic`，跑 `pickup.sh`，然后回复类
 
 ### 4. 跑 dev / audit / close
 
-`arcgentic:orchestrate-round` 这个 skill 会带你走完每个状态，在 MVP 阶段已经支持的状态点派遣 sub-agent（auditor 已支持，其他在 v0.2+），并在每个转移点跑对应的 gate。
+`arcgentic:orchestrate-round` 这个 skill 会带你走完每个状态，在合适的状态点派遣 planner / developer / auditor / reference-tracker sub-agent，并在每个转移点跑对应的 gate。
 
 当 round 到达 `closed` 状态，你就完成了一个完整的、有纪律的开发循环。
 
@@ -209,11 +227,21 @@ arcgentic/
 │   ├── orchestrate-round/     #   编排器角色
 │   ├── audit-round/           #   外审角色
 │   ├── verify-gates/          #   手动 gate 执行器
-│   └── (post-MVP) plan-round, execute-round, track-refs, codify-lesson, ...
+│   ├── plan-round/            #   规划角色
+│   ├── execute-round/         #   开发 + 自审角色
+│   ├── track-refs/            #   引用追踪角色
+│   ├── codify-lesson/         #   lesson 编码角色
+│   └── cross-session-handoff/ #   多 session 交接角色
 ├── agents/                    # 第 2 层：平台中性的 sub-agent 定义
 │   ├── orchestrator.md        #   总编排器
 │   ├── auditor.md             #   Task-tool 派遣的外审 sub-agent
-│   └── (post-MVP) planner, developer, ref-tracker, lesson-codifier, ...
+│   ├── planner.md             #   规划 sub-agent
+│   ├── developer.md           #   开发 sub-agent
+│   ├── ba-designer.md         #   设计审查 sub-agent
+│   ├── cr-reviewer.md         #   代码审查 sub-agent
+│   ├── se-contract.md         #   contract 验证 sub-agent
+│   ├── lesson-codifier.md     #   lesson 模式 sub-agent
+│   └── ref-tracker.md         #   引用追踪 sub-agent
 ├── scripts/                   # 第 3 层：状态机 + gate 机械强制（Bash）
 │   ├── state/                 #   init / transition / pickup / validate-schema
 │   ├── gates/                 #   handoff-doc / round-commit-chain / verdict-fact-table
@@ -227,12 +255,12 @@ arcgentic/
 
 ## 四个角色
 
-| 角色 | 职责 | MVP 已支持 skill | MVP 已支持 agent |
+| 角色 | 职责 | 当前 skill | 当前 agent |
 |------|------|---------------|----------------|
-| **Planner（规划者）** | 读取 scope → 写 16 章节 handoff doc → 推进到 `awaiting_dev_start` | ⏳ (post-MVP `plan-round`) | ⏳ |
-| **Developer（开发者）** | 读 handoff → 逐 task 执行 + inline 三联自审（BA + CR + SE）→ 产出 N-commit chain | ⏳ (post-MVP `execute-round`) | ⏳ |
+| **Planner（规划者）** | 读取 scope → 写 16 章节 handoff doc → 推进到 `awaiting_dev_start` | ✅ `plan-round` | ✅ `planner` |
+| **Developer（开发者）** | 读 handoff → 逐 task 执行 + inline 三联自审（BA + CR + SE）→ 产出 N-commit chain | ✅ `execute-round` | ✅ `developer` |
 | **External auditor（外审者）** | 读 handoff + commit chain → 写 verdict 含可机械验证的 fact table → 应用 lesson codification 协议 → 推进到 `passed` 或 `needs_fix` | ✅ `audit-round` | ✅ `auditor` |
-| **Reference tracker（引用追踪者）** | 每日 `references/` git fetch → 给新克隆分类 → 维护 `INDEX.md` | ⏳ (post-MVP `track-refs`) | ⏳ |
+| **Reference tracker（引用追踪者）** | 每日 `references/` git fetch → 给新克隆分类 → 维护 `INDEX.md` | ✅ `track-refs` | ✅ `ref-tracker` |
 
 外加一个元角色：
 - **Orchestrator（编排器）** —— 端到端驱动状态机，在角色切换时派遣 sub-agent。✅ `orchestrate-round` skill + `orchestrator` agent。
@@ -339,7 +367,7 @@ arcgentic/
 
 - ✅ 插件 scaffold + JSON Schema (`schema/state.schema.json`)
 - ✅ Foundation：4 个 state 脚本 + 3 个 gate 脚本 + lib 辅助函数 + 测试（48 个 bash assertion，按 TDD 纪律 100% 通过）—— 来自 v0.1.0
-- ✅ **新增 Python toolkit**（`toolkit/` 目录，Path C hybrid monorepo）：
+- ✅ Python toolkit（`toolkit/` 目录，Path C hybrid monorepo）：
   - 6 个 IDE adapter 实现（ClaudeCode 标准 + Cursor + VSCode-Codex + Codex CLI + Inline 兜底）+ `detect_adapter()` 自动检测
   - audit_check 引擎，支持 AC-1 + AC-3 机械事实核查
   - 4 质量门聚合器（`quality-gate-enforce`）
@@ -351,6 +379,8 @@ arcgentic/
 - ✅ P1 完成：`codify-lesson`、`track-refs`、`round-boundary-lesson-scan`、RT classifier、pattern detection
 - ✅ P2 完成：`cross-session-handoff`，包含 TTL lock、atomic state write、history snapshot
 - ✅ execute-round 自审现在运行 audit-check，不再报告 ER-AUDIT-GATE-4 skipped
+- ✅ Python CLI 已发布到 PyPI：`arcgentic==0.2.2a3`
+- ✅ GitHub Actions trusted publishing 工作流已接入 PyPI 发布
 - ✅ Claude Code 插件 manifest + marketplace：`.claude-plugin/`
 - ✅ Codex 本地插件 manifest：`.codex-plugin/plugin.json`
 - ✅ Dogfood Gate 1（对 Moirai R10-L3-llm verdict 回放验证 —— PASS，来自 v0.1.0）
