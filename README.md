@@ -155,7 +155,22 @@ If you manage Codex plugins through a personal marketplace, add this entry to
 }
 ```
 
-### Method 5 — Source install for toolkit development
+### Method 5 — OpenClaw / ClawHub-compatible bundle
+
+`arcgentic` ships `openclaw.plugin.json` so OpenClaw can detect it as a bundle plugin.
+
+```bash
+openclaw plugins install git:github.com/Arch1eSUN/Arcgentic@main
+openclaw plugins inspect arcgentic
+```
+
+After ClawHub publication, the install path becomes:
+
+```bash
+openclaw plugins install clawhub:arcgentic
+```
+
+### Method 6 — Source install for toolkit development
 
 ```bash
 git clone https://github.com/Arch1eSUN/Arcgentic.git arcgentic
@@ -384,6 +399,7 @@ This is non-negotiable, derived from the original Moirai project's `§ 4 cost-di
 - ✅ GitHub Actions trusted publishing workflow for PyPI releases
 - ✅ Claude Code plugin manifest + marketplace at `.claude-plugin/`
 - ✅ Codex local plugin manifest at `.codex-plugin/plugin.json`
+- ✅ OpenClaw / ClawHub bundle manifest at `openclaw.plugin.json`
 - ✅ Dogfood Gate 1 (structural-fidelity replay against Moirai R10-L3-llm verdict — PASS, from v0.1.0)
 - ✅ Dogfood Gate 2 (v0.1.0-alpha.2-meta round closed PASS — from v0.1.0)
 - ✅ Dogfood Gate 2 v0.2.0 (protocol documented at `tests/dogfood/gate-2-v0.2.0/PROTOCOL.md`; live execute-round run scheduled for post-release)
