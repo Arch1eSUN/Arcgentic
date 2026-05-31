@@ -154,19 +154,13 @@ python3 ~/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py ~/plug
 }
 ```
 
-### 方式 5 —— OpenClaw / ClawHub 兼容 bundle
+### 方式 5 —— OpenClaw git-source bundle
 
 `arcgentic` 已包含 `openclaw.plugin.json`，OpenClaw 可以把它识别为 bundle plugin。
 
 ```bash
 openclaw plugins install git:github.com/Arch1eSUN/Arcgentic@main
 openclaw plugins inspect arcgentic
-```
-
-ClawHub 发布完成后，安装路径会变成：
-
-```bash
-openclaw plugins install clawhub:arcgentic
 ```
 
 ### 方式 6 —— Toolkit 开发者源码安装
@@ -398,7 +392,7 @@ arcgentic/
 - ✅ GitHub Actions trusted publishing 工作流已接入 PyPI 发布
 - ✅ Claude Code 插件 manifest + marketplace：`.claude-plugin/`
 - ✅ Codex 本地插件 manifest：`.codex-plugin/plugin.json`
-- ✅ OpenClaw / ClawHub bundle manifest：`openclaw.plugin.json`
+- ✅ OpenClaw git-source bundle manifest：`openclaw.plugin.json`
 - ✅ Dogfood Gate 1（对 Moirai R10-L3-llm verdict 回放验证 —— PASS，来自 v0.1.0）
 - ✅ Dogfood Gate 2（v0.1.0-alpha.2-meta round 闭环 PASS —— 来自 v0.1.0）
 - ✅ Dogfood Gate 2 v0.2.0（协议已记录于 `tests/dogfood/gate-2-v0.2.0/PROTOCOL.md`；live execute-round 运行计划在 release 后执行）

@@ -110,7 +110,7 @@ Body:
 
 - Claude Code plugin
 - Codex local plugin
-- OpenClaw / ClawHub bundle manifest
+- OpenClaw git-source bundle manifest
 - PyPI CLI：`pipx install arcgentic`
 
 适合谁：
@@ -185,10 +185,10 @@ Claude Code install:
 /plugin install arcgentic@arc-studio
 ```
 
-OpenClaw install after ClawHub publish:
+OpenClaw git-source install:
 
 ```bash
-openclaw plugins install clawhub:arcgentic
+openclaw plugins install git:github.com/Arch1eSUN/Arcgentic@main
 ```
 
 Tags:
@@ -199,7 +199,6 @@ ai-coding, claude-code, codex, openclaw, software-audit, developer-tools, workfl
 
 - GitHub repository metadata: updated.
 - OpenClaw manifest: added.
-- ClawHub remote dry-run: passed against `Arch1eSUN/Arcgentic@main`.
-- ClawHub publish: pending authenticated `clawhub login`.
+- OpenClaw git-source install path: documented.
 - GitHub social preview: asset generated, manual upload required in GitHub Settings because GitHub does not expose a supported CLI upload path.
 - X / Xiaohongshu: copy and image assets prepared; publishing requires authenticated browser sessions.
