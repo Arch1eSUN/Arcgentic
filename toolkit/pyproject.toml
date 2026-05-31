@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "arcgentic"
-version = "0.2.2-alpha.1"
+version = "0.2.2-alpha.2"
 description = "Agentic harness for rigorous round-driven development — Python CLI for the arcgentic Claude Code plugin"
 readme = "README.md"
 requires-python = ">=3.13"

@@ -6,7 +6,7 @@
 
 [![status](https://img.shields.io/badge/status-alpha-orange.svg)](#状态与路线图)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-[![version](https://img.shields.io/badge/version-v0.2.2--alpha.1-blueviolet.svg)](#状态与路线图)
+[![version](https://img.shields.io/badge/version-v0.2.2--alpha.2-blueviolet.svg)](#状态与路线图)
 
 `arcgentic` 是一个 [Claude Code](https://docs.claude.com/zh-CN/docs/claude-code/overview) 插件，把四角色工程纪律 ——*规划 / 开发+自审 / 外审 / 引用追踪* —— 变成一套**机械强制 + 状态机驱动**的工作流。
 
@@ -78,7 +78,7 @@ python3 -m pip install --user PyYAML jsonschema
 /plugin install Arch1eSUN/Arcgentic
 ```
 
-> *暂未上线 —— 当前版本是 `v0.2.2-alpha.1`。请使用方式 2。*
+> *暂未上线 —— 当前版本是 `v0.2.2-alpha.2`。请使用方式 2。*
 
 ### 方式 2 —— 手动安装（alpha + 开发模式）
 
@@ -100,6 +100,48 @@ ls ~/.claude/plugins/arcgentic/plugin.json
 - `arcgentic:audit-round`
 - `arcgentic:orchestrate-round`
 - ……
+
+### 方式 3 —— Codex 本地插件（alpha + 开发模式）
+
+`arcgentic` 现在也包含 Codex 插件入口：`.codex-plugin/plugin.json`。
+本地 Codex 使用时，把 repo clone 到个人插件目录：
+
+```bash
+mkdir -p ~/plugins
+cd ~/plugins
+git clone https://github.com/Arch1eSUN/Arcgentic.git arcgentic
+cd arcgentic
+git checkout v0.2.2-alpha.2
+
+# 校验 Codex plugin manifest
+python3 ~/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py ~/plugins/arcgentic
+```
+
+如果你通过 personal marketplace 管理 Codex 插件，把这段加入
+`~/.agents/plugins/marketplace.json`：
+
+```json
+{
+  "name": "arcgentic",
+  "source": {
+    "source": "local",
+    "path": "./plugins/arcgentic"
+  },
+  "policy": {
+    "installation": "AVAILABLE",
+    "authentication": "ON_INSTALL"
+  },
+  "category": "Productivity"
+}
+```
+
+Python CLI 仍从 `toolkit/` 安装：
+
+```bash
+cd ~/plugins/arcgentic/toolkit
+python3 -m pip install -e .
+arcgentic --help
+```
 
 ---
 
@@ -291,7 +333,7 @@ arcgentic/
 
 ## 状态与路线图
 
-### 当前 —— `v0.2.2-alpha.1`
+### 当前 —— `v0.2.2-alpha.2`
 
 - ✅ 插件 scaffold + JSON Schema (`schema/state.schema.json`)
 - ✅ Foundation：4 个 state 脚本 + 3 个 gate 脚本 + lib 辅助函数 + 测试（48 个 bash assertion，按 TDD 纪律 100% 通过）—— 来自 v0.1.0
@@ -307,6 +349,7 @@ arcgentic/
 - ✅ P1 完成：`codify-lesson`、`track-refs`、`round-boundary-lesson-scan`、RT classifier、pattern detection
 - ✅ P2 完成：`cross-session-handoff`，包含 TTL lock、atomic state write、history snapshot
 - ✅ execute-round 自审现在运行 audit-check，不再报告 ER-AUDIT-GATE-4 skipped
+- ✅ Codex 本地插件 manifest：`.codex-plugin/plugin.json`
 - ✅ Dogfood Gate 1（对 Moirai R10-L3-llm verdict 回放验证 —— PASS，来自 v0.1.0）
 - ✅ Dogfood Gate 2（v0.1.0-alpha.2-meta round 闭环 PASS —— 来自 v0.1.0）
 - ✅ Dogfood Gate 2 v0.2.0（协议已记录于 `tests/dogfood/gate-2-v0.2.0/PROTOCOL.md`；live execute-round 运行计划在 release 后执行）
@@ -348,7 +391,7 @@ arcgentic 里**没有**什么：**Moirai 特定实例**（Phase 编号 / fact-sh
 
 ## 参与贡献
 
-当前是 `v0.2.2-alpha.1`，插件在战场验证阶段。如果你有：
+当前是 `v0.2.2-alpha.2`，插件在战场验证阶段。如果你有：
 - **Bug 报告** —— 提 issue，附最小复现步骤
 - **可移植性 bug** —— 提 issue 加 `portability` 标签，注明项目类型 / 操作系统 / Claude Code 版本
 - **功能建议** —— 开 discussion（我们会对照[路线图](#状态与路线图)评估）

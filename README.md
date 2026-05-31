@@ -6,7 +6,7 @@
 
 [![status](https://img.shields.io/badge/status-alpha-orange.svg)](#status)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-[![version](https://img.shields.io/badge/version-v0.2.2--alpha.1-blueviolet.svg)](#status)
+[![version](https://img.shields.io/badge/version-v0.2.2--alpha.2-blueviolet.svg)](#status)
 
 `arcgentic` is a [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) plugin that turns four-role engineering discipline — *planning / development+self-audit / external-audit / reference-tracking* — into a **mechanically-enforced, state-machine-driven workflow**.
 
@@ -78,7 +78,7 @@ python3 -m pip install --user PyYAML jsonschema
 /plugin install Arch1eSUN/Arcgentic
 ```
 
-> *Not available yet — the plugin is currently `v0.2.2-alpha.1`. Use Method 2 for now.*
+> *Not available yet — the plugin is currently `v0.2.2-alpha.2`. Use Method 2 for now.*
 
 ### Method 2 — Manual install (alpha + dev)
 
@@ -100,6 +100,48 @@ Now in any Claude Code session, you can invoke arcgentic skills:
 - `arcgentic:audit-round`
 - `arcgentic:orchestrate-round`
 - ...
+
+### Method 3 — Codex local plugin (alpha + dev)
+
+`arcgentic` also ships a Codex plugin manifest at `.codex-plugin/plugin.json`.
+For local Codex use, copy or clone the repo under your personal plugin folder:
+
+```bash
+mkdir -p ~/plugins
+cd ~/plugins
+git clone https://github.com/Arch1eSUN/Arcgentic.git arcgentic
+cd arcgentic
+git checkout v0.2.2-alpha.2
+
+# Validate Codex plugin manifest
+python3 ~/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py ~/plugins/arcgentic
+```
+
+If you manage Codex plugins through a personal marketplace, add this entry to
+`~/.agents/plugins/marketplace.json`:
+
+```json
+{
+  "name": "arcgentic",
+  "source": {
+    "source": "local",
+    "path": "./plugins/arcgentic"
+  },
+  "policy": {
+    "installation": "AVAILABLE",
+    "authentication": "ON_INSTALL"
+  },
+  "category": "Productivity"
+}
+```
+
+The Python CLI is still installed from `toolkit/`:
+
+```bash
+cd ~/plugins/arcgentic/toolkit
+python3 -m pip install -e .
+arcgentic --help
+```
 
 ---
 
@@ -291,7 +333,7 @@ This is non-negotiable, derived from the original Moirai project's `§ 4 cost-di
 
 ## Status & roadmap
 
-### Current — `v0.2.2-alpha.1`
+### Current — `v0.2.2-alpha.2`
 
 - ✅ Plugin scaffold + JSON Schema (`schema/state.schema.json`)
 - ✅ Foundation: 4 state scripts + 3 gate scripts + lib helpers + tests (9 test files / 48 bash assertions, 100% passing per TDD discipline) — from v0.1.0
@@ -307,6 +349,7 @@ This is non-negotiable, derived from the original Moirai project's `§ 4 cost-di
 - ✅ P1 complete: `codify-lesson`, `track-refs`, `round-boundary-lesson-scan`, RT classifier, pattern detection
 - ✅ P2 complete: `cross-session-handoff` with TTL lock + atomic state writes + history snapshots
 - ✅ execute-round self-audit now runs audit-check instead of reporting ER-AUDIT-GATE-4 skipped
+- ✅ Codex local plugin manifest at `.codex-plugin/plugin.json`
 - ✅ Dogfood Gate 1 (structural-fidelity replay against Moirai R10-L3-llm verdict — PASS, from v0.1.0)
 - ✅ Dogfood Gate 2 (v0.1.0-alpha.2-meta round closed PASS — from v0.1.0)
 - ✅ Dogfood Gate 2 v0.2.0 (protocol documented at `tests/dogfood/gate-2-v0.2.0/PROTOCOL.md`; live execute-round run scheduled for post-release)
@@ -348,7 +391,7 @@ What's NOT in arcgentic: the **specific instances** (Moirai's Phase numbers, fac
 
 ## Contributing
 
-This is `v0.2.2-alpha.1`. The plugin is being battle-tested before opening contributions. If you have:
+This is `v0.2.2-alpha.2`. The plugin is being battle-tested before opening contributions. If you have:
 - **Bug reports** — open an issue with a reproducer
 - **Portability bugs** — open an issue tagged `portability` with the project type / OS / Claude Code version
 - **Feature suggestions** — open a discussion (we'll evaluate against the [forward plan](#status--roadmap))

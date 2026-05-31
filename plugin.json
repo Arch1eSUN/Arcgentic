@@ -1,6 +1,6 @@
 {
   "name": "arcgentic",
-  "version": "0.2.2-alpha.1",
+  "version": "0.2.2-alpha.2",
   "description": "Agentic harness for rigorous round-driven development. Orchestrates planning, execution, external audit, and reference tracking across roles — with mechanically verifiable state machine, fact-table audit gates, and lesson codification.",
   "author": "Arc Studio",
   "license": "MIT",
@@ -45,5 +45,5 @@
   "scripts_dir": "scripts/",
   "schemas_dir": "schema/",
   "hooks_dir": "hooks/",
-  "status": "v0.2.2-alpha.1 — original v0.2 P0/P1/P2 plan complete: plan/dev/audit role coverage, codify-lesson, track-refs, round-boundary-lesson-scan, cross-session-handoff, audit_check-backed execute-round self-audit, 277 pytest tests, mypy --strict clean, ruff clean. OpenSpec + Superpowers Marketplace integration is deferred to v0.3."
+  "status": "v0.2.2-alpha.2 — original v0.2 P0/P1/P2 plan complete: plan/dev/audit role coverage, codify-lesson, track-refs, round-boundary-lesson-scan, cross-session-handoff, audit_check-backed execute-round self-audit, Codex plugin manifest, 277 pytest tests, mypy --strict clean, ruff clean. OpenSpec + Superpowers Marketplace integration is deferred to v0.3."
 }

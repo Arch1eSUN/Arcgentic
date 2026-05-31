@@ -135,7 +135,7 @@ Python 3.13+.
 
 All checks green.
 
-*substrate-touching handoff written by planner agent (arcgentic v0.2.2-alpha.1).*
+*substrate-touching handoff written by planner agent (arcgentic v0.2.2-alpha.2).*
 """
 
 _CANNED_BA_DESIGN = """\
@@ -492,7 +492,7 @@ def test_phase4_pass_verdict(tmp_path: Path) -> None:
     assert "**STATUS: PASS**" in content
     assert "1/1 PASS" in content
     assert "ER-AUDIT-GATE-4" not in content
-    assert "arcgentic v0.2.2-alpha.1" in content
+    assert "arcgentic v0.2.2-alpha.2" in content
     assert "arcgentic v0.2.1-alpha.1" not in content
 
 

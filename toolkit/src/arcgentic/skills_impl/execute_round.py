@@ -3,7 +3,7 @@
 Orchestrates the 4-commit chain per spec § 4.2.3:
 - Phase 1 (commit 1 — entry-admin): handoff doc + CLAUDE.md state-row + vault sync
 - Phase 2 (commit 2 — BA design pass): dispatch ba-designer → write BA design doc
-- Phase 3 (commit 3 — dev body): dispatch developer → 4 quality gates → inline CR + SE
+- Phase 3 (commit 3 — dev body): dispatch developer → pre-audit gates → inline CR + SE
 - Phase 4 (commit 4 — state refresh + audit handoff): compose + run audit-check
 
 Remaining scope reductions (forward-debts in docs/tech-debt.md):
@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 
+from arcgentic import __version__
 from arcgentic.adapters import IDEAdapter, detect_adapter
 from arcgentic.adapters._local_env import shquote
 
@@ -232,7 +233,7 @@ def _compose_self_audit_skeleton(
     return f"""# {round_name} — Self-Audit Handoff
 
 **Round**: {round_name}
-**Authoring agent**: execute-round skill (arcgentic v0.2.2-alpha.1)
+**Authoring agent**: execute-round skill (arcgentic v{__version__})
 **Date**: {today}
 **Audit script**: `arcgentic audit-check docs/audits/{round_name}.md --strict-extended`
 
@@ -328,7 +329,7 @@ This section contains exact command/expected pairs for `arcgentic audit-check`.
 
 ---
 
-*Self-audit handoff for {round_name} written by execute-round skill (arcgentic v0.2.2-alpha.1).*
+*Self-audit handoff for {round_name} written by execute-round skill (arcgentic v{__version__}).*
 """
 
 
@@ -442,7 +443,7 @@ def _phase_dev_body(
     dev_brief = (
         f"Implement the BA design for round {round_name} EXACTLY. The BA design doc was just "
         f"written to {ba_path}. Follow its file decomposition + "
-        f"test plan + D-1..D-N decisions. Run 4 quality gates before reporting done."
+        f"test plan + D-1..D-N decisions. Run mypy, pytest, and ruff before reporting done."
         f"\n\nBA design follows:\n\n{ba_design}"
     )
     dev_result = adapter.dispatch_agent(
