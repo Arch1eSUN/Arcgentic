@@ -42,7 +42,7 @@ def _make_sections(n: int) -> str:
     for i in range(1, n + 1):
         lines.append(f"## {i}. Section {i}\n\nContent for section {i}.\n")
     lines.append(
-        "*substrate-touching handoff written by planner agent (arcgentic v0.2.0-alpha.1).*"
+        "*substrate-touching handoff written by planner agent (arcgentic v0.2.2-alpha.1).*"
     )
     return "\n".join(lines)
 

@@ -9,6 +9,14 @@ Subcommands wired in this module:
   → calls audit_check.main(...)
 - `arcgentic validate-handoff <handoff_file>`
   → validates Moirai-derived source-rule handoff contract
+- `arcgentic codify-lesson`
+  → scans audits for recurring P2/P3 patterns and writes lesson cards
+- `arcgentic track-refs ...`
+  → classifies local reference repos and maintains references/INDEX.md
+- `arcgentic round-boundary-lesson-scan`
+  → hook wrapper around codify-lesson threshold detection
+- `arcgentic cross-session-handoff <action>`
+  → manages .arcgentic/state.yaml with TTL locks and atomic writes
 
 CLI is the bridge between markdown skills (which shell out via Claude Code's
 Bash tool) and the Python toolkit (which holds the actual algorithms).
@@ -142,6 +150,77 @@ def main(argv: list[str] | None = None) -> int:
         help="Path to planning handoff markdown",
     )
 
+    # codify-lesson
+    codify_parser = subparsers.add_parser(
+        "codify-lesson",
+        help="Detect recurring audit patterns and promote lessons.",
+    )
+    codify_parser.add_argument("--audit-dir", default="docs/audits")
+    codify_parser.add_argument("--lessons-dir", default="lessons")
+    codify_parser.add_argument("--amendments-dir", default="mandates/amendments")
+    codify_parser.add_argument("--N", type=int, default=10)
+    codify_parser.add_argument("--dry-run", action="store_true")
+
+    # track-refs
+    track_refs_parser = subparsers.add_parser(
+        "track-refs",
+        help="Maintain references/INDEX.md and emit BA triplet rows.",
+    )
+    track_refs_sub = track_refs_parser.add_subparsers(dest="track_refs_command", required=True)
+    track_add = track_refs_sub.add_parser("add")
+    track_add.add_argument("repo_path")
+    track_add.add_argument("--owner-repo", required=True)
+    track_add.add_argument("--round", dest="round_name", required=True)
+    track_add.add_argument("--index", default="references/INDEX.md")
+    track_add.add_argument("--usage-evidence", required=True)
+    track_add.add_argument("--relevance", default="medium")
+    track_triplet = track_refs_sub.add_parser("triplet")
+    track_triplet.add_argument("repo_path")
+    track_triplet.add_argument("--owner-repo", required=True)
+    track_triplet.add_argument("--round", dest="round_name", required=True)
+    track_triplet.add_argument("--usage-evidence", required=True)
+    track_refresh = track_refs_sub.add_parser("refresh-relevance")
+    track_refresh.add_argument("--index", default="references/INDEX.md")
+    track_refresh.add_argument("--round", dest="round_name", required=True)
+    track_refresh.add_argument("--default-relevance", default="none")
+
+    # round-boundary-lesson-scan
+    lesson_scan_parser = subparsers.add_parser(
+        "round-boundary-lesson-scan",
+        help="Scan recent audits and invoke codify-lesson when thresholds are met.",
+    )
+    lesson_scan_parser.add_argument("--N", type=int, default=10)
+    lesson_scan_parser.add_argument("--audit-dir", default="docs/audits")
+    lesson_scan_parser.add_argument("--lessons-dir", default="lessons")
+    lesson_scan_parser.add_argument("--amendments-dir", default="mandates/amendments")
+    lesson_scan_parser.add_argument("--dry-run", action="store_true")
+
+    # cross-session-handoff
+    cross_parser = subparsers.add_parser(
+        "cross-session-handoff",
+        help="Manage shared .arcgentic/state.yaml across sessions.",
+    )
+    cross_sub = cross_parser.add_subparsers(dest="cross_command", required=True)
+    cross_read = cross_sub.add_parser("read")
+    cross_read.add_argument("--state", default=".arcgentic/state.yaml")
+    cross_write = cross_sub.add_parser("write")
+    cross_write.add_argument("--state", default=".arcgentic/state.yaml")
+    cross_write.add_argument("--session-id", required=True)
+    cross_write.add_argument("--updates", required=True)
+    cross_write.add_argument("--ttl", type=int, default=600)
+    cross_snapshot = cross_sub.add_parser("snapshot")
+    cross_snapshot.add_argument("--state", default=".arcgentic/state.yaml")
+    cross_snapshot.add_argument("--session-id", required=True)
+    cross_snapshot.add_argument("--history-dir", default=None)
+    cross_snapshot.add_argument("--ttl", type=int, default=1800)
+    cross_acquire = cross_sub.add_parser("acquire-lock")
+    cross_acquire.add_argument("--state", default=".arcgentic/state.yaml")
+    cross_acquire.add_argument("--session-id", required=True)
+    cross_acquire.add_argument("--ttl", type=int, default=1800)
+    cross_release = cross_sub.add_parser("release-lock")
+    cross_release.add_argument("--state", default=".arcgentic/state.yaml")
+    cross_release.add_argument("--session-id", required=True)
+
     args = parser.parse_args(argv)
 
     if args.command == "plan-round-impl":
@@ -199,6 +278,115 @@ def main(argv: list[str] | None = None) -> int:
         handoff_result = validate_handoff_file(_Path(args.handoff_file))
         print(handoff_result.summary())
         return 0 if handoff_result.ok else 1
+
+    elif args.command == "codify-lesson":
+        from pathlib import Path as _Path
+
+        from .skills_impl.codify_lesson import run as cl_run
+
+        cl_result = cl_run(
+            audit_dir=_Path(args.audit_dir),
+            lessons_dir=_Path(args.lessons_dir),
+            amendments_dir=_Path(args.amendments_dir),
+            n=args.N,
+            dry_run=args.dry_run,
+        )
+        print(cl_result.summary())
+        return cl_result.exit_code
+
+    elif args.command == "track-refs":
+        from pathlib import Path as _Path
+
+        from .skills_impl.track_refs import (
+            append_to_index,
+            build_reference_entry,
+            emit_triplet_table,
+            refresh_relevance,
+            usage_evidence_from_json,
+        )
+
+        if args.track_refs_command == "refresh-relevance":
+            changed = refresh_relevance(
+                _Path(args.index),
+                args.round_name,
+                default_relevance=args.default_relevance,
+            )
+            print(f"track-refs refresh-relevance: {changed} blocks updated")
+            return 0
+
+        evidence = usage_evidence_from_json(args.usage_evidence)
+        entry = build_reference_entry(
+            repo_path=_Path(args.repo_path),
+            owner_repo=args.owner_repo,
+            round_name=args.round_name,
+            usage_evidence=evidence,
+            relevance=getattr(args, "relevance", "medium"),
+        )
+        if args.track_refs_command == "add":
+            append_to_index(_Path(args.index), entry, args.round_name)
+            print(entry.to_index_block(args.round_name))
+            return 0
+        if args.track_refs_command == "triplet":
+            print(emit_triplet_table([entry]))
+            return 0
+
+    elif args.command == "round-boundary-lesson-scan":
+        from .hooks.round_boundary_lesson_scan import main as rbls_main
+
+        scan_extra: list[str] = [
+            "--N",
+            str(args.N),
+            "--audit-dir",
+            args.audit_dir,
+            "--lessons-dir",
+            args.lessons_dir,
+            "--amendments-dir",
+            args.amendments_dir,
+        ]
+        if args.dry_run:
+            scan_extra.append("--dry-run")
+        return rbls_main(scan_extra)
+
+    elif args.command == "cross-session-handoff":
+        from pathlib import Path as _Path
+
+        from .skills_impl.cross_session_handoff import (
+            acquire_lock,
+            parse_updates_json,
+            read_state,
+            release_lock,
+            snapshot_state,
+            write_state,
+        )
+
+        state_path = _Path(args.state)
+        if args.cross_command == "read":
+            cross_result = read_state(state_path)
+        elif args.cross_command == "write":
+            cross_result = write_state(
+                state_path,
+                session_id=args.session_id,
+                updates=parse_updates_json(args.updates),
+                ttl=args.ttl,
+            )
+        elif args.cross_command == "snapshot":
+            cross_result = snapshot_state(
+                state_path,
+                session_id=args.session_id,
+                history_dir=_Path(args.history_dir) if args.history_dir else None,
+                ttl=args.ttl,
+            )
+        elif args.cross_command == "acquire-lock":
+            cross_result = acquire_lock(state_path, args.session_id, ttl=args.ttl)
+        else:
+            cross_result = release_lock(state_path, args.session_id)
+
+        print(cross_result.message)
+        if cross_result.state is not None:
+            import yaml as _yaml  # type: ignore[import-untyped]
+
+            print(_yaml.safe_dump(cross_result.state, sort_keys=False).strip())
+        return cross_result.exit_code
 
     parser.print_help()
     return 1

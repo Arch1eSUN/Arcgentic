@@ -105,7 +105,7 @@ class _E2EStubAdapter(InlineAdapter):
 
 ---
 
-*Entry-admin handoff written by planner agent (arcgentic v0.2.0-alpha.1).*
+*Entry-admin handoff written by planner agent (arcgentic v0.2.2-alpha.1).*
 """
 
     @staticmethod
@@ -166,7 +166,7 @@ Test round for end-to-end integration.
 
 ---
 
-*BA design for R10-L3-test written by ba-designer agent (arcgentic v0.2.0-alpha.1).*
+*BA design for R10-L3-test written by ba-designer agent (arcgentic v0.2.2-alpha.1).*
 """
 
 
@@ -218,7 +218,8 @@ def test_end_to_end_plan_then_execute(tmp_path: Path) -> None:
     audit_md = er_result.audit_handoff_path.read_text(encoding="utf-8")
     assert "## § 1. Scope" in audit_md
     assert "## § 8. Verdict" in audit_md
-    assert "STATUS: DONE_WITH_CONCERNS" in audit_md  # gate 4 SKIPPED per v0.2.0 P0
+    assert "STATUS: PASS" in audit_md
+    assert er_result.audit_check_pass is True
 
 
 def test_end_to_end_audit_handoff_structure(tmp_path: Path) -> None:

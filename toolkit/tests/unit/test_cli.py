@@ -277,3 +277,121 @@ def test_validate_handoff_fails_for_invalid_file(tmp_path: Path) -> None:
     handoff.write_text("# R1.0 — Handoff\n\n## 1. Scope\nOnly vibes.\n", encoding="utf-8")
 
     assert main(["validate-handoff", str(handoff)]) == 1
+
+
+# ---------------------------------------------------------------------------
+# 11. codify-lesson dispatch → promotes repeated audit patterns
+# ---------------------------------------------------------------------------
+
+
+def test_codify_lesson_dispatch(tmp_path: Path) -> None:
+    audit_dir = tmp_path / "audits"
+    audit_dir.mkdir()
+    for i in range(3):
+        (audit_dir / f"R{i + 1}.md").write_text(
+            "| F | P2 | audit handoff missing immutable evidence |\n",
+            encoding="utf-8",
+        )
+
+    exit_code = main(
+        [
+            "codify-lesson",
+            "--audit-dir",
+            str(audit_dir),
+            "--lessons-dir",
+            str(tmp_path / "lessons"),
+            "--amendments-dir",
+            str(tmp_path / "mandates" / "amendments"),
+        ]
+    )
+
+    assert exit_code == 0
+    assert list((tmp_path / "lessons").glob("lesson-*-*.md"))
+
+
+# ---------------------------------------------------------------------------
+# 12. track-refs add → appends references/INDEX.md
+# ---------------------------------------------------------------------------
+
+
+def test_track_refs_add_dispatch(tmp_path: Path) -> None:
+    repo = tmp_path / "references" / "sample"
+    repo.mkdir(parents=True)
+    (repo / "README.md").write_text("# Sample reference\n", encoding="utf-8")
+    (repo / "LICENSE").write_text("MIT License\n", encoding="utf-8")
+    index = tmp_path / "references" / "INDEX.md"
+
+    exit_code = main(
+        [
+            "track-refs",
+            "add",
+            str(repo),
+            "--owner-repo",
+            "owner/sample",
+            "--round",
+            "R1",
+            "--index",
+            str(index),
+            "--usage-evidence",
+            '{"pattern_only": true}',
+        ]
+    )
+
+    assert exit_code == 0
+    assert "owner/sample" in index.read_text(encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
+# 13. round-boundary-lesson-scan dispatch → supports dry-run
+# ---------------------------------------------------------------------------
+
+
+def test_round_boundary_lesson_scan_dispatch_dry_run(tmp_path: Path) -> None:
+    audit_dir = tmp_path / "audits"
+    audit_dir.mkdir()
+    for i in range(3):
+        (audit_dir / f"R{i + 1}.md").write_text(
+            "| F | P3 | source-rule handoff missing forbidden scope |\n",
+            encoding="utf-8",
+        )
+
+    exit_code = main(
+        [
+            "round-boundary-lesson-scan",
+            "--audit-dir",
+            str(audit_dir),
+            "--lessons-dir",
+            str(tmp_path / "lessons"),
+            "--dry-run",
+        ]
+    )
+
+    assert exit_code == 0
+    assert not (tmp_path / "lessons").exists()
+
+
+# ---------------------------------------------------------------------------
+# 14. cross-session-handoff write/read dispatch
+# ---------------------------------------------------------------------------
+
+
+def test_cross_session_handoff_write_and_read_dispatch(tmp_path: Path) -> None:
+    state = tmp_path / ".arcgentic" / "state.yaml"
+
+    write_exit = main(
+        [
+            "cross-session-handoff",
+            "write",
+            "--state",
+            str(state),
+            "--session-id",
+            "dev-session",
+            "--updates",
+            '{"current_round": "R4"}',
+        ]
+    )
+    read_exit = main(["cross-session-handoff", "read", "--state", str(state)])
+
+    assert write_exit == 0
+    assert read_exit == 0
+    assert "current_round: R4" in state.read_text(encoding="utf-8")

@@ -135,7 +135,7 @@ Python 3.13+.
 
 All checks green.
 
-*substrate-touching handoff written by planner agent (arcgentic v0.2.0-alpha.1).*
+*substrate-touching handoff written by planner agent (arcgentic v0.2.2-alpha.1).*
 """
 
 _CANNED_BA_DESIGN = """\
@@ -345,12 +345,12 @@ def test_phase2_ba_design_written(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 5. Phase 3 (dev body) — quality gates run; gate 4 SKIPPED
+# 5. Phase 3 (dev body) — pre-audit quality gates run
 # ---------------------------------------------------------------------------
 
 
-def test_phase3_quality_gates_run_and_gate4_skipped(tmp_path: Path) -> None:
-    """Phase 3 runs 3 quality gates (mypy/pytest/ruff); gate 4 recorded as SKIPPED."""
+def test_phase3_quality_gates_run_before_audit_check(tmp_path: Path) -> None:
+    """Phase 3 runs mypy/pytest/ruff; Phase 4 owns audit-check after handoff exists."""
     handoff = tmp_path / "handoff.md"
     handoff.write_text(_MINIMAL_HANDOFF, encoding="utf-8")
     stub = _make_default_stub()
@@ -367,9 +367,8 @@ def test_phase3_quality_gates_run_and_gate4_skipped(tmp_path: Path) -> None:
     assert p3.quality_gates.get("mypy") == "PASS"
     assert p3.quality_gates.get("pytest") == "PASS"
     assert p3.quality_gates.get("ruff") == "PASS"
-    assert "SKIPPED" in p3.quality_gates.get("audit-check", ""), (
-        f"Expected audit-check to be SKIPPED, got: {p3.quality_gates.get('audit-check')}"
-    )
+    assert "audit-check" not in p3.quality_gates
+    assert result.phases[3].quality_gates.get("audit-check") == "PASS"
 
 
 # ---------------------------------------------------------------------------
@@ -472,12 +471,12 @@ def test_phase4_audit_handoff_written(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 10. Phase 4 — DONE_WITH_CONCERNS verdict + gate 4 deviation
+# 10. Phase 4 — PASS verdict + audit-check gate
 # ---------------------------------------------------------------------------
 
 
-def test_phase4_done_with_concerns_verdict(tmp_path: Path) -> None:
-    """Audit handoff contains DONE_WITH_CONCERNS verdict and gate 4 deviation note."""
+def test_phase4_pass_verdict(tmp_path: Path) -> None:
+    """Audit handoff contains PASS verdict and audit-check fact table."""
     handoff = tmp_path / "handoff.md"
     handoff.write_text(_MINIMAL_HANDOFF, encoding="utf-8")
     stub = _make_default_stub()
@@ -490,10 +489,9 @@ def test_phase4_done_with_concerns_verdict(tmp_path: Path) -> None:
     )
     assert result.exit_code == 0, result.error
     content = result.audit_handoff_path.read_text()  # type: ignore[union-attr]
-    assert "DONE_WITH_CONCERNS" in content
-    assert "audit-check" in content.lower() or "gate 4" in content.lower()
-    # Deviation should mention ER-AUDIT-GATE-4
-    assert "ER-AUDIT-GATE-4" in content
+    assert "**STATUS: PASS**" in content
+    assert "1/1 PASS" in content
+    assert "ER-AUDIT-GATE-4" not in content
 
 
 # ---------------------------------------------------------------------------
@@ -771,12 +769,12 @@ def test_repo_root_anchors_paths(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 25. Forward-debts mentioned in warnings
+# 25. Closed audit-check debt not mentioned in warnings
 # ---------------------------------------------------------------------------
 
 
-def test_warnings_include_forward_debts(tmp_path: Path) -> None:
-    """result.warnings mentions ER-AUDIT-GATE-4 forward-debt."""
+def test_warnings_do_not_include_closed_audit_check_debt(tmp_path: Path) -> None:
+    """result.warnings no longer mentions ER-AUDIT-GATE-4."""
     handoff = tmp_path / "handoff.md"
     handoff.write_text(_MINIMAL_HANDOFF, encoding="utf-8")
     stub = _make_default_stub()
@@ -788,11 +786,8 @@ def test_warnings_include_forward_debts(tmp_path: Path) -> None:
         repo_root=tmp_path,
     )
     assert result.exit_code == 0, result.error
-    # ER-AUDIT-GATE-4 must appear somewhere in warnings
     warnings_text = " ".join(result.warnings)
-    assert "ER-AUDIT-GATE-4" in warnings_text, (
-        f"Expected ER-AUDIT-GATE-4 in warnings. Got: {result.warnings}"
-    )
+    assert "ER-AUDIT-GATE-4" not in warnings_text
 
 
 # ---------------------------------------------------------------------------
@@ -817,8 +812,8 @@ def test_phase_result_names(tmp_path: Path) -> None:
     assert names == ["entry-admin", "ba-design", "dev-body", "state-refresh"]
 
 
-def test_state_refresh_phase_has_deviation(tmp_path: Path) -> None:
-    """Phase 4 (state-refresh) records gate 4 SKIPPED as a deviation."""
+def test_state_refresh_phase_has_audit_check_pass(tmp_path: Path) -> None:
+    """Phase 4 (state-refresh) records audit-check PASS."""
     handoff = tmp_path / "handoff.md"
     handoff.write_text(_MINIMAL_HANDOFF, encoding="utf-8")
     stub = _make_default_stub()
@@ -832,13 +827,12 @@ def test_state_refresh_phase_has_deviation(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.error
     p4 = result.phases[3]
     assert p4.phase_name == "state-refresh"
-    assert len(p4.deviations) >= 1
-    assert any("audit-check" in d or "SKIPPED" in d or "ER-AUDIT-GATE-4" in d
-               for d in p4.deviations)
+    assert p4.quality_gates["audit-check"] == "PASS"
+    assert p4.deviations == []
 
 
-def test_audit_check_pass_is_false(tmp_path: Path) -> None:
-    """ExecuteRoundResult.audit_check_pass is False (SKIPPED per v0.2.0 P0)."""
+def test_audit_check_pass_is_true(tmp_path: Path) -> None:
+    """ExecuteRoundResult.audit_check_pass is True after Phase 4 audit-check."""
     handoff = tmp_path / "handoff.md"
     handoff.write_text(_MINIMAL_HANDOFF, encoding="utf-8")
     stub = _make_default_stub()
@@ -850,7 +844,7 @@ def test_audit_check_pass_is_false(tmp_path: Path) -> None:
         repo_root=tmp_path,
     )
     assert result.exit_code == 0, result.error
-    assert result.audit_check_pass is False
+    assert result.audit_check_pass is True
 
 
 # ---------------------------------------------------------------------------

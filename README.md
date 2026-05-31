@@ -6,7 +6,7 @@
 
 [![status](https://img.shields.io/badge/status-alpha-orange.svg)](#status)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-[![version](https://img.shields.io/badge/version-v0.1.0--alpha-blueviolet.svg)](#status)
+[![version](https://img.shields.io/badge/version-v0.2.2--alpha.1-blueviolet.svg)](#status)
 
 `arcgentic` is a [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) plugin that turns four-role engineering discipline — *planning / development+self-audit / external-audit / reference-tracking* — into a **mechanically-enforced, state-machine-driven workflow**.
 
@@ -72,13 +72,13 @@ If the last command fails:
 python3 -m pip install --user PyYAML jsonschema
 ```
 
-### Method 1 — Claude Code marketplace (when v0.1.0 stable lands)
+### Method 1 — Claude Code marketplace (when stable lands)
 
 ```
 /plugin install Arch1eSUN/Arcgentic
 ```
 
-> *Not available yet — the plugin is currently `v0.1.0-alpha`. Use Method 2 for now.*
+> *Not available yet — the plugin is currently `v0.2.2-alpha.1`. Use Method 2 for now.*
 
 ### Method 2 — Manual install (alpha + dev)
 
@@ -291,7 +291,7 @@ This is non-negotiable, derived from the original Moirai project's `§ 4 cost-di
 
 ## Status & roadmap
 
-### Current — `v0.2.0-alpha.1`
+### Current — `v0.2.2-alpha.1`
 
 - ✅ Plugin scaffold + JSON Schema (`schema/state.schema.json`)
 - ✅ Foundation: 4 state scripts + 3 gate scripts + lib helpers + tests (9 test files / 48 bash assertions, 100% passing per TDD discipline) — from v0.1.0
@@ -299,28 +299,26 @@ This is non-negotiable, derived from the original Moirai project's `§ 4 cost-di
   - 6 IDE adapter implementations (ClaudeCode canonical + Cursor + VSCode-Codex + Codex CLI + Inline fallback) + `detect_adapter()` auto-detection
   - audit_check engine with AC-1 + AC-3 mechanical fact-verification
   - 4 quality gates aggregator (`quality-gate-enforce`)
-  - 251 pytest unit + property + integration tests; mypy --strict clean; ruff clean
-- ✅ 7 markdown skills (5 from v0.1.0 + plan-round + execute-round NEW)
-- ✅ 7 markdown agents (2 from v0.1.0 + planner + developer + ba-designer + cr-reviewer + se-contract NEW)
-- ✅ 2 git/CC hooks (pre-commit-fact-check Bash + quality-gate-enforce Python)
+  - 277 pytest unit + property + integration tests; mypy --strict clean; ruff clean
+- ✅ 10 markdown skills (v0.1.0 foundation + plan-round + execute-round + codify-lesson + track-refs + cross-session-handoff)
+- ✅ 9 markdown agents (orchestrator/auditor + planner/developer/BA/CR/SE + lesson-codifier + ref-tracker)
+- ✅ Hooks: pre-commit-fact-check, quality-gate-enforce, round-boundary-lesson-scan
 - ✅ 3 handoff templates + 3 finalization templates (18/12/10-section handoff + BA design + self-audit + external verdict)
+- ✅ P1 complete: `codify-lesson`, `track-refs`, `round-boundary-lesson-scan`, RT classifier, pattern detection
+- ✅ P2 complete: `cross-session-handoff` with TTL lock + atomic state writes + history snapshots
+- ✅ execute-round self-audit now runs audit-check instead of reporting ER-AUDIT-GATE-4 skipped
 - ✅ Dogfood Gate 1 (structural-fidelity replay against Moirai R10-L3-llm verdict — PASS, from v0.1.0)
 - ✅ Dogfood Gate 2 (v0.1.0-alpha.2-meta round closed PASS — from v0.1.0)
 - ✅ Dogfood Gate 2 v0.2.0 (protocol documented at `tests/dogfood/gate-2-v0.2.0/PROTOCOL.md`; live execute-round run scheduled for post-release)
 - ⏳ Dogfood Gate 3 (cross-project portability) — deferred to pre-stable
 
-### Next — `v0.2.1`
+### Next — `v0.3.0`
 
-- `codify-lesson` skill + `lesson-codifier` sub-agent
-- `track-refs` skill + `ref-tracker` sub-agent
-- `round-boundary-lesson-scan` hook (P1)
-- ER-AUDIT-GATE-4 integration (execute-round Phase 3 calls audit-check)
-- ER-AUDIT-FACTS auto-generation (mechanical fact table from commit chain)
+- OpenSpec ingestion as upstream spec/source-of-truth layer
+- Superpowers Marketplace capability scan as optional plugin registry input
+- GitHub reference discovery/search feeding `track-refs`
+- Rich execute-round fact generation from commit chain and changed files
 - ER-RETRY: retry-with-context loops for sub-agent dispatches
-
-### Later — `v0.2.2`
-
-- `cross-session-handoff` skill (P2)
 
 ### `v1.0.0` stable
 
@@ -350,7 +348,7 @@ What's NOT in arcgentic: the **specific instances** (Moirai's Phase numbers, fac
 
 ## Contributing
 
-This is `v0.1.0-alpha`. The plugin is being battle-tested before opening contributions. If you have:
+This is `v0.2.2-alpha.1`. The plugin is being battle-tested before opening contributions. If you have:
 - **Bug reports** — open an issue with a reproducer
 - **Portability bugs** — open an issue tagged `portability` with the project type / OS / Claude Code version
 - **Feature suggestions** — open a discussion (we'll evaluate against the [forward plan](#status--roadmap))

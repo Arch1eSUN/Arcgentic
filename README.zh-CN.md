@@ -6,7 +6,7 @@
 
 [![status](https://img.shields.io/badge/status-alpha-orange.svg)](#状态与路线图)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-[![version](https://img.shields.io/badge/version-v0.1.0--alpha-blueviolet.svg)](#状态与路线图)
+[![version](https://img.shields.io/badge/version-v0.2.2--alpha.1-blueviolet.svg)](#状态与路线图)
 
 `arcgentic` 是一个 [Claude Code](https://docs.claude.com/zh-CN/docs/claude-code/overview) 插件，把四角色工程纪律 ——*规划 / 开发+自审 / 外审 / 引用追踪* —— 变成一套**机械强制 + 状态机驱动**的工作流。
 
@@ -72,13 +72,13 @@ python3 -c "import yaml, jsonschema; print('ok')"
 python3 -m pip install --user PyYAML jsonschema
 ```
 
-### 方式 1 —— Claude Code 插件市场（待 v0.1.0 stable 上线）
+### 方式 1 —— Claude Code 插件市场（待 stable 上线）
 
 ```
 /plugin install Arch1eSUN/Arcgentic
 ```
 
-> *暂未上线 —— 当前版本是 `v0.1.0-alpha`。请使用方式 2。*
+> *暂未上线 —— 当前版本是 `v0.2.2-alpha.1`。请使用方式 2。*
 
 ### 方式 2 —— 手动安装（alpha + 开发模式）
 
@@ -291,7 +291,7 @@ arcgentic/
 
 ## 状态与路线图
 
-### 当前 —— `v0.2.0-alpha.1`
+### 当前 —— `v0.2.2-alpha.1`
 
 - ✅ 插件 scaffold + JSON Schema (`schema/state.schema.json`)
 - ✅ Foundation：4 个 state 脚本 + 3 个 gate 脚本 + lib 辅助函数 + 测试（48 个 bash assertion，按 TDD 纪律 100% 通过）—— 来自 v0.1.0
@@ -299,28 +299,26 @@ arcgentic/
   - 6 个 IDE adapter 实现（ClaudeCode 标准 + Cursor + VSCode-Codex + Codex CLI + Inline 兜底）+ `detect_adapter()` 自动检测
   - audit_check 引擎，支持 AC-1 + AC-3 机械事实核查
   - 4 质量门聚合器（`quality-gate-enforce`）
-  - 251 个 pytest 单元 + 属性 + 集成测试；mypy --strict 通过；ruff 通过
-- ✅ 7 个 markdown skill（5 个来自 v0.1.0 + plan-round + execute-round 新增）
-- ✅ 7 个 markdown agent（2 个来自 v0.1.0 + planner + developer + ba-designer + cr-reviewer + se-contract 新增）
-- ✅ 2 个 git/CC hook（pre-commit-fact-check Bash + quality-gate-enforce Python）
+  - 277 个 pytest 单元 + 属性 + 集成测试；mypy --strict 通过；ruff 通过
+- ✅ 10 个 markdown skill（v0.1.0 foundation + plan-round + execute-round + codify-lesson + track-refs + cross-session-handoff）
+- ✅ 9 个 markdown agent（orchestrator/auditor + planner/developer/BA/CR/SE + lesson-codifier + ref-tracker）
+- ✅ Hooks：pre-commit-fact-check、quality-gate-enforce、round-boundary-lesson-scan
 - ✅ 3 个 handoff 模板 + 3 个收尾模板（18/12/10 章节 handoff + BA 设计 + 自审 + 外审 verdict）
+- ✅ P1 完成：`codify-lesson`、`track-refs`、`round-boundary-lesson-scan`、RT classifier、pattern detection
+- ✅ P2 完成：`cross-session-handoff`，包含 TTL lock、atomic state write、history snapshot
+- ✅ execute-round 自审现在运行 audit-check，不再报告 ER-AUDIT-GATE-4 skipped
 - ✅ Dogfood Gate 1（对 Moirai R10-L3-llm verdict 回放验证 —— PASS，来自 v0.1.0）
 - ✅ Dogfood Gate 2（v0.1.0-alpha.2-meta round 闭环 PASS —— 来自 v0.1.0）
 - ✅ Dogfood Gate 2 v0.2.0（协议已记录于 `tests/dogfood/gate-2-v0.2.0/PROTOCOL.md`；live execute-round 运行计划在 release 后执行）
 - ⏳ Dogfood Gate 3（跨项目可移植性）—— 推迟到 pre-stable
 
-### 下一版 —— `v0.2.1`
+### 下一版 —— `v0.3.0`
 
-- `codify-lesson` skill + `lesson-codifier` sub-agent
-- `track-refs` skill + `ref-tracker` sub-agent
-- `round-boundary-lesson-scan` hook（P1）
-- ER-AUDIT-GATE-4 集成（execute-round Phase 3 调用 audit-check）
-- ER-AUDIT-FACTS 自动生成（从 commit chain 机械提取 fact table）
+- OpenSpec ingest，作为上游 spec/source-of-truth 层
+- Superpowers Marketplace capability scan，作为可选 plugin registry 输入
+- GitHub reference discovery/search 接入 `track-refs`
+- 从 commit chain 和 changed files 生成更丰富的 execute-round fact table
 - ER-RETRY：sub-agent 派遣的带上下文重试循环
-
-### 之后 —— `v0.2.2`
-
-- `cross-session-handoff` skill（P2）
 
 ### `v1.0.0` 稳定版
 
@@ -350,7 +348,7 @@ arcgentic 里**没有**什么：**Moirai 特定实例**（Phase 编号 / fact-sh
 
 ## 参与贡献
 
-当前是 `v0.1.0-alpha`，插件在战场验证阶段。如果你有：
+当前是 `v0.2.2-alpha.1`，插件在战场验证阶段。如果你有：
 - **Bug 报告** —— 提 issue，附最小复现步骤
 - **可移植性 bug** —— 提 issue 加 `portability` 标签，注明项目类型 / 操作系统 / Claude Code 版本
 - **功能建议** —— 开 discussion（我们会对照[路线图](#状态与路线图)评估）

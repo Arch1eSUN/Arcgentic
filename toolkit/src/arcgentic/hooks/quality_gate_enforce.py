@@ -7,8 +7,7 @@ Gates (per spec § 17):
 4. arcgentic audit-check on a target handoff (if provided)
 
 Per spec § 6.3, this hook is invoked:
-- By execute-round Phase 3 (programmatically; not yet integrated — ER-AUDIT-GATE-4
-  forward-debt; this module is the Python implementation that ER will eventually call)
+- By execute-round Phase 4 after the self-audit handoff exists
 - By developer agents pre-commit (manual run via `arcgentic quality-gate-enforce`)
 - By Claude Code Stop hook events (if user installs in .claude/hooks/)
 

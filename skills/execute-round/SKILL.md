@@ -53,11 +53,10 @@ When invoked:
 
 5. Report to user: 4 commit SHAs + findings counts + handoff path.
 
-## v0.2.0 P0 known limitations (forward-debts)
+## Known limitations (forward-debts)
 
 - **ER-RETRY**: no retry-with-context loops; if any sub-agent dispatch fails, the run aborts. Re-invoke after fixing the failure manually.
-- **ER-AUDIT-GATE-4**: quality gate 4 (`arcgentic audit-check`) is SKIPPED — the audit-check engine ships in sub-phase d.1. Reports DONE_WITH_CONCERNS to flag the deviation.
-- **ER-AUDIT-FACTS**: self-audit's § 7 mechanical audit facts table is skeletoned with TODO markers. Real auto-generation ships when audit-check integrates.
+- **ER-AUDIT-FACTS-RICH**: self-audit has an audit-check-backed fact table, but rich commit-chain / changed-file fact generation is future work.
 - **ER-STATE-ROW**: Phase 1's CLAUDE.md state-row update is a NO-OP (project-agnostic).
 
 See `docs/tech-debt.md` for the full forward-debt registry.
@@ -74,4 +73,4 @@ See `docs/tech-debt.md` for the full forward-debt registry.
 - `agents/ba-designer.md` / `developer.md` / `cr-reviewer.md` / `se-contract.md` — agents dispatched
 - `templates/ba_design.md` / `self_audit_handoff.md` — output structure templates
 - `toolkit/src/arcgentic/skills_impl/execute_round.py` — Python algorithm
-- spec § 4.2 — full skill specification (v0.2.0 P0 is scope-reduced; see ER-* forward-debts)
+- spec § 4.2 — full skill specification
