@@ -6,7 +6,7 @@
 
 [![status](https://img.shields.io/badge/status-alpha-orange.svg)](#状态与路线图)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-[![version](https://img.shields.io/badge/version-v0.2.2--alpha.2-blueviolet.svg)](#状态与路线图)
+[![version](https://img.shields.io/badge/version-v0.2.2--alpha.3-blueviolet.svg)](#状态与路线图)
 
 `arcgentic` 是一个 [Claude Code](https://docs.claude.com/zh-CN/docs/claude-code/overview) 插件，把四角色工程纪律 ——*规划 / 开发+自审 / 外审 / 引用追踪* —— 变成一套**机械强制 + 状态机驱动**的工作流。
 
@@ -72,27 +72,29 @@ python3 -c "import yaml, jsonschema; print('ok')"
 python3 -m pip install --user PyYAML jsonschema
 ```
 
-### 方式 1 —— Claude Code 插件市场（待 stable 上线）
+### 方式 1 —— Claude Code 插件市场
 
 ```
-/plugin install Arch1eSUN/Arcgentic
+/plugin marketplace add Arch1eSUN/Arcgentic
+/plugin install arcgentic@arc-studio
 ```
 
-> *暂未上线 —— 当前版本是 `v0.2.2-alpha.2`。请使用方式 2。*
+这会从 `.claude-plugin/marketplace.json` 声明的 marketplace 安装 Claude Code 插件。
 
 ### 方式 2 —— 手动安装（alpha + 开发模式）
 
 ```bash
-# 克隆到 Claude Code 的用户级 plugins 目录
-mkdir -p ~/.claude/plugins
-cd ~/.claude/plugins
+# 克隆到 Claude Code 的用户级 skills 目录
+mkdir -p ~/.claude/skills
+cd ~/.claude/skills
 git clone git@github.com:Arch1eSUN/Arcgentic.git arcgentic
 
 # 或者用 HTTPS:
 git clone https://github.com/Arch1eSUN/Arcgentic.git arcgentic
 
 # 验证
-ls ~/.claude/plugins/arcgentic/plugin.json
+ls ~/.claude/skills/arcgentic/.claude-plugin/plugin.json
+claude plugin validate ~/.claude/skills/arcgentic
 ```
 
 安装后，在任意 Claude Code session 里可以调用 arcgentic 的 skills：
@@ -111,7 +113,7 @@ mkdir -p ~/plugins
 cd ~/plugins
 git clone https://github.com/Arch1eSUN/Arcgentic.git arcgentic
 cd arcgentic
-git checkout v0.2.2-alpha.2
+git checkout v0.2.2-alpha.3
 
 # 校验 Codex plugin manifest
 python3 ~/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py ~/plugins/arcgentic
@@ -152,7 +154,7 @@ arcgentic --help
 ```bash
 cd ~/projects/your-project
 
-bash ~/.claude/plugins/arcgentic/scripts/state/init.sh \
+bash ~/.claude/skills/arcgentic/scripts/state/init.sh \
   --project-root . \
   --project-name "your-project" \
   --round-naming "phase.round[.fix]"
@@ -333,7 +335,7 @@ arcgentic/
 
 ## 状态与路线图
 
-### 当前 —— `v0.2.2-alpha.2`
+### 当前 —— `v0.2.2-alpha.3`
 
 - ✅ 插件 scaffold + JSON Schema (`schema/state.schema.json`)
 - ✅ Foundation：4 个 state 脚本 + 3 个 gate 脚本 + lib 辅助函数 + 测试（48 个 bash assertion，按 TDD 纪律 100% 通过）—— 来自 v0.1.0
@@ -349,6 +351,7 @@ arcgentic/
 - ✅ P1 完成：`codify-lesson`、`track-refs`、`round-boundary-lesson-scan`、RT classifier、pattern detection
 - ✅ P2 完成：`cross-session-handoff`，包含 TTL lock、atomic state write、history snapshot
 - ✅ execute-round 自审现在运行 audit-check，不再报告 ER-AUDIT-GATE-4 skipped
+- ✅ Claude Code 插件 manifest + marketplace：`.claude-plugin/`
 - ✅ Codex 本地插件 manifest：`.codex-plugin/plugin.json`
 - ✅ Dogfood Gate 1（对 Moirai R10-L3-llm verdict 回放验证 —— PASS，来自 v0.1.0）
 - ✅ Dogfood Gate 2（v0.1.0-alpha.2-meta round 闭环 PASS —— 来自 v0.1.0）
@@ -391,7 +394,7 @@ arcgentic 里**没有**什么：**Moirai 特定实例**（Phase 编号 / fact-sh
 
 ## 参与贡献
 
-当前是 `v0.2.2-alpha.2`，插件在战场验证阶段。如果你有：
+当前是 `v0.2.2-alpha.3`，插件在战场验证阶段。如果你有：
 - **Bug 报告** —— 提 issue，附最小复现步骤
 - **可移植性 bug** —— 提 issue 加 `portability` 标签，注明项目类型 / 操作系统 / Claude Code 版本
 - **功能建议** —— 开 discussion（我们会对照[路线图](#状态与路线图)评估）

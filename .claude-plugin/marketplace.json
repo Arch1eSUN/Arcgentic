@@ -1,0 +1,34 @@
+{
+  "name": "arc-studio",
+  "owner": {
+    "name": "Arc Studio"
+  },
+  "metadata": {
+    "description": "Arc Studio Claude Code plugins."
+  },
+  "plugins": [
+    {
+      "name": "arcgentic",
+      "source": {
+        "source": "github",
+        "repo": "Arch1eSUN/Arcgentic"
+      },
+      "description": "Agentic harness for rigorous round-driven development.",
+      "version": "0.2.2-alpha.3",
+      "author": {
+        "name": "Arc Studio"
+      },
+      "homepage": "https://github.com/Arch1eSUN/Arcgentic",
+      "repository": "https://github.com/Arch1eSUN/Arcgentic",
+      "license": "MIT",
+      "keywords": [
+        "agentic-harness",
+        "round-driven-development",
+        "external-audit",
+        "reference-first",
+        "lesson-codification"
+      ],
+      "category": "productivity"
+    }
+  ]
+}

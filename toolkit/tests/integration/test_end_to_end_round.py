@@ -105,7 +105,7 @@ class _E2EStubAdapter(InlineAdapter):
 
 ---
 
-*Entry-admin handoff written by planner agent (arcgentic v0.2.2-alpha.2).*
+*Entry-admin handoff written by planner agent (arcgentic v0.2.2-alpha.3).*
 """
 
     @staticmethod
@@ -166,7 +166,7 @@ Test round for end-to-end integration.
 
 ---
 
-*BA design for R10-L3-test written by ba-designer agent (arcgentic v0.2.2-alpha.2).*
+*BA design for R10-L3-test written by ba-designer agent (arcgentic v0.2.2-alpha.3).*
 """
 
 
