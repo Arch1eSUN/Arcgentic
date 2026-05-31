@@ -42,8 +42,8 @@ When invoked:
 3. The CLI orchestrates 4 phases:
    - **Phase 1 — Entry-admin commit**: commit handoff + state-row updates
    - **Phase 2 — BA design pass**: dispatch ba-designer → write design doc → commit
-   - **Phase 3 — Dev body**: dispatch developer → run 4 quality gates (mypy / pytest / ruff / audit-check) → inline CR step → inline SE step (MANDATE #20: NO BA design in SE brief) → commit
-   - **Phase 4 — State refresh + self-audit handoff**: compose self-audit handoff doc → write → commit
+   - **Phase 3 — Dev body**: dispatch developer → run pre-audit quality gates (mypy / pytest / ruff) → inline CR step → inline SE step (MANDATE #20: NO BA design in SE brief) → commit
+   - **Phase 4 — State refresh + self-audit handoff**: compose self-audit handoff doc → run `arcgentic audit-check --strict-extended` → write → commit
 
 4. Read CLI output for result summary (per ExecuteRoundResult.summary()):
    - 4 phase results with commit SHAs

@@ -328,7 +328,7 @@ This section contains exact command/expected pairs for `arcgentic audit-check`.
 
 ---
 
-*Self-audit handoff for {round_name} written by execute-round skill (arcgentic v0.2.1-alpha.1).*
+*Self-audit handoff for {round_name} written by execute-round skill (arcgentic v0.2.2-alpha.1).*
 """
 
 
