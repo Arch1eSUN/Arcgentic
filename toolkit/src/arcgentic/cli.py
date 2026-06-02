@@ -25,6 +25,7 @@ Bash tool) and the Python toolkit (which holds the actual algorithms).
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 
 
@@ -221,6 +222,73 @@ def main(argv: list[str] | None = None) -> int:
     cross_release.add_argument("--state", default=".arcgentic/state.yaml")
     cross_release.add_argument("--session-id", required=True)
 
+    # V1: session-mode
+    session_parser = subparsers.add_parser(
+        "session-mode",
+        help="Recommend or prompt single-session vs multi-session execution mode.",
+    )
+    session_sub = session_parser.add_subparsers(dest="session_command", required=True)
+    session_recommend = session_sub.add_parser("recommend")
+    session_recommend.add_argument("--round", dest="round_name", required=True)
+    session_recommend.add_argument("--handoff", required=True)
+    session_recommend.add_argument("--dispatch-unavailable", action="store_true")
+    session_prompt = session_sub.add_parser("prompt")
+    session_prompt.add_argument("--round", dest="round_name", required=True)
+    session_prompt.add_argument("--handoff", required=True)
+    session_prompt.add_argument(
+        "--mode",
+        choices=["single-session", "multi-session"],
+        required=True,
+    )
+
+    # V1: source-intake
+    source_parser = subparsers.add_parser(
+        "source-intake",
+        help="Validate auditable source-intake YAML records.",
+    )
+    source_sub = source_parser.add_subparsers(dest="source_command", required=True)
+    source_validate = source_sub.add_parser("validate")
+    source_validate.add_argument("records", nargs="+")
+
+    # V1: capability-registry
+    capability_parser = subparsers.add_parser(
+        "capability-registry",
+        help="Build a normalized capability registry from marketplace catalogs.",
+    )
+    capability_sub = capability_parser.add_subparsers(dest="capability_command", required=True)
+    capability_build = capability_sub.add_parser("build")
+    capability_build.add_argument("catalogs", nargs="+")
+    capability_build.add_argument("--output", default=None)
+
+    # V1: spec-governance
+    spec_parser = subparsers.add_parser(
+        "spec-governance",
+        help="Validate OpenSpec-style artifact graphs.",
+    )
+    spec_sub = spec_parser.add_subparsers(dest="spec_command", required=True)
+    for command_name in ("status", "validate", "archive"):
+        spec_cmd = spec_sub.add_parser(command_name)
+        spec_cmd.add_argument("change_dir")
+        spec_cmd.add_argument("--archive-root", default=None)
+
+    # V1: agency-roster
+    agency_parser = subparsers.add_parser(
+        "agency-roster",
+        help="Inspect agency-agents-style role catalogs.",
+    )
+    agency_sub = agency_parser.add_subparsers(dest="agency_command", required=True)
+    agency_inspect = agency_sub.add_parser("inspect")
+    agency_inspect.add_argument("catalog_path")
+
+    # V1: release-readiness
+    release_parser = subparsers.add_parser(
+        "v1-release-readiness",
+        help="Verify V1 release version and local install surfaces.",
+    )
+    release_parser.add_argument("--repo-root", default=".")
+    release_parser.add_argument("--expected-version", default=None)
+    release_parser.add_argument("--local-install-path", default=None)
+
     args = parser.parse_args(argv)
 
     if args.command == "plan-round-impl":
@@ -387,6 +455,110 @@ def main(argv: list[str] | None = None) -> int:
 
             print(_yaml.safe_dump(cross_result.state, sort_keys=False).strip())
         return cross_result.exit_code
+
+    elif args.command == "session-mode":
+        from pathlib import Path as _Path
+
+        from .session_mode import (
+            generate_identity_prompts,
+            input_from_handoff,
+            recommend_session_mode,
+        )
+
+        handoff_path = _Path(args.handoff)
+        if args.session_command == "recommend":
+            inputs = input_from_handoff(
+                round_id=args.round_name,
+                handoff_text=handoff_path.read_text(encoding="utf-8"),
+                handoff_path=str(handoff_path),
+                dispatch_available=not args.dispatch_unavailable,
+            )
+            print(json.dumps(recommend_session_mode(inputs).to_dict(), indent=2, sort_keys=True))
+            return 0
+        prompts = generate_identity_prompts(
+            round_id=args.round_name,
+            handoff_path=str(handoff_path),
+            candidate_roles=("developer", "auditor"),
+        )
+        key = "developer" if args.mode == "multi-session" else "developer"
+        print(prompts[key])
+        return 0
+
+    elif args.command == "source-intake":
+        from pathlib import Path as _Path
+
+        from .source_intake import load_source_records
+
+        records = load_source_records([_Path(path) for path in args.records])
+        print(
+            json.dumps(
+                {"records": [record.__dict__ for record in records]},
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return 0
+
+    elif args.command == "capability-registry":
+        from pathlib import Path as _Path
+
+        from .capability_registry import build_registry
+
+        registry = build_registry([_Path(path) for path in args.catalogs])
+        output = registry.to_json()
+        if args.output:
+            _Path(args.output).write_text(output + "\n", encoding="utf-8")
+        else:
+            print(output)
+        return 0
+
+    elif args.command == "spec-governance":
+        from pathlib import Path as _Path
+
+        from .spec_governance import load_artifact_graph
+
+        graph = load_artifact_graph(
+            _Path(args.change_dir),
+            archive_root=_Path(args.archive_root) if args.archive_root else None,
+        )
+        payload = {
+            "archive_ready": graph.archive_ready,
+            "archive_target": str(graph.archive_target),
+            "completed_tasks": graph.completed_tasks,
+            "delta_specs": list(graph.delta_specs),
+            "errors": list(graph.errors),
+            "incomplete_tasks": graph.incomplete_tasks,
+        }
+        print(json.dumps(payload, indent=2, sort_keys=True))
+        return 0 if graph.archive_ready or args.spec_command == "status" else 1
+
+    elif args.command == "agency-roster":
+        from pathlib import Path as _Path
+
+        from .agency_roster import parse_agency_roster
+
+        roles = parse_agency_roster(_Path(args.catalog_path))
+        print(
+            json.dumps(
+                {"roles": [role.__dict__ for role in roles]},
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return 0
+
+    elif args.command == "v1-release-readiness":
+        from pathlib import Path as _Path
+
+        from .v1_release import check_v1_release_readiness
+
+        result = check_v1_release_readiness(
+            _Path(args.repo_root),
+            expected_version=args.expected_version,
+            local_install_path=_Path(args.local_install_path) if args.local_install_path else None,
+        )
+        print(json.dumps(result.__dict__, indent=2, sort_keys=True))
+        return 0 if result.ok else 1
 
     parser.print_help()
     return 1

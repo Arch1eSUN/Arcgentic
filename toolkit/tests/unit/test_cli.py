@@ -395,3 +395,117 @@ def test_cross_session_handoff_write_and_read_dispatch(tmp_path: Path) -> None:
     assert write_exit == 0
     assert read_exit == 0
     assert "current_round: R4" in state.read_text(encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
+# 15. V1 CLI dispatches
+# ---------------------------------------------------------------------------
+
+
+def test_session_mode_recommend_dispatch(tmp_path: Path) -> None:
+    handoff = tmp_path / "handoff.md"
+    handoff.write_text("workflow release cross-role implementation task\n", encoding="utf-8")
+
+    exit_code = main(
+        [
+            "session-mode",
+            "recommend",
+            "--round",
+            "R1",
+            "--handoff",
+            str(handoff),
+            "--dispatch-unavailable",
+        ]
+    )
+
+    assert exit_code == 0
+
+
+def test_capability_registry_build_dispatch(tmp_path: Path) -> None:
+    catalog = tmp_path / "marketplace.json"
+    catalog.write_text(
+        '{"plugins":[{"name":"sample","source":"local","version":"1.0.0"}]}',
+        encoding="utf-8",
+    )
+
+    assert main(["capability-registry", "build", str(catalog)]) == 0
+
+
+def test_source_intake_validate_dispatch(tmp_path: Path) -> None:
+    records = tmp_path / "sources.yaml"
+    records.write_text(
+        """
+id: sample
+kind: repo
+origin: https://example.com/sample
+retrieved_at: "2026-06-02T00:00:00Z"
+revision: abc
+license: MIT
+used_parts: [README]
+excluded_parts: []
+rt_tier: RT0
+""",
+        encoding="utf-8",
+    )
+
+    assert main(["source-intake", "validate", str(records)]) == 0
+
+
+def test_spec_governance_status_dispatch(tmp_path: Path) -> None:
+    change = tmp_path / "changes" / "sample"
+    specs = change / "specs" / "sample"
+    specs.mkdir(parents=True)
+    (change / "proposal.md").write_text("# Proposal\n", encoding="utf-8")
+    (change / "design.md").write_text("# Design\n", encoding="utf-8")
+    (change / "tasks.md").write_text("- [x] Done\n", encoding="utf-8")
+    (specs / "spec.md").write_text("# Spec\n", encoding="utf-8")
+
+    assert main(["spec-governance", "status", str(change)]) == 0
+
+
+def test_agency_roster_inspect_dispatch(tmp_path: Path) -> None:
+    dept = tmp_path / "engineering"
+    dept.mkdir()
+    (dept / "backend.md").write_text(
+        """---
+role_name: Backend Engineer
+department: Engineering
+deliverables: [tests]
+language: en
+---
+""",
+        encoding="utf-8",
+    )
+
+    assert main(["agency-roster", "inspect", str(tmp_path)]) == 0
+
+
+def test_v1_release_readiness_dispatch(tmp_path: Path) -> None:
+    (tmp_path / ".claude-plugin").mkdir()
+    (tmp_path / ".codex-plugin").mkdir()
+    (tmp_path / "toolkit").mkdir()
+    for path in [
+        tmp_path / "plugin.json",
+        tmp_path / ".claude-plugin/plugin.json",
+        tmp_path / ".codex-plugin/plugin.json",
+    ]:
+        path.write_text('{"version":"1.0.0-alpha.1"}', encoding="utf-8")
+    (tmp_path / "toolkit/pyproject.toml").write_text(
+        '[project]\nversion = "1.0.0-alpha.1"\n',
+        encoding="utf-8",
+    )
+    (tmp_path / "README.md").write_text("version-v1.0.0-alpha.1\n", encoding="utf-8")
+    (tmp_path / "README.zh-CN.md").write_text("version-v1.0.0-alpha.1\n", encoding="utf-8")
+
+    assert (
+        main(
+            [
+                "v1-release-readiness",
+                "--repo-root",
+                str(tmp_path),
+                "--expected-version",
+                "1.0.0-alpha.1",
+            ]
+        )
+        == 0
+    )
