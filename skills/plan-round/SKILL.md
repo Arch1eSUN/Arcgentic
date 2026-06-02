@@ -32,6 +32,16 @@ arcgentic capability-registry build <marketplace-catalog.json>
 arcgentic spec-governance status <change-dir>
 ```
 
+For projects with `project.session_mode` already set, include the inherited mode
+and dispatch order in the handoff instead of asking again:
+
+```bash
+arcgentic orchestrator-dispatch \
+  --round <round_name> \
+  --handoff <handoff-path> \
+  --mode <single-session|multi-session>
+```
+
 ## Inputs
 
 Parse from `$ARGUMENTS` (passed by Claude Code):
@@ -63,7 +73,7 @@ When invoked with all inputs:
    - `plan-round succeeded: wrote <path>` + section_count + loc + (optional) warnings
    - `FAILED: <error>` (exit code 1 or 2)
 
-5. Report to the user: handoff path, section count, any warnings.
+5. Report to the user: handoff path, section count, dispatch order, and any warnings.
 
 6. If validation failed (exit code 1 or 2): explain the failure + suggest a fix
    (re-run with correct anchor, etc.).

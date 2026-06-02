@@ -18,7 +18,8 @@
 It works as:
 - A **Python CLI** (`arcgentic`) for gates, audits, handoffs, and round utilities
 - A **single-session orchestrator** that dispatches role sub-agents via the Claude Code Task tool
-- A **multi-session toolkit** where each Claude/Codex session loads one role's skill while a shared `state.yaml` is the inter-session protocol
+- A **project-level session mode** where a project chooses single-session orchestration
+  or multi-session role isolation once, then stores that decision in `state.yaml`
 - A **V1 source/spec layer** that records external workflow sources, marketplace capabilities,
   OpenSpec-style artifacts, and agency role families as auditable planning inputs
 
@@ -179,10 +180,14 @@ V1 local source/spec commands:
 
 ```bash
 arcgentic session-mode recommend --round R1 --handoff docs/superpowers/plans/R1.md
+arcgentic session-mode prompt --round R1 --handoff docs/superpowers/plans/R1.md --mode multi-session --role developer
+arcgentic orchestrator-dispatch --round R1 --handoff docs/superpowers/plans/R1.md --mode multi-session
 arcgentic source-intake validate docs/source-intake/*.yaml
 arcgentic capability-registry build .claude-plugin/marketplace.json
 arcgentic spec-governance status openspec/changes/<change>
 arcgentic agency-roster inspect references/agency-agents
+arcgentic verdict-completeness docs/audits/R1.md
+arcgentic close-round --state-file .agentic-rounds/state.yaml --verdict docs/audits/R1.md --audit-commit <sha>
 arcgentic v1-release-readiness --repo-root .
 ```
 
@@ -249,6 +254,7 @@ arcgentic/
 │   ├── pre-round-scan/        #   shared prelude — every role's first action
 │   ├── orchestrate-round/     #   orchestrator role
 │   ├── audit-round/           #   external auditor role
+│   ├── close-round/           #   PASS-only closeout seam
 │   ├── verify-gates/          #   manual gate runner
 │   ├── plan-round/            #   planner role
 │   ├── execute-round/         #   developer + self-audit role
@@ -286,7 +292,7 @@ Four layers, top to bottom: skills tell Claude *how to think* in a given role; a
 | **Reference tracker** | Daily git fetch over `references/` → categorize new clones → maintain `INDEX.md` | ✅ `track-refs` | ✅ `ref-tracker` |
 
 Plus a meta-role:
-- **Orchestrator** — drives the state machine end-to-end, dispatches sub-agents when role-switching is needed. ✅ `orchestrate-round` skill + `orchestrator` agent.
+- **Orchestrator** — drives the state machine end-to-end, dispatches sub-agents when role-switching is needed, and owns PASS-only closeout through the `close-round` seam. ✅ `orchestrate-round` skill + `orchestrator` agent.
 
 ---
 
@@ -340,7 +346,7 @@ Every transition is run by `scripts/state/transition.sh`:
 2. Runs the required gate script (refuses transition if gate fails)
 3. Updates `current_round.state` + appends to `state_history`
 
-Try to skip a state? Refused. Try to PASS with an unverified fact table? Refused. Try to close a round before audit? Refused. The state machine is the enforcement.
+Try to skip a state? Refused. Try to PASS with an unverified fact table? Refused. Try to close a round before PASS audit + strict audit-check? Refused. The state machine is the enforcement.
 
 ---
 
@@ -364,7 +370,9 @@ MULTIPLE Claude sessions, each loaded with a different role skill:
 
 **Use when**: team of humans / long-lived projects / strict audit independence required.
 
-Both modes share the same `state.yaml` schema and gate scripts. You can switch mid-round.
+Both modes share the same `state.yaml` schema and gate scripts. The mode is a
+project-level decision stored at `project.session_mode`; once set, future rounds
+do not ask again unless the project is explicitly reconfigured.
 
 ---
 
@@ -394,14 +402,17 @@ This is non-negotiable, derived from the original Moirai project's `§ 4 cost-di
   - 6 IDE adapter implementations (ClaudeCode canonical + Cursor + VSCode-Codex + Codex CLI + Inline fallback) + `detect_adapter()` auto-detection
   - audit_check engine with AC-1 + AC-3 mechanical fact-verification
   - 4 quality gates aggregator (`quality-gate-enforce`)
-  - 277 pytest unit + property + integration tests; mypy --strict clean; ruff clean
-- ✅ 10 markdown skills (v0.1.0 foundation + plan-round + execute-round + codify-lesson + track-refs + cross-session-handoff)
+  - 317 pytest unit + property + integration tests; mypy --strict clean; ruff clean
+- ✅ 11 markdown skills (v0.1.0 foundation + plan-round + execute-round + close-round + codify-lesson + track-refs + cross-session-handoff)
 - ✅ 9 markdown agents (orchestrator/auditor + planner/developer/BA/CR/SE + lesson-codifier + ref-tracker)
 - ✅ Hooks: pre-commit-fact-check, quality-gate-enforce, round-boundary-lesson-scan
 - ✅ 3 handoff templates + 3 finalization templates (18/12/10-section handoff + BA design + self-audit + external verdict)
 - ✅ P1 complete: `codify-lesson`, `track-refs`, `round-boundary-lesson-scan`, RT classifier, pattern detection
 - ✅ P2 complete: `cross-session-handoff` with TTL lock + atomic state writes + history snapshots
 - ✅ execute-round self-audit now runs audit-check instead of reporting ER-AUDIT-GATE-4 skipped
+- ✅ V1 release hardening: project-level session mode, orchestrator dispatch
+  order output, role-specific identity prompts, structured verdict completeness,
+  and strict-audit-check-backed `close-round` seam
 - ✅ Python CLI published on PyPI as `arcgentic==0.2.2a3`
 - ✅ GitHub Actions trusted publishing workflow for PyPI releases
 - ✅ Claude Code plugin manifest + marketplace at `.claude-plugin/`

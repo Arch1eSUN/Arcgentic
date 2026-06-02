@@ -25,12 +25,14 @@ BEFORE ANY ACTION IN A ROUND-DRIVEN PROJECT:
 
 | Role | When | Skill | State |
 |------|------|-------|-------|
-| **planner** | Round intake → handoff doc | `arcgentic:plan-round` (post-MVP) | `intake`, `planning` |
-| **developer** | Handoff → commit chain | `arcgentic:execute-round` (post-MVP) | `dev_in_progress`, `fix_in_progress` |
+| **planner** | Round intake → handoff doc | `arcgentic:plan-round` | `intake`, `planning` |
+| **developer** | Handoff → commit chain | `arcgentic:execute-round` | `dev_in_progress`, `fix_in_progress` |
 | **auditor** | Commits → verdict | `arcgentic:audit-round` | `awaiting_audit`, `audit_in_progress` |
-| **ref-tracker** | Daily git fetch + categorize | `arcgentic:track-refs` (post-MVP) | (continuous) |
+| **closeout** | PASS verdict → anchored close | `arcgentic:close-round` | `passed` |
+| **ref-tracker** | Daily git fetch + categorize | `arcgentic:track-refs` | (continuous) |
 
-For MVP scope, only **auditor** has a dedicated role skill. The other roles are exercised manually by reading the handoff doc and following its discipline.
+Each role has a dedicated skill. In multi-session mode, load only the skill for
+the role named by state/pickup or by `arcgentic session-mode prompt --role`.
 
 ## Two Operating Modes
 
@@ -46,7 +48,9 @@ Each role runs in its own Claude session. Each session loads only its role's ski
 
 **Use when**: team of humans / different humans want different role contexts / role-specific skill loading must not contaminate other role's contexts.
 
-Both modes share the same state.yaml schema and the same gate scripts.
+Both modes share the same state.yaml schema and the same gate scripts. The mode
+is a project-level decision in `project.session_mode`; do not ask again per
+round once it is set.
 
 ## State Machine
 
@@ -63,11 +67,13 @@ Every transition runs `scripts/state/transition.sh`, which:
 2. Runs the required gate script (reject if not 0)
 3. Updates `current_round.state` + appends to `state_history`
 
-Gates (MVP):
+Gates:
 - `planning → awaiting_dev_start` requires `handoff-doc-gate.sh`
 - `dev_in_progress → awaiting_audit` requires `round-commit-chain-gate.sh`
 - `fix_in_progress → awaiting_audit` requires `round-commit-chain-gate.sh`
 - `audit_in_progress → passed | needs_fix` requires `verdict-fact-table-gate.sh`
+- `passed → closed` is owned by `arcgentic close-round`, which checks verdict
+  completeness and strict audit-check before writing the closed state
 
 ## What to do RIGHT NOW
 
@@ -79,7 +85,7 @@ bash $PLUGIN_ROOT/scripts/state/pickup.sh --state-file ./.agentic-rounds/state.y
 
 (`$PLUGIN_ROOT` is where this plugin is installed; on Claude Code default: `~/.claude/plugins/arcgentic/`)
 
-The pickup output tells you which role + which action. Then load the corresponding skill (if MVP-supported) or follow the handoff doc.
+The pickup output tells you which role + which action. Then load the corresponding skill or follow the handoff doc.
 
 ## Bootstrap (new project)
 
@@ -120,5 +126,6 @@ If a sub-agent dispatched via Task tool tries to break any of these, refuse + re
 
 - `skills/orchestrate-round/SKILL.md` — for orchestrator mode
 - `skills/audit-round/SKILL.md` — for auditor role
+- `skills/close-round/SKILL.md` — for PASS-only closeout
 - `docs/examples/state.example.yaml` — schema reference
 - `schema/state.schema.json` — JSON Schema

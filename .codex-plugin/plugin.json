@@ -31,7 +31,9 @@
       "Cross-session handoff",
       "Source intake",
       "Spec governance",
-      "Session mode recommendation"
+      "Project session mode",
+      "Verdict completeness",
+      "PASS-only close-round"
     ],
     "defaultPrompt": "Use arcgentic to plan, execute, audit, or hand off a development round."
   }

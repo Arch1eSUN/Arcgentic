@@ -1,6 +1,6 @@
 ---
 name: orchestrate-round
-description: Main-session orchestrator for arcgentic rounds. Use when in single-session mode and the user wants to drive a round end-to-end without role-switching contexts. Dispatches role sub-agents (planner / developer / auditor / lesson-codifier) via Claude Code Task tool, verifies their structured outputs, and advances the state machine. Use also when manually driving the state machine — this skill is the manual+automated driver.
+description: Main-session orchestrator for arcgentic rounds. Use when in single-session mode, when a project-level session mode must drive dispatch order, or when manually advancing the state machine. Dispatches role sub-agents, verifies structured outputs, and owns PASS-only close-round execution.
 ---
 
 # Orchestrate round
@@ -8,12 +8,12 @@ description: Main-session orchestrator for arcgentic rounds. Use when in single-
 ## When to use
 
 - Single-session mode (founder + Claude session = whole team)
-- Pre-MVP: any time you want a structured walk-through of round states without writing a custom orchestration
+- Multi-session mode when you need the dispatch order and role handoff prompts
+- Any time you want a structured walk-through of round states without writing a custom orchestration
 - Whenever you need to remember "what's the next state, what's the next gate, who's the next role"
 
 ## When NOT to use
 
-- Multi-session mode where each human handles their own role's session (use `using-arcgentic` instead to navigate)
 - You're explicitly playing one role (e.g. just auditing) — load that role's skill directly
 
 ## Core loop
@@ -21,15 +21,21 @@ description: Main-session orchestrator for arcgentic rounds. Use when in single-
 ```
 LOAD pre-round-scan skill → run scan
 LOAD state.yaml → identify current_state
+IF project.session_mode is present:
+  → use it; do not ask the user for mode again
+ELSE:
+  → run `arcgentic session-mode recommend`
+  → store the project-level decision before dev starts
+RUN `arcgentic orchestrator-dispatch --round <round-id> --handoff <path> --mode <mode>`
 DETERMINE next action:
   IF current_state in {intake, planning}:
-    → role = planner; dispatch planner-agent (post-MVP) OR write handoff manually
+    → role = planner; dispatch planner-agent OR print planner role prompt
   IF current_state == dev_in_progress:
-    → role = developer; dispatch developer-agent (post-MVP) OR execute handoff manually
+    → role = developer; dispatch developer-agent OR print developer role prompt
   IF current_state == awaiting_audit / audit_in_progress:
     → role = auditor; LOAD audit-round skill OR dispatch auditor-agent
   IF current_state == passed:
-    → role = lesson-codifier; apply protocol (post-MVP: dedicated agent)
+    → role = closeout; load arcgentic:close-round; run only after PASS verdict is anchored
   IF current_state == closed:
     → ROUND COMPLETE; refresh state.yaml prior-round-anchor; start next round
 EXECUTE action → wait for structured artifact
@@ -40,7 +46,7 @@ LOOP
 
 ## Sub-agent dispatch (Claude Code Task tool)
 
-Pattern for dispatching `auditor` (MVP-supported):
+Pattern for dispatching `auditor`:
 
 ```
 Use the Task tool with:
@@ -59,7 +65,21 @@ Use the Task tool with:
     9. Return: "DONE — verdict at <verdict-path>, outcome <PASS|NEEDS_FIX>"
 ```
 
-For MVP, only auditor + orchestrator agents exist. Planner / developer / lesson-codifier / ref-tracker dispatch is post-MVP.
+Planner, developer, auditor, lesson-codifier, and ref-tracker agents exist in
+the plugin. Dispatch availability still depends on the host environment's Task
+tool; when unavailable, print the role prompt and stop for the matching session.
+
+For V1 hardening, use the CLI dispatch plan as the source of role order:
+
+```bash
+arcgentic orchestrator-dispatch \
+  --round <round-id> \
+  --handoff <handoff-path> \
+  --mode <single-session|multi-session>
+```
+
+In multi-session mode, the order is developer → auditor → closeout. Do not give
+the closeout prompt to the developer or auditor session.
 
 ## Verifying sub-agent output
 
@@ -81,7 +101,7 @@ This is the "trust but verify" pattern from superpowers:verification-before-comp
 | Handoff doc committed | `transition.sh --target awaiting_dev_start --by orchestrator --artifact <handoff-path>@<sha>` |
 | Dev commits chain committed | `transition.sh --target awaiting_audit --by orchestrator` |
 | Auditor verdict committed | `transition.sh --target passed --by orchestrator` (or `--target needs_fix`) |
-| Founder confirms round complete | `transition.sh --target closed --by orchestrator` |
+| External audit PASS is anchored | `arcgentic close-round --state-file .agentic-rounds/state.yaml --verdict <verdict-path> --audit-commit <sha>` |
 
 If `transition.sh` exits non-zero, READ THE ERROR. The state machine refusal is informational. Common reasons:
 - Gate failed — fix the gated artifact, re-run transition

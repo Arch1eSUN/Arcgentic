@@ -1,6 +1,6 @@
 ---
 name: audit-round
-description: External-audit role for arcgentic rounds. Loaded when arcgentic state.yaml is in awaiting_audit or audit_in_progress, OR when the user explicitly requests an external audit of a finished round, OR when reviewing a handoff doc + commit chain against the round's declared scope. Produces a verdict document with mechanically-verifiable fact table, structured findings (P0-P3), and applies the lesson codification protocol. The output verdict file IS the handoff — do not paste verdict text into chat.
+description: External-audit role for arcgentic rounds. Loaded when arcgentic state.yaml is in awaiting_audit or audit_in_progress, OR when the user explicitly requests an external audit of a finished round, OR when reviewing a handoff doc + commit chain against the round's declared scope. Produces a PASS / NEEDS_FIX / AUDIT_INCOMPLETE verdict document with mechanically-verifiable fact table, structured findings (P0-P3), and applies the lesson codification protocol. The output verdict file IS the handoff — do not paste verdict text into chat.
 ---
 
 # Audit round
@@ -37,9 +37,18 @@ You DO NOT read: any session transcript / planner's reasoning / developer's chat
 9. **Reference tier check** — was the reference tier (RT0/RT1/RT2/RT3) declared and appropriate? See `references/rt-tier-taxonomy.md`.
 10. **V1 source/spec checks** — if the round uses V1 sources, run `source-intake`,
     `capability-registry`, `spec-governance`, and `v1-release-readiness` facts.
-11. **Verdict outcome** — PASS or NEEDS_FIX. PASS = `fact_table_pass==total` AND no P0/P1 findings. NEEDS_FIX = any P0/P1.
-12. **Update state.yaml** — set `current_round.audit_verdict` per schema.
-13. **Transition** — `transition.sh --target passed` (or `needs_fix`). Gate runs automatically.
+11. **Verdict completeness check** — run:
+    ```bash
+    arcgentic verdict-completeness <verdict.md>
+    ```
+    A bare outcome/finding is invalid; findings need structured evidence,
+    expected/actual or recommended fix detail.
+12. **Verdict outcome** — PASS, NEEDS_FIX, or AUDIT_INCOMPLETE.
+    PASS = `fact_table_pass==total` AND no P0/P1 findings.
+    NEEDS_FIX = any P0/P1.
+    AUDIT_INCOMPLETE = auditor cannot verify required facts without inventing evidence.
+13. **Update state.yaml** — set `current_round.audit_verdict` per schema.
+14. **Transition** — `transition.sh --target passed` (or `needs_fix`). Gate runs automatically.
 
 ## Verdict file structure (canonical)
 
@@ -61,6 +70,7 @@ See `references/verdict-template.md` for the full template. Required sections:
 - Don't tolerate `git log --grep` without revision boundary — fact #14 (R1.4b.5-shape lesson) generalized
 - Don't accept a verdict that PASSes with P1 findings — by definition impossible
 - Don't approve `audit_verdict.outcome=PASS` while `fact_table_pass < total` — mechanical contradiction
+- Don't force PASS/NEEDS_FIX when required evidence is missing; use AUDIT_INCOMPLETE
 - Don't extend scope — if the auditor sees something out of round scope, log it as forward-debt, don't NEEDS_FIX on it
 
 ## When to escalate to founder / human

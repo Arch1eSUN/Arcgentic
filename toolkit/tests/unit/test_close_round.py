@@ -80,6 +80,42 @@ def test_close_round_closes_passed_round_and_records_last_passed(tmp_path: Path)
     data = yaml.safe_load(state.read_text(encoding="utf-8"))
 
     assert result.closed is True
+    assert result.lessons == 0
+    assert result.amendments == 0
     assert data["current_round"]["state"] == "closed"
     assert data["last_passed_round"]["id"] == "R-synthetic"
     assert data["last_passed_round"]["commit"] == "b" * 40
+
+
+def test_close_round_refuses_verdict_when_strict_audit_check_fails(tmp_path: Path) -> None:
+    state = tmp_path / "state.yaml"
+    verdict = tmp_path / "verdict.md"
+    _write_state(state, state="passed")
+    verdict.write_text(
+        "\n".join(
+            [
+                "# Verdict",
+                "",
+                "**Outcome:** PASS",
+                "",
+                "## § 7. Mechanical audit facts",
+                "",
+                "| # | Command | Expected | Comment |",
+                "|---|---|---|---|",
+                "| 1 | `bash -lc 'printf wrong'` | `right` | synthetic failing fact |",
+                "",
+                "## § 8. Verdict",
+                "",
+                "1 facts verified.",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    try:
+        close_round(state_path=state, verdict_path=verdict, audit_commit="c" * 40)
+    except CloseRoundError as exc:
+        assert "audit-check failed" in str(exc)
+    else:
+        raise AssertionError("expected CloseRoundError")

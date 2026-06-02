@@ -8,6 +8,8 @@ from pathlib import Path
 
 import yaml  # type: ignore[import-untyped]
 
+from .audit_check import run as run_audit_check
+from .skills_impl.codify_lesson import run as run_codify_lesson
 from .verdict_completeness import validate_verdict_completeness
 
 
@@ -20,6 +22,8 @@ class CloseRoundResult:
     closed: bool
     round_id: str
     message: str
+    lessons: int
+    amendments: int
 
 
 def close_round(*, state_path: Path, verdict_path: Path, audit_commit: str) -> CloseRoundResult:
@@ -46,6 +50,22 @@ def close_round(*, state_path: Path, verdict_path: Path, audit_commit: str) -> C
     if not completeness.ok:
         raise CloseRoundError("verdict completeness failed: " + "; ".join(completeness.issues))
 
+    repo_root = _repo_root(state=state, state_path=state_path)
+    audit_check = run_audit_check(
+        audit_path=verdict_path,
+        strict=True,
+        strict_extended=True,
+        repo_root=repo_root,
+    )
+    if audit_check.exit_code != 0:
+        raise CloseRoundError(f"audit-check failed: {audit_check.summary_text}")
+
+    lesson_scan = run_codify_lesson(
+        audit_dir=repo_root / "docs" / "audits",
+        lessons_dir=repo_root / "lessons",
+        amendments_dir=repo_root / "mandates" / "amendments",
+    )
+
     round_id = str(current.get("id") or "")
     current["state"] = "closed"
     history = current.setdefault("state_history", [])
@@ -68,7 +88,13 @@ def close_round(*, state_path: Path, verdict_path: Path, audit_commit: str) -> C
     return CloseRoundResult(
         closed=True,
         round_id=round_id,
-        message=f"closed {round_id}; next step: orchestrator may recommend next round",
+        lessons=len(lesson_scan.lessons),
+        amendments=len(lesson_scan.amendments),
+        message=(
+            f"closed {round_id}; lesson scan: {len(lesson_scan.lessons)} lessons, "
+            f"{len(lesson_scan.amendments)} amendments; next step: orchestrator may "
+            "recommend next round"
+        ),
     )
 
 
@@ -81,3 +107,12 @@ def _load_state(path: Path) -> dict[str, object]:
 
 def _write_state(path: Path, state: dict[str, object]) -> None:
     path.write_text(yaml.safe_dump(state, sort_keys=False, allow_unicode=True), encoding="utf-8")
+
+
+def _repo_root(*, state: dict[str, object], state_path: Path) -> Path:
+    project = state.get("project")
+    if isinstance(project, dict):
+        root = project.get("root")
+        if isinstance(root, str) and root:
+            return Path(root)
+    return state_path.parent

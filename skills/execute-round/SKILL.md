@@ -23,10 +23,13 @@ Requires the `arcgentic` CLI:
 
 Requires a planned handoff doc — run `/plan-round` first if missing.
 
-V1 rounds must resolve the session-mode gate before implementation:
+V1 projects must resolve the session-mode gate before implementation. If
+`project.session_mode.mode` is already present in `.agentic-rounds/state.yaml`,
+use it and do not ask again:
 
 ```bash
 arcgentic session-mode recommend --round=$ROUND --handoff=$HANDOFF_PATH
+arcgentic session-mode prompt --round=$ROUND --handoff=$HANDOFF_PATH --mode=multi-session --role=developer
 ```
 
 ## Inputs

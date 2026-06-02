@@ -17,8 +17,7 @@
 
 它支持三种入口 / 运行模式：
 - **Python CLI**（`arcgentic`）：运行 gate、audit、handoff 和 round 工具
-- **单 session orchestrator 模式**：一个 Claude session 作为总编排器，通过 Task tool 派遣角色 sub-agent
-- **多 session 工具集模式**：每个 Claude/Codex session 加载一个角色的 skill，共享的 `state.yaml` 作为 session 间通信协议
+- **项目级 session mode**：项目一次性选择单 session 编排或多 session 角色隔离，并把决定写入 `state.yaml`
 - **V1 source/spec 层**：把外部 workflow source、marketplace capability、OpenSpec-style artifact、
   agency role family 记录成可审计的 planning input
 
@@ -142,10 +141,14 @@ V1 本地 source/spec 命令：
 
 ```bash
 arcgentic session-mode recommend --round R1 --handoff docs/superpowers/plans/R1.md
+arcgentic session-mode prompt --round R1 --handoff docs/superpowers/plans/R1.md --mode multi-session --role developer
+arcgentic orchestrator-dispatch --round R1 --handoff docs/superpowers/plans/R1.md --mode multi-session
 arcgentic source-intake validate docs/source-intake/*.yaml
 arcgentic capability-registry build .claude-plugin/marketplace.json
 arcgentic spec-governance status openspec/changes/<change>
 arcgentic agency-roster inspect references/agency-agents
+arcgentic verdict-completeness docs/audits/R1.md
+arcgentic close-round --state-file .agentic-rounds/state.yaml --verdict docs/audits/R1.md --audit-commit <sha>
 arcgentic v1-release-readiness --repo-root .
 ```
 
@@ -248,6 +251,7 @@ arcgentic/
 │   ├── pre-round-scan/        #   共享前置 —— 每个角色第一动作
 │   ├── orchestrate-round/     #   编排器角色
 │   ├── audit-round/           #   外审角色
+│   ├── close-round/           #   只允许 PASS 后执行的 closeout seam
 │   ├── verify-gates/          #   手动 gate 执行器
 │   ├── plan-round/            #   规划角色
 │   ├── execute-round/         #   开发 + 自审角色
@@ -285,7 +289,7 @@ arcgentic/
 | **Reference tracker（引用追踪者）** | 每日 `references/` git fetch → 给新克隆分类 → 维护 `INDEX.md` | ✅ `track-refs` | ✅ `ref-tracker` |
 
 外加一个元角色：
-- **Orchestrator（编排器）** —— 端到端驱动状态机，在角色切换时派遣 sub-agent。✅ `orchestrate-round` skill + `orchestrator` agent。
+- **Orchestrator（编排器）** —— 端到端驱动状态机，在角色切换时派遣 sub-agent，并通过 `close-round` seam 负责 PASS 后 closeout。✅ `orchestrate-round` skill + `orchestrator` agent。
 
 ---
 
@@ -339,7 +343,7 @@ arcgentic/
 2. 跑必需的 gate 脚本（gate 失败则拒绝转移）
 3. 更新 `current_round.state` + 追加到 `state_history`
 
-想跳过一个状态？拒绝。想 PASS 但 fact table 没验完？拒绝。想没经审计就关 round？拒绝。**状态机就是强制者。**
+想跳过一个状态？拒绝。想 PASS 但 fact table 没验完？拒绝。想没有 PASS audit + strict audit-check 就关 round？拒绝。**状态机就是强制者。**
 
 ---
 
@@ -363,7 +367,8 @@ arcgentic/
 
 **适用场景**：多人团队 / 长期项目 / 严格审计独立性要求（合规 / 监管）。
 
-两种模式共享同一个 `state.yaml` schema 和 gate 脚本。**round 中途可以切换模式**。
+两种模式共享同一个 `state.yaml` schema 和 gate 脚本。mode 是项目级决定，存放在
+`project.session_mode`；一旦设置，后续 round 不再重复询问，除非项目显式重新配置。
 
 ---
 
@@ -393,14 +398,17 @@ arcgentic/
   - 6 个 IDE adapter 实现（ClaudeCode 标准 + Cursor + VSCode-Codex + Codex CLI + Inline 兜底）+ `detect_adapter()` 自动检测
   - audit_check 引擎，支持 AC-1 + AC-3 机械事实核查
   - 4 质量门聚合器（`quality-gate-enforce`）
-  - 277 个 pytest 单元 + 属性 + 集成测试；mypy --strict 通过；ruff 通过
-- ✅ 10 个 markdown skill（v0.1.0 foundation + plan-round + execute-round + codify-lesson + track-refs + cross-session-handoff）
+  - 317 个 pytest 单元 + 属性 + 集成测试；mypy --strict 通过；ruff 通过
+- ✅ 11 个 markdown skill（v0.1.0 foundation + plan-round + execute-round + close-round + codify-lesson + track-refs + cross-session-handoff）
 - ✅ 9 个 markdown agent（orchestrator/auditor + planner/developer/BA/CR/SE + lesson-codifier + ref-tracker）
 - ✅ Hooks：pre-commit-fact-check、quality-gate-enforce、round-boundary-lesson-scan
 - ✅ 3 个 handoff 模板 + 3 个收尾模板（18/12/10 章节 handoff + BA 设计 + 自审 + 外审 verdict）
 - ✅ P1 完成：`codify-lesson`、`track-refs`、`round-boundary-lesson-scan`、RT classifier、pattern detection
 - ✅ P2 完成：`cross-session-handoff`，包含 TTL lock、atomic state write、history snapshot
 - ✅ execute-round 自审现在运行 audit-check，不再报告 ER-AUDIT-GATE-4 skipped
+- ✅ V1 release hardening：项目级 session mode、orchestrator dispatch
+  顺序输出、按角色生成 identity prompt、结构化 verdict completeness、
+  以及带 strict audit-check 的 `close-round` seam
 - ✅ Python CLI 已发布到 PyPI：`arcgentic==0.2.2a3`
 - ✅ GitHub Actions trusted publishing 工作流已接入 PyPI 发布
 - ✅ Claude Code 插件 manifest + marketplace：`.claude-plugin/`
