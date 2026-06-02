@@ -18,6 +18,7 @@ class RoleEntry:
     department: str
     role_name: str
     source_path: str
+    upstream_source: str
     specialty: str
     when_to_use: str
     deliverables: tuple[str, ...]
@@ -84,6 +85,7 @@ def _parse_role_file(root: Path, path: Path) -> RoleEntry:
         department=department,
         role_name=role_name,
         source_path=rel,
+        upstream_source=str(metadata.get("upstream_source") or ""),
         specialty=str(metadata.get("specialty") or ""),
         when_to_use=str(metadata.get("when_to_use") or ""),
         deliverables=deliverables,

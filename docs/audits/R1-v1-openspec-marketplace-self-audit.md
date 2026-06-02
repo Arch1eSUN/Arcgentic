@@ -2,8 +2,8 @@
 
 **Round**: R1-v1-openspec-marketplace
 **Session identity**: developer only
-**Final dev-body anchor**: `bfa7a95`
-**Handoff commit**: commit containing this file
+**Final dev-body implementation anchor**: `bfa7a95`
+**Self-audit handoff commit**: recorded in `.agentic-rounds/state.yaml`
 **External audit status**: ready, not written by this session
 
 ## § 1. Scope Completed
@@ -38,7 +38,7 @@ Implemented the first V1 source/spec slice from the handoff:
 
 Quality gates run after implementation and surface updates:
 
-- `cd toolkit && pytest --tb=short -q` -> pytest suite passed.
+- `cd toolkit && pytest --tb=short -q` -> 301 tests passed.
 - `cd toolkit && mypy --strict src/ tests/` -> clean.
 - `cd toolkit && ruff check .` -> clean.
 - `python3 ~/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py /Users/archiesun/plugins/arcgentic` -> passed.
@@ -62,8 +62,8 @@ The external auditor should independently verify:
 
 | # | Command | Expected | Comment |
 |---|---|---|---|
-| 1 | `git rev-parse --short bfa7a95` | `bfa7a95` | final dev-body anchor resolves |
-| 2 | `cd toolkit && pytest --tb=short -q >/tmp/arcgentic-r1-pytest.out && grep -o '[0-9][0-9]* passed' /tmp/arcgentic-r1-pytest.out \| tail -1 \| awk '{print $1}'` | `300` | pytest count |
+| 1 | `bash -lc 'test "$(git rev-parse HEAD)" = "$(python3 -c "import yaml;print(yaml.safe_load(open(\".agentic-rounds/state.yaml\"))[\"current_round\"][\"self_audit_doc\"][\"commit\"])" )" && echo true'` | `true` | HEAD matches state self-audit handoff commit |
+| 2 | `cd toolkit && pytest --tb=short -q >/tmp/arcgentic-r1-pytest.out && grep -o '[0-9][0-9]* passed' /tmp/arcgentic-r1-pytest.out \| tail -1 \| awk '{print $1}'` | `301` | pytest count |
 | 3 | `cd toolkit && mypy --strict src/ tests/ \| tail -1` | `Success: no issues found in 61 source files` | strict typing gate |
 | 4 | `cd toolkit && ruff check .` | `All checks passed!` | lint gate |
 | 5 | `bash -lc 'python3 ~/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py /Users/archiesun/plugins/arcgentic'` | `Plugin validation passed: /Users/archiesun/Desktop/Arc Studio/arcgentic` | plugin validator |

@@ -44,3 +44,20 @@ def test_v1_release_readiness_fails_on_version_drift(tmp_path: Path) -> None:
 
     assert result.ok is False
     assert any(".codex-plugin/plugin.json" in issue for issue in result.issues)
+
+
+def test_v1_release_readiness_parses_shields_badge_double_hyphen(tmp_path: Path) -> None:
+    _write_release_surface(tmp_path, "0.2.2-alpha.3")
+    (tmp_path / "README.md").write_text(
+        "[![version](https://img.shields.io/badge/version-v0.2.2--alpha.3-blueviolet.svg)]\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "README.zh-CN.md").write_text(
+        "[![version](https://img.shields.io/badge/version-v0.2.2--alpha.3-blueviolet.svg)]\n",
+        encoding="utf-8",
+    )
+
+    result = check_v1_release_readiness(tmp_path)
+
+    assert result.ok is True
+    assert result.version == "0.2.2-alpha.3"

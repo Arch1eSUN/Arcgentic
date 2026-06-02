@@ -138,8 +138,9 @@ Required test: existing `277` toolkit tests remain green after implementation.
 
 ## 7. Required Audit Facts
 
-Required audit fact 1: `git rev-parse HEAD` equals the final dev-body anchor recorded in
-self-audit.
+Required audit fact 1: `git rev-parse HEAD` equals the self-audit handoff commit recorded
+in state. The self-audit may also record the final dev-body implementation anchor, but
+that anchor is distinct from the handoff commit.
 
 Required audit fact 2: `python3 -m pip show arcgentic` reports editable project location
 under this repository's `toolkit`.

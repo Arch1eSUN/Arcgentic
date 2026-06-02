@@ -69,6 +69,12 @@ def _pyproject_version(path: Path) -> str:
 
 def _readme_version(path: Path) -> str:
     text = path.read_text(encoding="utf-8")
+    badge_match = re.search(
+        r"version-v([0-9]+\.[0-9]+\.[0-9]+)--([A-Za-z0-9.]+)-",
+        text,
+    )
+    if badge_match:
+        return f"{badge_match.group(1)}-{badge_match.group(2)}"
     match = re.search(r"version-v([0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.]+)?)", text)
     if match:
         return match.group(1)
