@@ -174,7 +174,50 @@ Reason: adding states for every spec phase would duplicate OpenSpec. arcgentic's
 machine should remain the enforcement layer for rounds, while spec-governance owns the
 artifact graph.
 
-## 8. CLI changes
+## 8. Session Mode Gate
+
+Before `awaiting_dev_start -> dev_in_progress`, arcgentic must force an explicit session
+mode decision. This is a workflow entry seam, not a convenience prompt.
+
+### 8.1 Mode A — single-session orchestrator
+
+Current session identity: orchestrator.
+
+Behavior:
+
+- Orchestrator dispatches planner, developer, BA, CR, SE, lesson-codifier, and auditor
+  sub-agents inside one session.
+- Developer work may trigger audit automatically only if the sub-agent dispatch transport
+  is mechanically verified.
+- If dispatch fails or is unavailable, the workflow must degrade to manual verified
+  execution and record the failure as an adapter finding. It must not claim full
+  single-session automation.
+
+### 8.2 Mode B — multi-session identity handoff
+
+Current session identity: orchestrator/planner until handoff is complete.
+
+Behavior:
+
+- Orchestrator stops at `awaiting_dev_start`.
+- Orchestrator emits a Dev Session identity prompt with handoff path, round id, allowed
+  scope, required gates, and stop condition.
+- User opens a separate developer session and pastes the identity prompt.
+- After developer self-audit, orchestrator emits an Audit Session identity prompt.
+- Audit session must not share developer role identity and must independently verify facts.
+
+### 8.3 Required UX
+
+At the mode gate, arcgentic must ask the user to choose:
+
+- `single-session`: one session dispatches sub-agents and starts audit automatically after
+  dev, if dispatch transport is verified.
+- `multi-session`: current session stops and prints identity handoff prompts for separate
+  dev/audit sessions.
+
+No implementation work should begin before this gate is resolved.
+
+## 9. CLI changes
 
 Proposed commands:
 
@@ -184,6 +227,7 @@ arcgentic capability-registry build --sources docs/source-intake/*.yaml
 arcgentic spec-governance status <change-dir>
 arcgentic spec-governance validate <change-dir>
 arcgentic spec-governance archive <change-dir>
+arcgentic session-mode prompt --round <round> --handoff <path>
 arcgentic v1-release-readiness --repo-root .
 ```
 
@@ -198,9 +242,9 @@ arcgentic track-refs
 arcgentic cross-session-handoff
 ```
 
-## 9. Skill changes
+## 10. Skill changes
 
-### 9.1 New skill: `source-intake`
+### 10.1 New skill: `source-intake`
 
 Trigger: when a user provides external workflows, reference repos, marketplace catalogs,
 OpenSpec resources, or asks to fuse outside workflow material into a round.
@@ -212,7 +256,7 @@ Responsibilities:
 - extract capability/spec facts;
 - refuse direct dependency if a source is only RT0/RT1.
 
-### 9.2 New skill: `spec-governance`
+### 10.2 New skill: `spec-governance`
 
 Trigger: when a round uses proposal/design/tasks/spec/archive artifacts.
 
@@ -223,15 +267,29 @@ Responsibilities:
 - surface incomplete tasks before audit;
 - assess archive readiness.
 
-### 9.3 Updated skills
+### 10.3 New skill: `session-mode`
+
+Trigger: when a round reaches `awaiting_dev_start`, when a user says "use the complete
+arcgentic workflow", or when a developer/auditor session needs an identity handoff.
+
+Responsibilities:
+
+- declare the current session identity;
+- ask the user to choose single-session or multi-session execution;
+- verify whether single-session sub-agent dispatch is actually available;
+- emit developer and auditor handoff prompts for multi-session mode;
+- block dev start until mode is confirmed.
+
+### 10.4 Updated skills
 
 - `plan-round`: include source intake and capability registry in handoff.
-- `execute-round`: check task traceability before implementation.
+- `execute-round`: check task traceability and require session-mode confirmation before
+  implementation.
 - `audit-round`: verify artifact facts and release-readiness facts.
 - `track-refs`: optionally consume source-intake records.
 - `codify-lesson`: mine archived spec changes.
 
-## 10. Test strategy
+## 11. Test strategy
 
 ### Unit tests
 
@@ -242,6 +300,8 @@ Responsibilities:
 - Count complete/incomplete tasks.
 - Detect archive target collision.
 - Validate source-intake record schema.
+- Generate single-session and multi-session identity prompts.
+- Refuse single-session auto-audit when dispatch transport is unavailable.
 
 ### Integration tests
 
@@ -250,6 +310,7 @@ Responsibilities:
 - Tasks complete -> spec-governance archive-ready.
 - Incomplete tasks -> archive warning or failure depending strict mode.
 - V1 release readiness catches manifest/version README drift.
+- `awaiting_dev_start` produces mode choices before `dev_in_progress`.
 
 ### Regression tests
 
@@ -257,7 +318,7 @@ Responsibilities:
 - Existing Bash state/gate tests must remain passing.
 - Plugin validator must pass for repo and installed local symlink.
 
-## 11. Release gates
+## 12. Release gates
 
 V1 stable requires:
 
@@ -272,8 +333,9 @@ V1 stable requires:
   metadata all say `1.0.0`.
 - V1 dogfood round has a self-audit handoff and external verdict.
 - No source-intake record references a source without license/status classification.
+- Dogfood evidence includes which session mode was selected and why.
 
-## 12. Risks
+## 13. Risks
 
 - Coupling risk: making OpenSpec CLI mandatory would violate arcgentic's local Python/Bash
   portability.
@@ -283,21 +345,24 @@ V1 stable requires:
   mechanical audit facts.
 - Release risk: version surfaces have drifted before. V1 needs a dedicated release
   readiness gate.
+- Identity risk: if the current session role is implicit, developer and auditor roles can
+  contaminate each other. The session-mode gate must make identity explicit before dev.
 
-## 13. Recommended implementation order
+## 14. Recommended implementation order
 
 1. Add fixtures for marketplace catalogs and OpenSpec-style changes.
-2. Implement source-intake data model and validator.
-3. Implement capability-registry parser.
-4. Implement spec-governance artifact graph validator.
-5. Add CLI commands around those modules.
-6. Update `plan-round`, `execute-round`, and `audit-round` skills.
-7. Add V1 release-readiness gate.
-8. Update README/plugin manifests to `1.0.0-alpha.1`.
-9. Dogfood arcgentic-on-arcgentic V1 round.
-10. External audit and promote to `1.0.0` only after Gate 3 portability proof.
+2. Implement session-mode prompt generation and mode gate.
+3. Implement source-intake data model and validator.
+4. Implement capability-registry parser.
+5. Implement spec-governance artifact graph validator.
+6. Add CLI commands around those modules.
+7. Update `plan-round`, `execute-round`, and `audit-round` skills.
+8. Add V1 release-readiness gate.
+9. Update README/plugin manifests to `1.0.0-alpha.1`.
+10. Dogfood arcgentic-on-arcgentic V1 round.
+11. External audit and promote to `1.0.0` only after Gate 3 portability proof.
 
-## 14. Open decisions
+## 15. Open decisions
 
 - Whether V1 stable requires live Claude Code plugin loading proof, or local validator proof
   is enough for the first V1 release candidate.
@@ -305,3 +370,5 @@ V1 stable requires:
   enforcement.
 - Whether `spec-governance archive` should physically move directories or only validate
   archive readiness in v1.0.0.
+- Whether single-session mode in Codex should use Codex thread tools, multi-agent tools, or
+  be marked unavailable until a real dispatch adapter exists.

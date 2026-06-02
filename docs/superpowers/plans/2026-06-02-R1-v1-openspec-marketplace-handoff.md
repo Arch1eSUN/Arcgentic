@@ -38,7 +38,8 @@ copied into runtime.
 ## 3. Tooling Plan
 
 Expected skills: `arcgentic:using-arcgentic`, `arcgentic:plan-round`,
-`arcgentic:execute-round`, `arcgentic:audit-round`, and `arcgentic:codify-lesson`.
+`arcgentic:session-mode`, `arcgentic:execute-round`, `arcgentic:audit-round`, and
+`arcgentic:codify-lesson`.
 
 Expected CLI commands: `arcgentic validate-handoff`, `arcgentic quality-gate-enforce`,
 `arcgentic audit-check`, `pytest`, `mypy --strict`, `ruff check`, and plugin validator.
@@ -47,6 +48,20 @@ Known adapter finding: `plan-round-impl` dispatch failed in this Codex Desktop c
 because the current adapter detection chose a host path that cannot dispatch `planner`.
 Developer must keep this as a V1 readiness finding and avoid relying on fake sub-agent
 success.
+
+Session identity requirement: before `awaiting_dev_start -> dev_in_progress`, the
+orchestrator must ask the user to choose one of two modes.
+
+- Single-session mode: this session is the orchestrator. It dispatches developer and audit
+  sub-agents in sequence. Audit starts automatically after dev only when dispatch transport
+  is mechanically verified.
+- Multi-session mode: this session stops at `awaiting_dev_start` and prints identity
+  handoff prompts. The user opens separate developer and auditor sessions; each session
+  starts by reading this handoff and `.agentic-rounds/state.yaml`.
+
+If dispatch transport is unavailable, single-session mode is not a full automation path.
+The workflow may continue only as verified local execution, and the self-audit must record
+that degradation.
 
 ## 4. Architecture Target
 
@@ -63,26 +78,32 @@ Add one release gate module:
 
 ## 5. Implementation Tasks
 
-Implementation task 1: add fixtures for Superpowers-style and Codex-style marketplace
+Implementation task 1: add the session-mode gate so current session identity is explicit
+and dev cannot start before the user chooses single-session or multi-session mode.
+
+Implementation task 2: add fixtures for Superpowers-style and Codex-style marketplace
 catalogs plus OpenSpec-style change directories.
 
-Implementation task 2: implement source-intake data model, schema validation, and CLI
+Implementation task 3: implement source-intake data model, schema validation, and CLI
 entry point.
 
-Implementation task 3: implement capability-registry parser and duplicate detection.
+Implementation task 4: implement capability-registry parser and duplicate detection.
 
-Implementation task 4: implement spec-governance artifact graph validator, task status
+Implementation task 5: implement spec-governance artifact graph validator, task status
 counter, and archive readiness checks.
 
-Implementation task 5: implement v1-release-readiness gate and wire it into CLI.
+Implementation task 6: implement v1-release-readiness gate and wire it into CLI.
 
-Implementation task 6: update relevant skills and README surfaces without changing runtime
+Implementation task 7: update relevant skills and README surfaces without changing runtime
 scope.
 
 ## 6. Required Tests
 
 Required test: source-intake accepts repo, marketplace, and openspec source records and
 rejects malformed or duplicate records.
+
+Required test: session-mode emits both single-session and multi-session choices and refuses
+single-session auto-audit when dispatch transport is unavailable.
 
 Required test: capability-registry parses Superpowers-style `.claude-plugin/marketplace.json`
 and Codex-style `.agents/plugins/marketplace.json`.
@@ -122,6 +143,9 @@ Stop condition: if adapter dispatch still fails after a minimal reproduction, do
 sub-agent success; write an adapter bug finding and continue only through verified local
 scripts.
 
+Stop condition: if current session identity is unclear, stop before dev and ask the user
+to choose single-session or multi-session mode.
+
 Stop condition: if any implementation requires a paid API, background process, or automatic
 third-party plugin install, stop and rescope.
 
@@ -154,9 +178,9 @@ from config inspection.
 
 Commit 1: this handoff and state update.
 
-Commit 2: source-intake fixtures, model, validator, and tests.
+Commit 2: BA design pass and session-mode entry correction.
 
-Commit 3: capability-registry + spec-governance modules, CLI, and tests.
+Commit 3: session-mode, source-intake, capability-registry, spec-governance, and tests.
 
 Commit 4: v1-release-readiness gate, skill/readme updates, and self-audit handoff.
 
@@ -180,13 +204,30 @@ Expected state path: `planning -> awaiting_dev_start -> dev_in_progress -> await
 
 ## 15. Devsession Message
 
+### 15.1 Developer session identity handoff
+
 Read: `docs/superpowers/plans/2026-06-02-R1-v1-openspec-marketplace-handoff.md` and
 `docs/plans/2026-06-02-arcgentic-v1-openspec-superpowers-design.md`.
 
 Start round: `R1-v1-openspec-marketplace`.
 
+Session identity: developer only. Do not perform external audit. Do not claim auditor
+independence. Implement only sections 1-8 and 12-13 of this handoff.
+
 Stop after: Commit 4 self-audit handoff is written, local gates are green, and external
 audit is ready to run.
+
+### 15.2 Auditor session identity handoff
+
+Read: `.agentic-rounds/state.yaml`, this handoff, the final self-audit handoff, and every
+commit listed in `current_round.dev_commits`.
+
+Start round: `R1-v1-openspec-marketplace` external audit.
+
+Session identity: auditor only. Do not plan next-round work inside the verdict. Re-run all
+mechanical facts independently and return PASS or NEEDS_FIX.
+
+Stop after: external audit verdict is written and `verdict-fact-table-gate.sh` can pass.
 
 ## 16. Forward Debt
 
@@ -196,6 +237,9 @@ not imply a working agent dispatch transport.
 
 Forward debt P3: `start-round` is not yet a deep CLI seam; this run manually set round id
 and transitioned to planning.
+
+Forward debt P2: `awaiting_dev_start` did not originally force a session-mode gate. This
+round corrected the handoff before dev body continued.
 
 ## 17. Next Round Preview
 

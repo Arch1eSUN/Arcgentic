@@ -58,12 +58,27 @@ portable.
 
 Alternative rejected: hard-code user-local paths as mandatory release requirements.
 
+### D-6: Session mode is an explicit pre-dev gate
+
+Decision: `awaiting_dev_start` must force a mode choice before implementation begins:
+single-session orchestrator with verified sub-agent dispatch, or multi-session identity
+handoff with separate developer and auditor sessions.
+
+Rationale: arcgentic's audit independence depends on explicit role identity. If the current
+session silently becomes founder, planner, developer, and auditor, the workflow loses the
+property it claims to enforce.
+
+Alternative rejected: infer mode from the user saying "use full workflow". That phrase
+does not say whether the user wants one orchestrator session or multiple identity-scoped
+sessions.
+
 ## 3. Module Boundaries
 
 - `source_intake.py`: source record parsing and validation.
 - `capability_registry.py`: marketplace catalog parsing and registry generation.
 - `spec_governance.py`: OpenSpec-style artifact graph validation.
 - `v1_release.py`: version/install/readiness checks.
+- `session_mode.py`: pre-dev mode prompt and identity handoff generation.
 
 The modules stay independent. `v1_release.py` may call the other modules; the others must
 not import release-readiness code.
