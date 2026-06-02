@@ -73,6 +73,7 @@ project:
     audits_dir: "docs/audits"
   verification_command: ""
   audit_check_command: ""
+  session_mode: null
 
 current_round:
   id: ""

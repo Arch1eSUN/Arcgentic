@@ -42,6 +42,17 @@
         "audit_check_command": {
           "type": "string",
           "description": "Project's audit-fact verification command template. Use {file} as placeholder for the verdict file path."
+        },
+        "session_mode": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": ["mode", "decided_at_round"],
+          "properties": {
+            "mode": { "type": "string", "enum": ["single-session", "multi-session"] },
+            "decided_at_round": { "type": "string" },
+            "decided_by": { "type": "string" },
+            "decided_at": { "type": "string", "format": "date-time" }
+          }
         }
       }
     },
@@ -98,7 +109,7 @@
           "properties": {
             "path": { "type": "string" },
             "commit": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
-            "outcome": { "type": "string", "enum": ["PASS", "NEEDS_FIX"] },
+            "outcome": { "type": "string", "enum": ["PASS", "NEEDS_FIX", "AUDIT_INCOMPLETE"] },
             "fact_table_total": { "type": "integer", "minimum": 0 },
             "fact_table_pass": { "type": "integer", "minimum": 0 },
             "findings": {
@@ -110,7 +121,12 @@
                 "properties": {
                   "id": { "type": "string" },
                   "priority": { "type": "string", "enum": ["P0", "P1", "P2", "P3"] },
-                  "summary": { "type": "string" }
+                  "summary": { "type": "string" },
+                  "evidence": { "type": "string" },
+                  "expected": { "type": "string" },
+                  "actual": { "type": "string" },
+                  "recommended_fix": { "type": "string" },
+                  "verification": { "type": "string" }
                 }
               }
             }

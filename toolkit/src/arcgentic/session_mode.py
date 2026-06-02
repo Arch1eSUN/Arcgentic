@@ -6,10 +6,22 @@ from dataclasses import asdict, dataclass
 from typing import Literal
 
 Mode = Literal["single-session", "multi-session"]
+Role = Literal["developer", "auditor", "closeout"]
 
 
 class ModeChoiceError(ValueError):
     """Raised when a requested session mode violates mechanical constraints."""
+
+
+class ProjectSessionModeError(ValueError):
+    """Raised when project-level session mode metadata is malformed."""
+
+
+@dataclass(frozen=True)
+class ProjectSessionMode:
+    mode: Mode
+    decided_at_round: str
+    decided_by: str = ""
 
 
 @dataclass(frozen=True)
@@ -124,9 +136,49 @@ def generate_identity_prompts(
     auditor = (
         f"You are the arcgentic auditor only for round {round_id}.\n"
         f"Read {handoff_path or '<handoff-path>'}, the final self-audit, and dev commits.\n"
-        "Independently re-run mechanical facts and write PASS or NEEDS_FIX only."
+        "Independently re-run mechanical facts and write PASS, NEEDS_FIX, or "
+        "AUDIT_INCOMPLETE only."
     )
-    return {"developer": developer, "auditor": auditor}
+    closeout = (
+        f"You are the arcgentic closeout only session for round {round_id}.\n"
+        f"Read {handoff_path or '<handoff-path>'}, state, and the PASS verdict.\n"
+        "Verify anchors, run close-round, transition passed to closed, and stop before "
+        "creating release tags."
+    )
+    return {"developer": developer, "auditor": auditor, "closeout": closeout}
+
+
+def project_mode_from_state(state: dict[str, object]) -> ProjectSessionMode:
+    """Read project-level session mode from state data."""
+
+    project = state.get("project")
+    if not isinstance(project, dict):
+        raise ProjectSessionModeError("state project block is missing")
+    raw = project.get("session_mode")
+    if raw is None:
+        raise ProjectSessionModeError("project session mode is not set")
+    if not isinstance(raw, dict):
+        raise ProjectSessionModeError("project session mode must be an object")
+    mode = raw.get("mode")
+    if mode not in ("single-session", "multi-session"):
+        raise ProjectSessionModeError(f"unsupported project session mode: {mode}")
+    decided_at_round = str(raw.get("decided_at_round") or "")
+    decided_by = str(raw.get("decided_by") or "")
+    return ProjectSessionMode(
+        mode=mode,
+        decided_at_round=decided_at_round,
+        decided_by=decided_by,
+    )
+
+
+def should_request_session_mode(state: dict[str, object], round_id: str) -> bool:
+    """Return False when project-level mode has already been selected."""
+
+    try:
+        mode = project_mode_from_state(state)
+    except ProjectSessionModeError:
+        return True
+    return mode.decided_at_round == round_id and not mode.decided_by
 
 
 def input_from_handoff(
