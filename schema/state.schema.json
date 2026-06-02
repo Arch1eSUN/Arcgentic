@@ -84,6 +84,14 @@
           "type": "array",
           "items": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" }
         },
+        "self_audit_doc": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "path": { "type": "string" },
+            "commit": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" }
+          }
+        },
         "audit_verdict": {
           "type": ["object", "null"],
           "additionalProperties": false,
