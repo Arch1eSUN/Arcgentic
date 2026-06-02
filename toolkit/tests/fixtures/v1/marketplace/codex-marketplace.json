@@ -1,0 +1,18 @@
+{
+  "plugins": [
+    {
+      "name": "arcgentic",
+      "source": {
+        "source": "local",
+        "path": "./plugins/arcgentic"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity",
+      "description": "Plan, execute, audit, and hand off rigorous development rounds.",
+      "version": "0.2.2-alpha.3"
+    }
+  ]
+}

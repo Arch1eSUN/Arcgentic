@@ -1,0 +1,22 @@
+- id: superpowers-marketplace
+  kind: marketplace
+  origin: https://github.com/obra/superpowers-marketplace
+  retrieved_at: "2026-06-02T15:32:03Z"
+  revision: "reference-snapshot"
+  license: public GitHub source
+  used_parts:
+    - .claude-plugin/marketplace.json
+  excluded_parts:
+    - plugin runtime code
+  rt_tier: RT0
+- id: awesome-openspec
+  kind: openspec
+  origin: https://github.com/wearetechnative/awesome-openspec
+  retrieved_at: "2026-06-02T15:32:03Z"
+  revision: "reference-snapshot"
+  license: public GitHub source
+  used_parts:
+    - proposal/design/tasks artifact shape
+  excluded_parts:
+    - npm package dependency
+  rt_tier: RT0

@@ -1,0 +1,20 @@
+{
+  "plugins": [
+    {
+      "name": "superpowers",
+      "source": "github:obra/superpowers-marketplace/superpowers",
+      "version": "5.0.7",
+      "description": "Workflow skills for disciplined Claude Code sessions.",
+      "strict": true,
+      "keywords": ["workflow", "skills"]
+    },
+    {
+      "name": "episodic-memory",
+      "source": "github:obra/superpowers-marketplace/episodic-memory",
+      "version": "1.0.0",
+      "description": "Remember decisions across development sessions.",
+      "strict": false,
+      "category": "memory"
+    }
+  ]
+}
