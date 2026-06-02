@@ -24,6 +24,14 @@ Requires the `arcgentic` CLI installed (the Python toolkit):
 
 The CLI runs in a subprocess; this markdown skill is the thin shim that invokes it.
 
+For V1 rounds with external workflow inputs, first validate source/spec context:
+
+```bash
+arcgentic source-intake validate docs/source-intake/*.yaml
+arcgentic capability-registry build <marketplace-catalog.json>
+arcgentic spec-governance status <change-dir>
+```
+
 ## Inputs
 
 Parse from `$ARGUMENTS` (passed by Claude Code):
@@ -75,6 +83,8 @@ When invoked with all inputs:
 - `agents/planner.md` — the sub-agent dispatched by this skill (defines the planner's role + output contract)
 - `templates/handoff_18_section.md` / `handoff_12_section.md` / `handoff_10_section.md` — section templates
 - `toolkit/src/arcgentic/skills_impl/plan_round.py` — Python algorithm (full validation logic + adapter dispatch)
+- `skills/source-intake/SKILL.md` — V1 external source record workflow
+- `skills/spec-governance/SKILL.md` — V1 spec artifact workflow
 - spec § 4.1 — full algorithm specification
 - spec § 5.1 — planner agent contract
 - spec § 7 — handoff doc templates (authoritative)

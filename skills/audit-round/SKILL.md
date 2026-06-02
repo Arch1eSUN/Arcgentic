@@ -35,9 +35,11 @@ You DO NOT read: any session transcript / planner's reasoning / developer's chat
    - `references/doc-vs-impl-regrep.md` — does every spec claim grep-quote the impl source?
 8. **Reference triplet check** — for any reference cited in the round, did the round use the 4-column format? See `references/reference-triplet.md`.
 9. **Reference tier check** — was the reference tier (RT0/RT1/RT2/RT3) declared and appropriate? See `references/rt-tier-taxonomy.md`.
-10. **Verdict outcome** — PASS or NEEDS_FIX. PASS = `fact_table_pass==total` AND no P0/P1 findings. NEEDS_FIX = any P0/P1.
-11. **Update state.yaml** — set `current_round.audit_verdict` per schema.
-12. **Transition** — `transition.sh --target passed` (or `needs_fix`). Gate runs automatically.
+10. **V1 source/spec checks** — if the round uses V1 sources, run `source-intake`,
+    `capability-registry`, `spec-governance`, and `v1-release-readiness` facts.
+11. **Verdict outcome** — PASS or NEEDS_FIX. PASS = `fact_table_pass==total` AND no P0/P1 findings. NEEDS_FIX = any P0/P1.
+12. **Update state.yaml** — set `current_round.audit_verdict` per schema.
+13. **Transition** — `transition.sh --target passed` (or `needs_fix`). Gate runs automatically.
 
 ## Verdict file structure (canonical)
 

@@ -19,6 +19,8 @@
 - **Python CLI**（`arcgentic`）：运行 gate、audit、handoff 和 round 工具
 - **单 session orchestrator 模式**：一个 Claude session 作为总编排器，通过 Task tool 派遣角色 sub-agent
 - **多 session 工具集模式**：每个 Claude/Codex session 加载一个角色的 skill，共享的 `state.yaml` 作为 session 间通信协议
+- **V1 source/spec 层**：把外部 workflow source、marketplace capability、OpenSpec-style artifact、
+  agency role family 记录成可审计的 planning input
 
 这些入口都靠状态机 + 门控脚本把纪律**机械化**：如果质量门没过，状态机拒绝前进。**不需要"记得跑 audit-check"** —— 系统替你跑，不过就拦下来。
 
@@ -134,6 +136,17 @@ git checkout v0.2.2-alpha.3
 
 # 校验 Codex plugin manifest
 python3 ~/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py ~/plugins/arcgentic
+```
+
+V1 本地 source/spec 命令：
+
+```bash
+arcgentic session-mode recommend --round R1 --handoff docs/superpowers/plans/R1.md
+arcgentic source-intake validate docs/source-intake/*.yaml
+arcgentic capability-registry build .claude-plugin/marketplace.json
+arcgentic spec-governance status openspec/changes/<change>
+arcgentic agency-roster inspect references/agency-agents
+arcgentic v1-release-readiness --repo-root .
 ```
 
 如果你通过 personal marketplace 管理 Codex 插件，把这段加入

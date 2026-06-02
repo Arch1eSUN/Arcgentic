@@ -26,6 +26,10 @@
     "plan-round",
     "execute-round",
     "audit-round",
+    "source-intake",
+    "spec-governance",
+    "session-mode",
+    "agency-roster",
     "track-refs",
     "codify-lesson",
     "cross-session-handoff",
@@ -45,5 +49,5 @@
   "scripts_dir": "scripts/",
   "schemas_dir": "schema/",
   "hooks_dir": "hooks/",
-  "status": "v0.2.2-alpha.3 — original v0.2 P0/P1/P2 plan complete: plan/dev/audit role coverage, codify-lesson, track-refs, round-boundary-lesson-scan, cross-session-handoff, audit_check-backed execute-round self-audit, Claude Code plugin manifest + marketplace, Codex plugin manifest, 277 pytest tests, mypy --strict clean, ruff clean. OpenSpec + Superpowers Marketplace integration is deferred to v0.3."
+  "status": "v0.2.2-alpha.3 — original v0.2 P0/P1/P2 plan complete. V1 source-intake, capability-registry, spec-governance, session-mode, agency-roster, and v1-release-readiness seams are available in the Python toolkit; stable v1 release promotion remains gated by dogfood and external audit."
 }

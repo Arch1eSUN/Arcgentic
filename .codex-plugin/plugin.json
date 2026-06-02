@@ -28,7 +28,10 @@
       "External audit",
       "Reference tracking",
       "Lesson codification",
-      "Cross-session handoff"
+      "Cross-session handoff",
+      "Source intake",
+      "Spec governance",
+      "Session mode recommendation"
     ],
     "defaultPrompt": "Use arcgentic to plan, execute, audit, or hand off a development round."
   }

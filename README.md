@@ -19,6 +19,8 @@ It works as:
 - A **Python CLI** (`arcgentic`) for gates, audits, handoffs, and round utilities
 - A **single-session orchestrator** that dispatches role sub-agents via the Claude Code Task tool
 - A **multi-session toolkit** where each Claude/Codex session loads one role's skill while a shared `state.yaml` is the inter-session protocol
+- A **V1 source/spec layer** that records external workflow sources, marketplace capabilities,
+  OpenSpec-style artifacts, and agency role families as auditable planning inputs
 
 Either way, the state machine + gate scripts make discipline mechanical: if the gate fails, the state machine refuses to advance. No "remember to run audit-check" — the system runs it for you and blocks if it doesn't pass.
 
@@ -171,6 +173,17 @@ git clone https://github.com/Arch1eSUN/Arcgentic.git arcgentic
 cd arcgentic/toolkit
 python3 -m pip install -e ".[dev]"
 arcgentic --help
+```
+
+V1 local source/spec commands:
+
+```bash
+arcgentic session-mode recommend --round R1 --handoff docs/superpowers/plans/R1.md
+arcgentic source-intake validate docs/source-intake/*.yaml
+arcgentic capability-registry build .claude-plugin/marketplace.json
+arcgentic spec-governance status openspec/changes/<change>
+arcgentic agency-roster inspect references/agency-agents
+arcgentic v1-release-readiness --repo-root .
 ```
 
 ---

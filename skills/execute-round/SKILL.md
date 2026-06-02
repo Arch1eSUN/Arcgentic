@@ -23,6 +23,12 @@ Requires the `arcgentic` CLI:
 
 Requires a planned handoff doc — run `/plan-round` first if missing.
 
+V1 rounds must resolve the session-mode gate before implementation:
+
+```bash
+arcgentic session-mode recommend --round=$ROUND --handoff=$HANDOFF_PATH
+```
+
 ## Inputs
 
 Parse from `$ARGUMENTS`:
@@ -73,4 +79,5 @@ See `docs/tech-debt.md` for the full forward-debt registry.
 - `agents/ba-designer.md` / `developer.md` / `cr-reviewer.md` / `se-contract.md` — agents dispatched
 - `templates/ba_design.md` / `self_audit_handoff.md` — output structure templates
 - `toolkit/src/arcgentic/skills_impl/execute_round.py` — Python algorithm
+- `skills/session-mode/SKILL.md` — V1 pre-dev identity gate
 - spec § 4.2 — full skill specification
