@@ -509,3 +509,73 @@ def test_v1_release_readiness_dispatch(tmp_path: Path) -> None:
         )
         == 0
     )
+
+
+def test_session_mode_prompt_role_dispatch(tmp_path: Path) -> None:
+    handoff = tmp_path / "handoff.md"
+    handoff.write_text("workflow release\n", encoding="utf-8")
+
+    assert (
+        main(
+            [
+                "session-mode",
+                "prompt",
+                "--round",
+                "R2",
+                "--handoff",
+                str(handoff),
+                "--mode",
+                "multi-session",
+                "--role",
+                "auditor",
+            ]
+        )
+        == 0
+    )
+
+
+def test_verdict_completeness_dispatch(tmp_path: Path) -> None:
+    verdict = tmp_path / "verdict.md"
+    verdict.write_text("Outcome: NEEDS_FIX\n", encoding="utf-8")
+
+    assert main(["verdict-completeness", str(verdict)]) == 1
+
+
+def test_close_round_refuses_non_passed_state_dispatch(tmp_path: Path) -> None:
+    import yaml  # type: ignore[import-untyped]
+
+    state = tmp_path / "state.yaml"
+    verdict = tmp_path / "verdict.md"
+    state.write_text(
+        yaml.safe_dump(
+            {
+                "current_round": {
+                    "id": "R2",
+                    "state": "awaiting_audit",
+                    "audit_verdict": {
+                        "path": str(verdict),
+                        "commit": "a" * 40,
+                        "outcome": "PASS",
+                    },
+                },
+                "last_passed_round": None,
+            }
+        ),
+        encoding="utf-8",
+    )
+    verdict.write_text("Outcome: PASS\n", encoding="utf-8")
+
+    assert (
+        main(
+            [
+                "close-round",
+                "--state-file",
+                str(state),
+                "--verdict",
+                str(verdict),
+                "--audit-commit",
+                "a" * 40,
+            ]
+        )
+        == 1
+    )

@@ -240,6 +240,23 @@ def main(argv: list[str] | None = None) -> int:
         choices=["single-session", "multi-session"],
         required=True,
     )
+    session_prompt.add_argument(
+        "--role",
+        choices=["developer", "auditor", "closeout"],
+        default="developer",
+    )
+
+    dispatch_parser = subparsers.add_parser(
+        "orchestrator-dispatch",
+        help="Emit role dispatch order for a round handoff.",
+    )
+    dispatch_parser.add_argument("--round", dest="round_name", required=True)
+    dispatch_parser.add_argument("--handoff", required=True)
+    dispatch_parser.add_argument(
+        "--mode",
+        choices=["single-session", "multi-session"],
+        required=True,
+    )
 
     # V1: source-intake
     source_parser = subparsers.add_parser(
@@ -288,6 +305,20 @@ def main(argv: list[str] | None = None) -> int:
     release_parser.add_argument("--repo-root", default=".")
     release_parser.add_argument("--expected-version", default=None)
     release_parser.add_argument("--local-install-path", default=None)
+
+    verdict_parser = subparsers.add_parser(
+        "verdict-completeness",
+        help="Validate PASS/NEEDS_FIX/AUDIT_INCOMPLETE verdict structure.",
+    )
+    verdict_parser.add_argument("verdict_file")
+
+    close_parser = subparsers.add_parser(
+        "close-round",
+        help="Close a passed round after external audit PASS.",
+    )
+    close_parser.add_argument("--state-file", required=True)
+    close_parser.add_argument("--verdict", required=True)
+    close_parser.add_argument("--audit-commit", required=True)
 
     args = parser.parse_args(argv)
 
@@ -480,8 +511,20 @@ def main(argv: list[str] | None = None) -> int:
             handoff_path=str(handoff_path),
             candidate_roles=("developer", "auditor"),
         )
-        key = "developer" if args.mode == "multi-session" else "developer"
-        print(prompts[key])
+        print(prompts[args.role])
+        return 0
+
+    elif args.command == "orchestrator-dispatch":
+        from pathlib import Path as _Path
+
+        from .orchestrator_dispatch import build_dispatch_order
+
+        dispatch = build_dispatch_order(
+            round_id=args.round_name,
+            handoff_path=_Path(args.handoff),
+            mode=args.mode,
+        )
+        print(json.dumps(dispatch.to_dict(), indent=2, sort_keys=True))
         return 0
 
     elif args.command == "source-intake":
@@ -559,6 +602,34 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(json.dumps(result.__dict__, indent=2, sort_keys=True))
         return 0 if result.ok else 1
+
+    elif args.command == "verdict-completeness":
+        from pathlib import Path as _Path
+
+        from .verdict_completeness import validate_verdict_completeness
+
+        verdict_result = validate_verdict_completeness(
+            _Path(args.verdict_file).read_text(encoding="utf-8")
+        )
+        print(json.dumps(verdict_result.__dict__, indent=2, sort_keys=True))
+        return 0 if verdict_result.ok else 1
+
+    elif args.command == "close-round":
+        from pathlib import Path as _Path
+
+        from .close_round import CloseRoundError, close_round
+
+        try:
+            close_result = close_round(
+                state_path=_Path(args.state_file),
+                verdict_path=_Path(args.verdict),
+                audit_commit=args.audit_commit,
+            )
+        except CloseRoundError as exc:
+            print(f"close-round failed: {exc}")
+            return 1
+        print(close_result.message)
+        return 0
 
     parser.print_help()
     return 1
