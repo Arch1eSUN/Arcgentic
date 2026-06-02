@@ -72,6 +72,29 @@ Alternative rejected: infer mode from the user saying "use full workflow". That 
 does not say whether the user wants one orchestrator session or multiple identity-scoped
 sessions.
 
+### D-7: Mode choice is preceded by a recommendation classifier
+
+Decision: the system recommends single-session or multi-session before asking the user to
+choose.
+
+Rationale: users should not need to infer process weight manually. Lightweight local work
+should default toward one orchestrated session; long-running, release-sensitive, workflow,
+security, or cross-role work should default toward multi-session identity separation.
+
+Alternative rejected: always ask a raw binary choice. It is explicit, but it shifts process
+analysis onto the user and weakens arcgentic's guidance value.
+
+### D-8: Agency catalogs provide role families, not imported agents
+
+Decision: parse agency-agents-style catalogs as role-family references for identity prompts.
+Do not import all upstream role files into arcgentic.
+
+Rationale: arcgentic needs role routing and identity handoff, not another bundled catalog of
+hundreds of prompts. Keeping roles as references preserves locality and avoids prompt bloat.
+
+Alternative rejected: vendoring `agency-agents` and `agency-agents-zh` roles into arcgentic.
+That would create a large sync burden and blur arcgentic's planner/developer/auditor model.
+
 ## 3. Module Boundaries
 
 - `source_intake.py`: source record parsing and validation.
@@ -79,6 +102,7 @@ sessions.
 - `spec_governance.py`: OpenSpec-style artifact graph validation.
 - `v1_release.py`: version/install/readiness checks.
 - `session_mode.py`: pre-dev mode prompt and identity handoff generation.
+- `agency_roster.py`: agency-agents-style role catalog parsing and role-family selection.
 
 The modules stay independent. `v1_release.py` may call the other modules; the others must
 not import release-readiness code.

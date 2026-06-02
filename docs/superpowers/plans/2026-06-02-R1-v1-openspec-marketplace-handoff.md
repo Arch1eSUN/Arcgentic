@@ -30,6 +30,8 @@ as source models.
 |---|---|---|---|---|
 | `obra/superpowers-marketplace` | reference-only | Provides marketplace catalog shape for skills and workflows | `.claude-plugin/marketplace.json` entries: name, source, version, strict, description | public GitHub source; RT0 |
 | `wearetechnative/awesome-openspec` | reference-only | Provides spec-driven artifact lifecycle examples | `proposal.md`, `design.md`, `tasks.md`, `openspec/specs`, archive model | public GitHub source; RT0 |
+| `msitarzewski/agency-agents` | reference-only | Provides agency-style role catalog and agent file structure | department directories, role metadata, identity/mission/deliverable workflow shape | MIT + RT0 |
+| `jnMetaCode/agency-agents-zh` | reference-only | Provides Chinese role catalog scale and multi-tool integration evidence | `CATALOG.md`, `UPSTREAM.md`, department role paths, Chinese localized roles | MIT + RT0 |
 | `docs/plans/2026-06-02-arcgentic-v1-openspec-superpowers-design.md` | direct use | Local design contract already committed and pushed | V1 scope, module seams, tests, release gates | project-owned; RT3 |
 
 Reference use rule: these sources inform arcgentic-native modules. No third-party code is
@@ -50,7 +52,7 @@ Developer must keep this as a V1 readiness finding and avoid relying on fake sub
 success.
 
 Session identity requirement: before `awaiting_dev_start -> dev_in_progress`, the
-orchestrator must ask the user to choose one of two modes.
+orchestrator must first recommend a mode, then ask the user to choose one of two modes.
 
 - Single-session mode: this session is the orchestrator. It dispatches developer and audit
   sub-agents in sequence. Audit starts automatically after dev only when dispatch transport
@@ -63,6 +65,11 @@ If dispatch transport is unavailable, single-session mode is not a full automati
 The workflow may continue only as verified local execution, and the self-audit must record
 that degradation.
 
+Mode recommendation requirement: before presenting the choice, the orchestrator must print:
+recommendation, confidence, reasons, suggested role identities, and override instructions.
+For this V1 round, the expected recommendation is `multi-session` because the work changes
+workflow contracts, release gates, multi-agent identity, and public release readiness.
+
 ## 4. Architecture Target
 
 Add three deep modules behind small interfaces:
@@ -70,6 +77,8 @@ Add three deep modules behind small interfaces:
 - `source-intake`: normalize repo/catalog/spec sources into auditable source records.
 - `capability-registry`: parse marketplace-style catalogs into normalized capabilities.
 - `spec-governance`: validate OpenSpec-style artifact graphs without requiring OpenSpec CLI.
+- `agency-roster`: parse agency-agents-style role catalogs and normalize role families.
+- `session-mode`: recommend single-session vs multi-session, then generate identity prompts.
 
 Add one release gate module:
 
@@ -78,23 +87,27 @@ Add one release gate module:
 
 ## 5. Implementation Tasks
 
-Implementation task 1: add the session-mode gate so current session identity is explicit
-and dev cannot start before the user chooses single-session or multi-session mode.
+Implementation task 1: add the session-mode classifier and gate so current session identity
+is explicit, the system recommends single-session or multi-session, and dev cannot start
+before the user confirms or overrides.
 
 Implementation task 2: add fixtures for Superpowers-style and Codex-style marketplace
-catalogs plus OpenSpec-style change directories.
+catalogs, OpenSpec-style change directories, and agency-agents English/Chinese role catalog
+shapes.
 
-Implementation task 3: implement source-intake data model, schema validation, and CLI
+Implementation task 3: implement agency-roster parser and role-family selector.
+
+Implementation task 4: implement source-intake data model, schema validation, and CLI
 entry point.
 
-Implementation task 4: implement capability-registry parser and duplicate detection.
+Implementation task 5: implement capability-registry parser and duplicate detection.
 
-Implementation task 5: implement spec-governance artifact graph validator, task status
+Implementation task 6: implement spec-governance artifact graph validator, task status
 counter, and archive readiness checks.
 
-Implementation task 6: implement v1-release-readiness gate and wire it into CLI.
+Implementation task 7: implement v1-release-readiness gate and wire it into CLI.
 
-Implementation task 7: update relevant skills and README surfaces without changing runtime
+Implementation task 8: update relevant skills and README surfaces without changing runtime
 scope.
 
 ## 6. Required Tests
@@ -104,6 +117,12 @@ rejects malformed or duplicate records.
 
 Required test: session-mode emits both single-session and multi-session choices and refuses
 single-session auto-audit when dispatch transport is unavailable.
+
+Required test: session-mode recommends single-session for short low-risk local changes and
+multi-session for workflow/release/security/cross-role rounds.
+
+Required test: agency-roster parses English department role files and Chinese `CATALOG.md`
+role paths without copying role content into arcgentic.
 
 Required test: capability-registry parses Superpowers-style `.claude-plugin/marketplace.json`
 and Codex-style `.agents/plugins/marketplace.json`.
@@ -137,6 +156,12 @@ Required audit fact 7: anti-scope grep proves no OpenSpec npm dependency was add
 
 Required audit fact 8: anti-scope grep proves no Moirai path was modified.
 
+Required audit fact 9: session-mode classifier output for this round recommends
+multi-session and records reasons.
+
+Required audit fact 10: agency-roster fixtures reference agency-agents paths but do not
+vendor upstream role files.
+
 ## 8. Stop Conditions
 
 Stop condition: if adapter dispatch still fails after a minimal reproduction, do not fake
@@ -155,11 +180,12 @@ repair before tagging.
 ## 9. BA Design Brief
 
 BA designer should decide whether source records are YAML or JSON, whether archive readiness
-should move files or validate only, and whether capability tags are inferred from descriptions
-or only explicit metadata.
+should move files or validate only, whether capability tags are inferred from descriptions
+or only explicit metadata, and how to classify single-session vs multi-session work.
 
 The architectural target is to keep source intake and spec governance as inputs to planning,
-not as replacement states for the round state machine.
+not as replacement states for the round state machine. Agency roles are routing metadata,
+not replacement identities for arcgentic's planner/developer/auditor state model.
 
 ## 10. CR Review Brief
 
@@ -180,7 +206,8 @@ Commit 1: this handoff and state update.
 
 Commit 2: BA design pass and session-mode entry correction.
 
-Commit 3: session-mode, source-intake, capability-registry, spec-governance, and tests.
+Commit 3: session-mode classifier, agency-roster, source-intake, capability-registry,
+spec-governance, and tests.
 
 Commit 4: v1-release-readiness gate, skill/readme updates, and self-audit handoff.
 
@@ -217,6 +244,9 @@ independence. Implement only sections 1-8 and 12-13 of this handoff.
 Stop after: Commit 4 self-audit handoff is written, local gates are green, and external
 audit is ready to run.
 
+Recommended agency role family: minimal-change engineer plus software architect support.
+Do not adopt auditor identity in this session.
+
 ### 15.2 Auditor session identity handoff
 
 Read: `.agentic-rounds/state.yaml`, this handoff, the final self-audit handoff, and every
@@ -229,6 +259,9 @@ mechanical facts independently and return PASS or NEEDS_FIX.
 
 Stop after: external audit verdict is written and `verdict-fact-table-gate.sh` can pass.
 
+Recommended agency role family: code reviewer plus security engineer plus external auditor.
+Do not adopt developer identity in this session.
+
 ## 16. Forward Debt
 
 Forward debt P2: adapter detection currently treats a local `~/.claude/skills` directory as
@@ -240,6 +273,9 @@ and transitioned to planning.
 
 Forward debt P2: `awaiting_dev_start` did not originally force a session-mode gate. This
 round corrected the handoff before dev body continued.
+
+Forward debt P2: session-mode originally asked for user choice without first producing a
+recommendation. This round now requires classifier output before choice.
 
 ## 17. Next Round Preview
 

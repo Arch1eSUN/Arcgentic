@@ -14,6 +14,8 @@ Two external workflow sources are being fused:
 - `wearetechnative/awesome-openspec`: an OpenSpec / Spec-Driven Development resource
   catalog that also dogfoods OpenSpec-style `proposal.md`, `design.md`, `tasks.md`,
   `specs/`, and `archive/` artifacts.
+- `msitarzewski/agency-agents` and `jnMetaCode/agency-agents-zh`: AI specialist role
+  catalogs organized by department, specialty, workflow, deliverables, and usage context.
 
 The v1 goal is not to wrap either project directly. The goal is to absorb their useful
 workflow patterns into arcgentic's own mechanically-verifiable round model.
@@ -45,6 +47,21 @@ workflow patterns into arcgentic's own mechanically-verifiable round model.
 - The useful arcgentic pattern is a persistent spec artifact graph, not taking a Node CLI
   dependency.
 
+### 2.3 Agency Agents facts
+
+- `msitarzewski/agency-agents` is an MIT-licensed catalog of specialized AI agent roles
+  grouped by divisions such as engineering, design, product, project management, testing,
+  support, finance, marketing, sales, and specialized roles.
+- Its agent design guidance requires each role to define identity, mission, critical rules,
+  deliverables, workflow process, communication style, learning/memory, success metrics, and
+  advanced capabilities.
+- `jnMetaCode/agency-agents-zh` is an MIT-licensed Chinese community edition. It declares
+  215 roles, 17 supported tools, 18 departments, translated upstream coverage, and additional
+  China-market roles.
+- The useful arcgentic pattern is role cataloging and identity handoff, not wholesale role
+  import. arcgentic should select role families for a round and generate identity prompts,
+  while retaining its own planner/developer/auditor state machine.
+
 ## 3. V1 scope
 
 ### 3.1 In scope
@@ -57,6 +74,9 @@ workflow patterns into arcgentic's own mechanically-verifiable round model.
 - Extend `plan-round` so V1 planning can read capability registry and spec artifacts.
 - Extend `execute-round` so implementation tasks can be traced back to spec tasks.
 - Extend audit checks so V1 release readiness verifies manifest/version/docs alignment.
+- Add a pre-mode classifier that recommends single-session or multi-session execution before
+  the user chooses.
+- Add agency-style role catalog ingestion for multi-agent dispatch and identity handoff.
 - Publish v1.0.0 as a stable release only after dogfood gates pass.
 
 ### 3.2 Out of scope
@@ -77,10 +97,13 @@ flowchart LR
   ExternalSources["External Sources"] --> SourceIntake["source-intake"]
   SourceIntake --> CapabilityRegistry["capability-registry"]
   SourceIntake --> SpecGovernance["spec-governance"]
+  SourceIntake --> AgencyRoster["agency-roster"]
 
   CapabilityRegistry --> PlanRound["plan-round"]
   SpecGovernance --> PlanRound
-  PlanRound --> ExecuteRound["execute-round"]
+  AgencyRoster --> SessionMode["session-mode classifier"]
+  PlanRound --> SessionMode
+  SessionMode --> ExecuteRound["execute-round"]
   ExecuteRound --> SelfAudit["self-audit handoff"]
   SelfAudit --> ExternalAudit["audit-round"]
   ExternalAudit --> ArchiveLessons["archive + lessons"]
@@ -139,6 +162,40 @@ Interface:
 Depth: high. It gives arcgentic a spec artifact graph while keeping implementation
 independent of one vendor CLI.
 
+### 5.4 `agency-roster`
+
+Purpose: parse agency-agents-style role catalogs into normalized role families.
+
+Interface:
+
+- Input: local role catalog path, GitHub repo snapshot, or source-intake record.
+- Output: agent role entries with `department`, `role_name`, `source_path`, `specialty`,
+  `when_to_use`, `deliverables`, `workflow_phases`, and `language`.
+- Error modes: malformed role file, missing identity, missing deliverables, duplicate role
+  identity, unsupported catalog layout.
+
+Depth: real seam. Known adapters:
+
+- English agency-agents layout: department directories with Markdown role files.
+- Chinese agency-agents-zh layout: department directories plus `CATALOG.md` and upstream
+  mapping metadata.
+
+### 5.5 `session-mode classifier`
+
+Purpose: recommend execution mode before asking the user to choose.
+
+Interface:
+
+- Input: handoff metadata, task count, expected duration, touched surface count, risk flags,
+  dispatch availability, and candidate agency roles.
+- Output: recommendation object with `recommended_mode`, `confidence`, `reasons`,
+  `candidate_roles`, `requires_user_confirmation`, and identity handoff prompts.
+- Error modes: missing handoff, unknown risk profile, dispatch unavailable but
+  single-session requested, no suitable role identity for required work.
+
+Depth: high. It concentrates the decision logic that otherwise leaks into every
+orchestrator prompt.
+
 ## 6. Artifact mapping
 
 | OpenSpec artifact | arcgentic artifact | V1 behavior |
@@ -174,12 +231,35 @@ Reason: adding states for every spec phase would duplicate OpenSpec. arcgentic's
 machine should remain the enforcement layer for rounds, while spec-governance owns the
 artifact graph.
 
-## 8. Session Mode Gate
+## 8. Session Mode Classifier + Gate
 
-Before `awaiting_dev_start -> dev_in_progress`, arcgentic must force an explicit session
-mode decision. This is a workflow entry seam, not a convenience prompt.
+Before `awaiting_dev_start -> dev_in_progress`, arcgentic must first recommend an execution
+mode, then force an explicit user decision. This is a workflow entry seam, not a
+convenience prompt.
 
-### 8.1 Mode A — single-session orchestrator
+### 8.1 Classifier heuristic
+
+Recommend `single-session` when all are true:
+
+- expected duration is short, normally less than one focused day;
+- implementation touches a small local surface, normally fewer than 10 files;
+- no schema migration, release tag, public package publication, security-sensitive change,
+  or cross-repo dependency is involved;
+- audit independence can be preserved by a sub-agent or by narrow local verification;
+- sub-agent dispatch transport is available if automatic audit is requested.
+
+Recommend `multi-session` when any are true:
+
+- expected work spans multiple days or multiple commits with materially different roles;
+- the round changes workflow contracts, release gates, security boundaries, package
+  manifests, or external integrations;
+- independent external audit is strategically important;
+- multiple agency roles are needed and their outputs should not contaminate each other;
+- dispatch transport is unavailable or unverified.
+
+The classifier must show its reasons and still ask the user to confirm or override.
+
+### 8.2 Mode A — single-session orchestrator
 
 Current session identity: orchestrator.
 
@@ -193,7 +273,7 @@ Behavior:
   execution and record the failure as an adapter finding. It must not claim full
   single-session automation.
 
-### 8.2 Mode B — multi-session identity handoff
+### 8.3 Mode B — multi-session identity handoff
 
 Current session identity: orchestrator/planner until handoff is complete.
 
@@ -206,7 +286,22 @@ Behavior:
 - After developer self-audit, orchestrator emits an Audit Session identity prompt.
 - Audit session must not share developer role identity and must independently verify facts.
 
-### 8.3 Required UX
+### 8.4 Agency-style role routing
+
+When the classifier recommends multi-session, it must also recommend identity prompts for
+specific role families. For arcgentic V1, the default set is:
+
+- Orchestrator / project shepherd: owns state, mode gate, and handoff prompts.
+- Software architect: validates module seams and tradeoffs.
+- Minimal-change engineer or senior developer: implements narrow code slices.
+- Code reviewer: checks maintainability, coupling, and regressions.
+- Security engineer: checks threat surfaces and secret/config handling.
+- Auditor: writes external verdict and re-runs facts.
+
+These are role families. arcgentic may map them to built-in agents, agency-agents catalog
+entries, or local user-provided roles.
+
+### 8.5 Required UX
 
 At the mode gate, arcgentic must ask the user to choose:
 
@@ -214,6 +309,14 @@ At the mode gate, arcgentic must ask the user to choose:
   dev, if dispatch transport is verified.
 - `multi-session`: current session stops and prints identity handoff prompts for separate
   dev/audit sessions.
+
+Before showing that choice, it must print a recommendation:
+
+- `Recommendation`
+- `Confidence`
+- `Reasons`
+- `Suggested role identities`
+- `Override instructions`
 
 No implementation work should begin before this gate is resolved.
 
@@ -227,7 +330,9 @@ arcgentic capability-registry build --sources docs/source-intake/*.yaml
 arcgentic spec-governance status <change-dir>
 arcgentic spec-governance validate <change-dir>
 arcgentic spec-governance archive <change-dir>
-arcgentic session-mode prompt --round <round> --handoff <path>
+arcgentic agency-roster inspect <catalog-path>
+arcgentic session-mode recommend --round <round> --handoff <path>
+arcgentic session-mode prompt --round <round> --handoff <path> --mode single|multi
 arcgentic v1-release-readiness --repo-root .
 ```
 
@@ -275,12 +380,24 @@ arcgentic workflow", or when a developer/auditor session needs an identity hando
 Responsibilities:
 
 - declare the current session identity;
-- ask the user to choose single-session or multi-session execution;
+- recommend single-session or multi-session execution before asking the user to choose;
 - verify whether single-session sub-agent dispatch is actually available;
 - emit developer and auditor handoff prompts for multi-session mode;
 - block dev start until mode is confirmed.
 
-### 10.4 Updated skills
+### 10.4 New skill: `agency-roster`
+
+Trigger: when the user references agency-agents, wants role routing, or needs multi-agent
+identity prompts.
+
+Responsibilities:
+
+- parse role catalog metadata;
+- select role families for the current round;
+- generate identity handoff prompts from role, deliverables, scope, and stop conditions;
+- keep external role catalogs as references unless explicitly imported by the user.
+
+### 10.5 Updated skills
 
 - `plan-round`: include source intake and capability registry in handoff.
 - `execute-round`: check task traceability and require session-mode confirmation before
@@ -302,6 +419,9 @@ Responsibilities:
 - Validate source-intake record schema.
 - Generate single-session and multi-session identity prompts.
 - Refuse single-session auto-audit when dispatch transport is unavailable.
+- Recommend single-session for short low-risk local tasks.
+- Recommend multi-session for release/workflow/security/cross-role rounds.
+- Parse agency-agents-style role directories and `CATALOG.md` role paths.
 
 ### Integration tests
 
@@ -310,7 +430,8 @@ Responsibilities:
 - Tasks complete -> spec-governance archive-ready.
 - Incomplete tasks -> archive warning or failure depending strict mode.
 - V1 release readiness catches manifest/version README drift.
-- `awaiting_dev_start` produces mode choices before `dev_in_progress`.
+- `awaiting_dev_start` produces a recommendation and mode choices before `dev_in_progress`.
+- Multi-session mode emits developer and auditor identity handoff prompts.
 
 ### Regression tests
 
@@ -351,16 +472,18 @@ V1 stable requires:
 ## 14. Recommended implementation order
 
 1. Add fixtures for marketplace catalogs and OpenSpec-style changes.
-2. Implement session-mode prompt generation and mode gate.
-3. Implement source-intake data model and validator.
-4. Implement capability-registry parser.
-5. Implement spec-governance artifact graph validator.
-6. Add CLI commands around those modules.
-7. Update `plan-round`, `execute-round`, and `audit-round` skills.
-8. Add V1 release-readiness gate.
-9. Update README/plugin manifests to `1.0.0-alpha.1`.
-10. Dogfood arcgentic-on-arcgentic V1 round.
-11. External audit and promote to `1.0.0` only after Gate 3 portability proof.
+2. Add fixtures for agency-agents English and Chinese role catalog shapes.
+3. Implement session-mode classifier, prompt generation, and mode gate.
+4. Implement agency-roster parser and role-family selector.
+5. Implement source-intake data model and validator.
+6. Implement capability-registry parser.
+7. Implement spec-governance artifact graph validator.
+8. Add CLI commands around those modules.
+9. Update `plan-round`, `execute-round`, and `audit-round` skills.
+10. Add V1 release-readiness gate.
+11. Update README/plugin manifests to `1.0.0-alpha.1`.
+12. Dogfood arcgentic-on-arcgentic V1 round.
+13. External audit and promote to `1.0.0` only after Gate 3 portability proof.
 
 ## 15. Open decisions
 
@@ -372,3 +495,5 @@ V1 stable requires:
   archive readiness in v1.0.0.
 - Whether single-session mode in Codex should use Codex thread tools, multi-agent tools, or
   be marked unavailable until a real dispatch adapter exists.
+- Whether agency role selection should be rule-based only in v1.0.0, or whether it should
+  later support scored semantic matching.
