@@ -2,7 +2,7 @@
 
 **Outcome:** PASS
 **Audited dev commits:** `caf344e65e3b8ee06fa2b0463d0fda150bd9f7b9` `81454cc655230870ba54b94c5776bbbf3ad82a84` `242ee3538f4411e0c7924e4511208974c3f3d01a`
-**Audited audit commit:** TBD
+**Audited audit commit:** `312e5053433456290fd68cd1f9cb3b44956e3e86`
 **Auditor:** Codex external auditor
 **Audited at:** 2026-06-03
 
