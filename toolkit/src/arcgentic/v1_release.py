@@ -75,6 +75,12 @@ def _readme_version(path: Path) -> str:
     )
     if badge_match:
         return f"{badge_match.group(1)}-{badge_match.group(2)}"
+    stable_badge_match = re.search(
+        r"version-v([0-9]+\.[0-9]+\.[0-9]+)-[A-Za-z0-9]+\.svg",
+        text,
+    )
+    if stable_badge_match:
+        return stable_badge_match.group(1)
     match = re.search(r"version-v([0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.]+)?)", text)
     if match:
         return match.group(1)

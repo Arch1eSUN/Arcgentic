@@ -17,6 +17,7 @@ from typing import Literal
 
 import pytest as _pytest
 
+from arcgentic import __version__
 from arcgentic.adapters.base import AgentDispatchResult  # noqa: I001
 from arcgentic.adapters.inline import InlineAdapter
 from arcgentic.audit_check import run as audit_check_run
@@ -495,7 +496,7 @@ def test_phase4_pass_verdict(tmp_path: Path) -> None:
     assert "**STATUS: PASS**" in content
     assert "PASS mechanical facts verified by audit-check" in content
     assert "ER-AUDIT-GATE-4" not in content
-    assert "arcgentic v0.2.2-alpha.3" in content
+    assert f"arcgentic v{__version__}" in content
     assert "arcgentic v0.2.1-alpha.1" not in content
 
 

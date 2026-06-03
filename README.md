@@ -8,9 +8,9 @@
 
 **中文文档 → [README.zh-CN.md](./README.zh-CN.md)**
 
-[![status](https://img.shields.io/badge/status-alpha-orange.svg)](#status)
+[![status](https://img.shields.io/badge/status-stable-brightgreen.svg)](#status)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-[![version](https://img.shields.io/badge/version-v0.2.2--alpha.3-blueviolet.svg)](#status)
+[![version](https://img.shields.io/badge/version-v1.0.0-blueviolet.svg)](#status)
 [![PyPI](https://img.shields.io/pypi/v/arcgentic.svg)](https://pypi.org/project/arcgentic/)
 
 `arcgentic` is a [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) / Codex-compatible plugin plus a Python CLI that turns four-role engineering discipline — *planning / development+self-audit / external-audit / reference-tracking* — into a **mechanically-enforced, state-machine-driven workflow**.
@@ -102,7 +102,7 @@ PyPI package: https://pypi.org/project/arcgentic/
 This installs the Claude Code plugin from the marketplace manifest at
 `.claude-plugin/marketplace.json`.
 
-### Method 3 — Manual Claude Code install (alpha + dev)
+### Method 3 — Manual Claude Code install
 
 ```bash
 # Clone into Claude Code's user-level skills directory
@@ -124,7 +124,7 @@ Now in any Claude Code session, you can invoke arcgentic skills:
 - `arcgentic:orchestrate-round`
 - ...
 
-### Method 4 — Codex local plugin (alpha + dev)
+### Method 4 — Codex local plugin
 
 `arcgentic` also ships a Codex plugin manifest at `.codex-plugin/plugin.json`.
 For local Codex use, copy or clone the repo under your personal plugin folder:
@@ -134,7 +134,7 @@ mkdir -p ~/plugins
 cd ~/plugins
 git clone https://github.com/Arch1eSUN/Arcgentic.git arcgentic
 cd arcgentic
-git checkout v0.2.2-alpha.3
+git checkout v1.0.0
 
 # Validate Codex plugin manifest
 python3 ~/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py ~/plugins/arcgentic
@@ -394,7 +394,7 @@ This is non-negotiable, derived from the original Moirai project's `§ 4 cost-di
 
 ## Status & roadmap
 
-### Current — `v0.2.2-alpha.3`
+### Current — `v1.0.0`
 
 - ✅ Plugin scaffold + JSON Schema (`schema/state.schema.json`)
 - ✅ Foundation: 4 state scripts + 3 gate scripts + lib helpers + tests (9 test files / 48 bash assertions, 100% passing per TDD discipline) — from v0.1.0
@@ -402,7 +402,7 @@ This is non-negotiable, derived from the original Moirai project's `§ 4 cost-di
   - 6 IDE adapter implementations (ClaudeCode canonical + Cursor + VSCode-Codex + Codex CLI + Inline fallback) + `detect_adapter()` auto-detection
   - audit_check engine with AC-1 + AC-3 mechanical fact-verification
   - 4 quality gates aggregator (`quality-gate-enforce`)
-  - 317 pytest unit + property + integration tests; mypy --strict clean; ruff clean
+  - 323 pytest unit + property + integration tests; mypy --strict clean; ruff clean
 - ✅ 11 markdown skills (v0.1.0 foundation + plan-round + execute-round + close-round + codify-lesson + track-refs + cross-session-handoff)
 - ✅ 9 markdown agents (orchestrator/auditor + planner/developer/BA/CR/SE + lesson-codifier + ref-tracker)
 - ✅ Hooks: pre-commit-fact-check, quality-gate-enforce, round-boundary-lesson-scan
@@ -413,27 +413,28 @@ This is non-negotiable, derived from the original Moirai project's `§ 4 cost-di
 - ✅ V1 release hardening: project-level session mode, orchestrator dispatch
   order output, role-specific identity prompts, structured verdict completeness,
   and strict-audit-check-backed `close-round` seam
-- ✅ Python CLI published on PyPI as `arcgentic==0.2.2a3`
+- ✅ Python CLI version aligned for PyPI release as `arcgentic==1.0.0`
 - ✅ GitHub Actions trusted publishing workflow for PyPI releases
 - ✅ Claude Code plugin manifest + marketplace at `.claude-plugin/`
 - ✅ Codex local plugin manifest at `.codex-plugin/plugin.json`
 - ✅ OpenClaw git-source bundle manifest at `openclaw.plugin.json`
 - ✅ Dogfood Gate 1 (structural-fidelity replay against Moirai R10-L3-llm verdict — PASS, from v0.1.0)
 - ✅ Dogfood Gate 2 (v0.1.0-alpha.2-meta round closed PASS — from v0.1.0)
-- ✅ Dogfood Gate 2 v0.2.0 (protocol documented at `tests/dogfood/gate-2-v0.2.0/PROTOCOL.md`; live execute-round run scheduled for post-release)
-- ⏳ Dogfood Gate 3 (cross-project portability) — deferred to pre-stable
+- ✅ V1 dogfood R1: source-intake / capability-registry / spec-governance / agency-roster round closed PASS
+- ✅ V1 dogfood R2: project-level session mode / dispatch / close-round release-hardening round closed PASS
+- ✅ V1 dogfood R3: prepublish self-audit stability + codify-lesson precision fix round closed PASS
 
-### Next — `v0.3.0`
+### Next — `v1.0.x` / `v1.1.0`
 
-- OpenSpec ingestion as upstream spec/source-of-truth layer
-- Superpowers Marketplace capability scan as optional plugin registry input
-- GitHub reference discovery/search feeding `track-refs`
+- Cross-project portability hardening on 2-3 non-Moirai repositories
 - Rich execute-round fact generation from commit chain and changed files
 - ER-RETRY: retry-with-context loops for sub-agent dispatches
+- GitHub reference discovery/search feeding `track-refs`
 
 ### `v1.0.0` stable
 
-After Gate 3 passes on 2-3 non-Moirai projects: promote to stable + submit to Claude Code plugin marketplace.
+Stable release cut after R1-R3 live dogfood and external audit. Follow-up work should stay
+in `v1.0.x` / `v1.1.0` unless it is a release-blocking regression.
 
 ---
 
@@ -459,11 +460,11 @@ What's NOT in arcgentic: the **specific instances** (Moirai's Phase numbers, fac
 
 ## Contributing
 
-This is `v0.2.2-alpha.3`. The plugin is being battle-tested before opening contributions. If you have:
+This is `v1.0.0`. If you have:
 - **Bug reports** — open an issue with a reproducer
 - **Portability bugs** — open an issue tagged `portability` with the project type / OS / Claude Code version
 - **Feature suggestions** — open a discussion (we'll evaluate against the [forward plan](#status--roadmap))
-- **Pull requests** — please open an issue first to discuss; PRs without prior discussion may be deferred until v1.0.0
+- **Pull requests** — please open an issue first to discuss; PRs without prior discussion may be deferred to the next minor release
 
 ---
 

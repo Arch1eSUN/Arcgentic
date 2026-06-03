@@ -2,7 +2,7 @@
   "id": "arcgentic",
   "name": "Arcgentic",
   "description": "Mechanical plan/dev/self-audit/external-audit/closeout workflow gates for AI coding agents.",
-  "version": "0.2.2-alpha.3",
+  "version": "1.0.0",
   "activation": {
     "onStartup": false
   },

@@ -1,6 +1,6 @@
 {
   "name": "arcgentic",
-  "version": "0.2.2-alpha.3",
+  "version": "1.0.0",
   "description": "Agentic harness for rigorous round-driven development. Orchestrates planning, execution, external audit, and reference tracking across roles — with mechanically verifiable state machine, fact-table audit gates, and lesson codification.",
   "author": "Arc Studio",
   "license": "MIT",
@@ -50,5 +50,5 @@
   "scripts_dir": "scripts/",
   "schemas_dir": "schema/",
   "hooks_dir": "hooks/",
-  "status": "v0.2.2-alpha.3 — original v0.2 P0/P1/P2 plan complete. V1 source-intake, capability-registry, spec-governance, project-level session-mode, agency-roster, verdict-completeness, close-round, and v1-release-readiness seams are available in the Python toolkit; stable v1 release promotion remains gated by dogfood and external audit."
+  "status": "v1.0.0 — stable release. V1 source-intake, capability-registry, spec-governance, project-level session-mode, agency-roster, orchestrator dispatch, verdict-completeness, close-round, and v1-release-readiness seams passed live dogfood rounds R1-R3 with external audit."
 }

@@ -8,9 +8,9 @@
 
 **English → [README.md](./README.md)**
 
-[![status](https://img.shields.io/badge/status-alpha-orange.svg)](#状态与路线图)
+[![status](https://img.shields.io/badge/status-stable-brightgreen.svg)](#状态与路线图)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-[![version](https://img.shields.io/badge/version-v0.2.2--alpha.3-blueviolet.svg)](#状态与路线图)
+[![version](https://img.shields.io/badge/version-v1.0.0-blueviolet.svg)](#状态与路线图)
 [![PyPI](https://img.shields.io/pypi/v/arcgentic.svg)](https://pypi.org/project/arcgentic/)
 
 `arcgentic` 是一个兼容 [Claude Code](https://docs.claude.com/zh-CN/docs/claude-code/overview) / Codex 的插件，加上一套 Python CLI。它把四角色工程纪律 ——*规划 / 开发+自审 / 外审 / 引用追踪* —— 变成一套**机械强制 + 状态机驱动**的工作流。
@@ -99,7 +99,7 @@ PyPI package: https://pypi.org/project/arcgentic/
 
 这会从 `.claude-plugin/marketplace.json` 声明的 marketplace 安装 Claude Code 插件。
 
-### 方式 3 —— 手动安装 Claude Code 插件（alpha + 开发模式）
+### 方式 3 —— 手动安装 Claude Code 插件
 
 ```bash
 # 克隆到 Claude Code 的用户级 skills 目录
@@ -121,7 +121,7 @@ claude plugin validate ~/.claude/skills/arcgentic
 - `arcgentic:orchestrate-round`
 - ……
 
-### 方式 4 —— Codex 本地插件（alpha + 开发模式）
+### 方式 4 —— Codex 本地插件
 
 `arcgentic` 现在也包含 Codex 插件入口：`.codex-plugin/plugin.json`。
 本地 Codex 使用时，把 repo clone 到个人插件目录：
@@ -131,7 +131,7 @@ mkdir -p ~/plugins
 cd ~/plugins
 git clone https://github.com/Arch1eSUN/Arcgentic.git arcgentic
 cd arcgentic
-git checkout v0.2.2-alpha.3
+git checkout v1.0.0
 
 # 校验 Codex plugin manifest
 python3 ~/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py ~/plugins/arcgentic
@@ -390,7 +390,7 @@ arcgentic/
 
 ## 状态与路线图
 
-### 当前 —— `v0.2.2-alpha.3`
+### 当前 —— `v1.0.0`
 
 - ✅ 插件 scaffold + JSON Schema (`schema/state.schema.json`)
 - ✅ Foundation：4 个 state 脚本 + 3 个 gate 脚本 + lib 辅助函数 + 测试（48 个 bash assertion，按 TDD 纪律 100% 通过）—— 来自 v0.1.0
@@ -398,7 +398,7 @@ arcgentic/
   - 6 个 IDE adapter 实现（ClaudeCode 标准 + Cursor + VSCode-Codex + Codex CLI + Inline 兜底）+ `detect_adapter()` 自动检测
   - audit_check 引擎，支持 AC-1 + AC-3 机械事实核查
   - 4 质量门聚合器（`quality-gate-enforce`）
-  - 317 个 pytest 单元 + 属性 + 集成测试；mypy --strict 通过；ruff 通过
+  - 323 个 pytest 单元 + 属性 + 集成测试；mypy --strict 通过；ruff 通过
 - ✅ 11 个 markdown skill（v0.1.0 foundation + plan-round + execute-round + close-round + codify-lesson + track-refs + cross-session-handoff）
 - ✅ 9 个 markdown agent（orchestrator/auditor + planner/developer/BA/CR/SE + lesson-codifier + ref-tracker）
 - ✅ Hooks：pre-commit-fact-check、quality-gate-enforce、round-boundary-lesson-scan
@@ -409,27 +409,28 @@ arcgentic/
 - ✅ V1 release hardening：项目级 session mode、orchestrator dispatch
   顺序输出、按角色生成 identity prompt、结构化 verdict completeness、
   以及带 strict audit-check 的 `close-round` seam
-- ✅ Python CLI 已发布到 PyPI：`arcgentic==0.2.2a3`
+- ✅ Python CLI 版本已对齐 PyPI 发布：`arcgentic==1.0.0`
 - ✅ GitHub Actions trusted publishing 工作流已接入 PyPI 发布
 - ✅ Claude Code 插件 manifest + marketplace：`.claude-plugin/`
 - ✅ Codex 本地插件 manifest：`.codex-plugin/plugin.json`
 - ✅ OpenClaw git-source bundle manifest：`openclaw.plugin.json`
 - ✅ Dogfood Gate 1（对 Moirai R10-L3-llm verdict 回放验证 —— PASS，来自 v0.1.0）
 - ✅ Dogfood Gate 2（v0.1.0-alpha.2-meta round 闭环 PASS —— 来自 v0.1.0）
-- ✅ Dogfood Gate 2 v0.2.0（协议已记录于 `tests/dogfood/gate-2-v0.2.0/PROTOCOL.md`；live execute-round 运行计划在 release 后执行）
-- ⏳ Dogfood Gate 3（跨项目可移植性）—— 推迟到 pre-stable
+- ✅ V1 dogfood R1：source-intake / capability-registry / spec-governance / agency-roster round 闭环 PASS
+- ✅ V1 dogfood R2：项目级 session mode / dispatch / close-round release-hardening round 闭环 PASS
+- ✅ V1 dogfood R3：发布前 self-audit 稳定性 + codify-lesson 精度修复 round 闭环 PASS
 
-### 下一版 —— `v0.3.0`
+### 下一版 —— `v1.0.x` / `v1.1.0`
 
-- OpenSpec ingest，作为上游 spec/source-of-truth 层
-- Superpowers Marketplace capability scan，作为可选 plugin registry 输入
-- GitHub reference discovery/search 接入 `track-refs`
+- 在 2-3 个非 Moirai 项目上做跨项目可移植性强化
 - 从 commit chain 和 changed files 生成更丰富的 execute-round fact table
 - ER-RETRY：sub-agent 派遣的带上下文重试循环
+- GitHub reference discovery/search 接入 `track-refs`
 
 ### `v1.0.0` 稳定版
 
-Gate 3 在 2-3 个非 Moirai 项目验证通过后：晋升 stable + 提交到 Claude Code plugin marketplace。
+R1-R3 live dogfood 和 external audit 通过后切出稳定版。后续工作默认进入
+`v1.0.x` / `v1.1.0`，除非是发布阻塞回归。
 
 ---
 
@@ -455,11 +456,11 @@ arcgentic 里**没有**什么：**Moirai 特定实例**（Phase 编号 / fact-sh
 
 ## 参与贡献
 
-当前是 `v0.2.2-alpha.3`，插件在战场验证阶段。如果你有：
+当前是 `v1.0.0`。如果你有：
 - **Bug 报告** —— 提 issue，附最小复现步骤
 - **可移植性 bug** —— 提 issue 加 `portability` 标签，注明项目类型 / 操作系统 / Claude Code 版本
 - **功能建议** —— 开 discussion（我们会对照[路线图](#状态与路线图)评估）
-- **Pull request** —— 请先开 issue 讨论；未经讨论的 PR 可能推迟到 v1.0.0 之后处理
+- **Pull request** —— 请先开 issue 讨论；未经讨论的 PR 可能推迟到下一个 minor release 处理
 
 ---
 

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "arcgentic"
-version = "0.2.2-alpha.3"
+version = "1.0.0"
 description = "Agentic harness for rigorous round-driven development — Python CLI for the arcgentic Claude Code plugin"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -12,7 +12,7 @@ license = { text = "MIT" }
 authors = [{ name = "Arc Studio" }]
 keywords = ["agentic-harness", "round-driven-development", "claude-code", "ide-adapter"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3.13",
