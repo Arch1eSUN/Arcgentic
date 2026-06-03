@@ -10,7 +10,17 @@ def test_round_boundary_lesson_scan_promotes_repeated_pattern(tmp_path: Path) ->
     audit_dir.mkdir()
     for i in range(3):
         (audit_dir / f"R{i + 1}.md").write_text(
-            "| F | P2 | handoff required field missing stop condition |\n",
+            "\n".join(
+                [
+                    "| ID | Priority | Summary | Evidence |",
+                    "|---|---|---|---|",
+                    (
+                        f"| F-{i} | P2 | handoff required field missing stop condition | "
+                        "audit.md |"
+                    ),
+                    "",
+                ]
+            ),
             encoding="utf-8",
         )
 
@@ -30,7 +40,17 @@ def test_round_boundary_lesson_scan_dry_run_does_not_write(tmp_path: Path) -> No
     audit_dir.mkdir()
     for i in range(3):
         (audit_dir / f"R{i + 1}.md").write_text(
-            "| F | P3 | reference classification missing license evidence |\n",
+            "\n".join(
+                [
+                    "| ID | Priority | Summary | Evidence |",
+                    "|---|---|---|---|",
+                    (
+                        f"| F-{i} | P3 | reference classification missing license evidence | "
+                        "audit.md |"
+                    ),
+                    "",
+                ]
+            ),
             encoding="utf-8",
         )
 
@@ -44,4 +64,3 @@ def test_round_boundary_lesson_scan_dry_run_does_not_write(tmp_path: Path) -> No
     assert result.promotable_clusters == 1
     assert result.lesson_count == 0
     assert not lessons_dir.exists()
-

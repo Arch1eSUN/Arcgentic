@@ -289,7 +289,14 @@ def test_codify_lesson_dispatch(tmp_path: Path) -> None:
     audit_dir.mkdir()
     for i in range(3):
         (audit_dir / f"R{i + 1}.md").write_text(
-            "| F | P2 | audit handoff missing immutable evidence |\n",
+            "\n".join(
+                [
+                    "| ID | Priority | Summary | Evidence |",
+                    "|---|---|---|---|",
+                    f"| F-{i} | P2 | audit handoff missing immutable evidence | audit.md |",
+                    "",
+                ]
+            ),
             encoding="utf-8",
         )
 

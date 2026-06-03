@@ -74,21 +74,7 @@ def scan_last_n_rounds(audit_dir: Path, n: int = 10) -> list[PatternOccurrence]:
     occurrences: list[PatternOccurrence] = []
     for audit_file in files:
         round_id = _round_id_for_file(audit_file)
-        for idx, line in enumerate(audit_file.read_text(encoding="utf-8").splitlines(), start=1):
-            priority = _extract_priority(line)
-            if priority not in {"P2", "P3"}:
-                continue
-            if _is_table_separator(line):
-                continue
-            occurrences.append(
-                PatternOccurrence(
-                    round_id=round_id,
-                    source_file=audit_file,
-                    line_number=idx,
-                    priority=priority,
-                    text=_clean_markdown_row(line),
-                )
-            )
+        occurrences.extend(_scan_structured_finding_rows(audit_file, round_id))
     return occurrences
 
 
@@ -181,8 +167,101 @@ handoff, implementation notes, self-audit, or external audit evidence.
     return lesson_path
 
 
-def _extract_priority(line: str) -> str | None:
-    match = _PRIORITY_RE.search(line)
+def _scan_structured_finding_rows(audit_file: Path, round_id: str) -> list[PatternOccurrence]:
+    lines = audit_file.read_text(encoding="utf-8").splitlines()
+    occurrences: list[PatternOccurrence] = []
+    finding_table: dict[str, int] | None = None
+
+    for idx, line in enumerate(lines, start=1):
+        if not line.strip().startswith("|"):
+            finding_table = None
+            continue
+
+        cells = _split_table_row(line)
+        if not cells:
+            finding_table = None
+            continue
+        if _is_table_separator(line):
+            continue
+
+        header = _finding_table_header(cells)
+        if header is not None:
+            finding_table = header
+            continue
+
+        if finding_table is None:
+            continue
+
+        priority_idx = finding_table["priority"]
+        if priority_idx >= len(cells):
+            continue
+        priority = _extract_priority(cells[priority_idx])
+        if priority not in {"P2", "P3"}:
+            continue
+
+        text = _structured_finding_text(cells, finding_table)
+        if not text:
+            continue
+        occurrences.append(
+            PatternOccurrence(
+                round_id=round_id,
+                source_file=audit_file,
+                line_number=idx,
+                priority=priority,
+                text=text,
+            )
+        )
+
+    return occurrences
+
+
+def _finding_table_header(cells: list[str]) -> dict[str, int] | None:
+    normalized = [_normalize_header(cell) for cell in cells]
+    if "priority" not in normalized:
+        return None
+    summary_idx = _first_index(normalized, {"summary", "finding", "description"})
+    if summary_idx is None:
+        return None
+    return {
+        "id": _first_index(normalized, {"id", "finding id"}) or 0,
+        "priority": normalized.index("priority"),
+        "summary": summary_idx,
+        "evidence": _first_index(normalized, {"evidence", "location"}) or summary_idx,
+    }
+
+
+def _structured_finding_text(cells: list[str], header: dict[str, int]) -> str:
+    parts: list[str] = []
+    for key in ("id", "summary", "evidence"):
+        idx = header[key]
+        if idx < len(cells):
+            value = cells[idx].strip()
+            if value:
+                parts.append(value)
+    return " ".join(parts)
+
+
+def _split_table_row(line: str) -> list[str]:
+    sentinel = "\x00PIPE\x00"
+    safe = line.strip().replace(r"\|", sentinel)
+    if not safe.startswith("|"):
+        return []
+    return [cell.replace(sentinel, "|").strip(" `") for cell in safe.strip("|").split("|")]
+
+
+def _normalize_header(value: str) -> str:
+    return re.sub(r"\s+", " ", value.strip().lower().replace("_", " "))
+
+
+def _first_index(values: list[str], candidates: set[str]) -> int | None:
+    for idx, value in enumerate(values):
+        if value in candidates:
+            return idx
+    return None
+
+
+def _extract_priority(value: str) -> str | None:
+    match = _PRIORITY_RE.search(value)
     return match.group(1) if match else None
 
 
@@ -194,11 +273,6 @@ def _round_id_for_file(path: Path) -> str:
 def _is_table_separator(line: str) -> bool:
     stripped = line.strip().replace("|", "").replace("-", "").replace(":", "")
     return stripped == ""
-
-
-def _clean_markdown_row(line: str) -> str:
-    cells = [cell.strip(" `") for cell in line.strip().strip("|").split("|")]
-    return " ".join(cell for cell in cells if cell and not cell.startswith("---"))
 
 
 def _tokens(text: str) -> set[str]:
@@ -226,4 +300,3 @@ def _next_lesson_id(lessons_dir: Path) -> int:
 def _slugify(value: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
     return slug or "unclassified-pattern"
-
