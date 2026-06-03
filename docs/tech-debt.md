@@ -11,6 +11,8 @@ Format: `| ID | Severity | Description | Owner-round |`
 | ER-RETRY | P2 | execute-round skill lacks retry-with-context loops (spec § 4.2.4); fail-fast on first sub-agent error. Re-invoke manually after fix. | v0.3 |
 | ER-AUDIT-FACTS-RICH | P3 | execute-round self-audit now has an audit-check-backed fact table, but rich commit-chain / changed-file fact generation remains future work. | v0.3 |
 | ER-STATE-ROW | P3 | execute-round Phase 1 CLAUDE.md state-row update is NO-OP (project-agnostic); project-specific hooks can override. | v0.3+ |
+| R2-SELF-AUDIT-MUTABLE-FACTS | P2 | Developer self-audit facts should not assert mutable current state or moving `HEAD`; use `state_history`, fixed commit anchors, or artifact existence checks so external audit and closeout can rerun them after transitions. | v1.0.1 |
+| R2-CODIFY-LESSON-PRECISION | P2 | `close-round` dogfood generated a noisy lesson/amendment slug (`future-fact-audit-state-both`) by clustering broad audit text; codify-lesson should cluster structured finding IDs/summaries instead of unrelated verdict prose. | v1.0.1 |
 
 ## Resolved
 
