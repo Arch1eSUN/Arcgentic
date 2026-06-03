@@ -72,7 +72,7 @@ It is a workflow harness for people who want AI-assisted development to produce 
 - OpenClaw manifest
 - 10 skills
 - 9 agents
-- 277 pytest tests
+- 323 pytest tests
 - mypy strict clean
 - ruff clean
 
@@ -150,7 +150,7 @@ arcgentic --help
 
 Repo: https://github.com/Arch1eSUN/Arcgentic
 
-It is early alpha, but the toolkit has 277 pytest tests, mypy strict, ruff, and a PyPI release.
+It is now v1.0.0, with 323 pytest tests, mypy strict, ruff, and a PyPI release.
 
 ## Marketplace listing
 
