@@ -208,6 +208,8 @@ def _compose_self_audit_skeleton(
     cr_findings_md: str,
     se_findings_md: str,
     quality_gates: dict[str, str],
+    repo_root: Path,
+    audit_path: Path,
 ) -> str:
     """Compose self-audit handoff markdown with a minimal mechanical fact table.
 
@@ -223,11 +225,14 @@ def _compose_self_audit_skeleton(
         "- Mandate #25 (a): quality gates run pre-close "
         "(mypy + pytest + ruff + audit-check)"
     )
-    _fact_row = (
-        "| 1 | `bash -lc 'printf 1'` | `1` | audit-check smoke fact executes exactly |"
+    fact_rows = _stable_self_audit_fact_rows(
+        repo_root=repo_root,
+        audit_path=audit_path,
+        phase_results=phase_results,
     )
     _verdict_line = (
-        "**STATUS: PASS** — 1/1 PASS mechanical facts verified by audit-check."
+        f"**STATUS: PASS** — {len(fact_rows)}/{len(fact_rows)} PASS mechanical facts "
+        "verified by audit-check."
     )
 
     return f"""# {round_name} — Self-Audit Handoff
@@ -321,7 +326,7 @@ This section contains exact command/expected pairs for `arcgentic audit-check`.
 
 | # | Command | Expected | Comment |
 |---|---|---|---|
-{_fact_row}
+{chr(10).join(fact_rows)}
 
 ## § 8. Verdict
 
@@ -331,6 +336,39 @@ This section contains exact command/expected pairs for `arcgentic audit-check`.
 
 *Self-audit handoff for {round_name} written by execute-round skill (arcgentic v{__version__}).*
 """
+
+
+def _stable_self_audit_fact_rows(
+    *,
+    repo_root: Path,
+    audit_path: Path,
+    phase_results: list[PhaseResult],
+) -> list[str]:
+    """Build re-runnable self-audit facts that avoid mutable state and moving HEAD."""
+
+    rows = [
+        "| 1 | `bash -lc 'printf 1'` | `1` | audit-check smoke fact executes exactly |",
+        (
+            f"| 2 | `cd {shquote(str(repo_root))} && test -f "
+            f"{shquote(str(audit_path.relative_to(repo_root)))} && echo ok` | `ok` | "
+            "self-audit artifact exists at stable path |"
+        ),
+    ]
+    next_idx = 3
+    for phase in phase_results:
+        if not _is_full_commit_sha(phase.commit_sha):
+            continue
+        rows.append(
+            f"| {next_idx} | `cd {shquote(str(repo_root))} && git cat-file -e "
+            f"{phase.commit_sha}^{{commit}} && echo ok` | `ok` | "
+            f"{phase.phase_name} commit anchor resolves |"
+        )
+        next_idx += 1
+    return rows
+
+
+def _is_full_commit_sha(value: str | None) -> bool:
+    return bool(value and re.fullmatch(r"[0-9a-f]{40}", value))
 
 
 # ── Phase functions (each is a Step in the 4-commit chain) ──────────────
@@ -559,14 +597,16 @@ def _phase_state_refresh(
     dry_run: bool,
 ) -> tuple[PhaseResult, bool]:
     """Phase 4: state refresh + self-audit handoff."""
+    audit_path = _audit_handoff_path(round_name, repo_root)
     self_audit_md = _compose_self_audit_skeleton(
         round_name=round_name,
         phase_results=phase_results,
         cr_findings_md=cr_findings_md,
         se_findings_md=se_findings_md,
         quality_gates=quality_gates,
+        repo_root=repo_root,
+        audit_path=audit_path,
     )
-    audit_path = _audit_handoff_path(round_name, repo_root)
     audit_path.parent.mkdir(parents=True, exist_ok=True)
     adapter.write_file(str(audit_path), self_audit_md)
 

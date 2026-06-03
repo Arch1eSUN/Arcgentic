@@ -19,11 +19,14 @@ import pytest as _pytest
 
 from arcgentic.adapters.base import AgentDispatchResult  # noqa: I001
 from arcgentic.adapters.inline import InlineAdapter
+from arcgentic.audit_check import run as audit_check_run
 from arcgentic.skills_impl.execute_round import (
     ExecuteRoundError,
     ExecuteRoundResult,
+    PhaseResult,
     _audit_handoff_path,
     _ba_design_path,
+    _compose_self_audit_skeleton,
     _extract_ba_brief_from_handoff,
     _extract_se_threat_surfaces,
     _phase_dev_body,
@@ -490,10 +493,86 @@ def test_phase4_pass_verdict(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.error
     content = result.audit_handoff_path.read_text()  # type: ignore[union-attr]
     assert "**STATUS: PASS**" in content
-    assert "1/1 PASS" in content
+    assert "PASS mechanical facts verified by audit-check" in content
     assert "ER-AUDIT-GATE-4" not in content
     assert "arcgentic v0.2.2-alpha.3" in content
     assert "arcgentic v0.2.1-alpha.1" not in content
+
+
+def test_self_audit_facts_use_fixed_anchors_not_moving_head(tmp_path: Path) -> None:
+    """Generated self-audit facts must not couple re-audit to current state or HEAD."""
+    commit_sha = "a" * 40
+    audit_path = tmp_path / "docs" / "audits" / "R-stable.md"
+    content = _compose_self_audit_skeleton(
+        round_name="R-stable",
+        phase_results=[
+            PhaseResult("entry-admin", commit_sha),
+            PhaseResult("ba-design", None),
+        ],
+        cr_findings_md="",
+        se_findings_md="",
+        quality_gates={"mypy": "PASS", "pytest": "PASS", "ruff": "PASS"},
+        repo_root=tmp_path,
+        audit_path=audit_path,
+    )
+
+    assert "git cat-file -e aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa^{commit}" in content
+    assert "git rev-parse HEAD" not in content
+    assert "current_round']['state']" not in content
+    assert "current_round.state" not in content
+
+
+def test_self_audit_facts_survive_head_advance(tmp_path: Path) -> None:
+    """Generated fact table should still pass after HEAD advances past the handoff write."""
+    repo = tmp_path
+    (repo / "handoff.md").write_text(_MINIMAL_HANDOFF, encoding="utf-8")
+    git_env = {
+        "GIT_AUTHOR_NAME": "Test",
+        "GIT_AUTHOR_EMAIL": "test@example.com",
+        "GIT_COMMITTER_NAME": "Test",
+        "GIT_COMMITTER_EMAIL": "test@example.com",
+    }
+    import os
+    import subprocess
+
+    env = {**os.environ, **git_env}
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True, env=env)
+    subprocess.run(["git", "add", "handoff.md"], cwd=repo, check=True, capture_output=True, env=env)
+    subprocess.run(
+        ["git", "commit", "-m", "initial"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        env=env,
+    )
+
+    stub = _make_default_stub()
+    result = run(
+        round_name="R10-L3-aletheia",
+        handoff_path=repo / "handoff.md",
+        dry_run=True,
+        adapter=stub,
+        repo_root=repo,
+    )
+    assert result.exit_code == 0, result.error
+
+    (repo / "after.txt").write_text("after\n", encoding="utf-8")
+    subprocess.run(["git", "add", "after.txt"], cwd=repo, check=True, capture_output=True, env=env)
+    subprocess.run(
+        ["git", "commit", "-m", "advance head"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        env=env,
+    )
+
+    audit_result = audit_check_run(
+        result.audit_handoff_path,  # type: ignore[arg-type]
+        strict=True,
+        strict_extended=True,
+        repo_root=repo,
+    )
+    assert audit_result.exit_code == 0, audit_result.summary_text
 
 
 # ---------------------------------------------------------------------------
