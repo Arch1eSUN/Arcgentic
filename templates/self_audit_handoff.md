@@ -111,6 +111,11 @@ CI status: {available — link to job / UNAVAILABLE — local 4-gate is canonica
 
 {Markdown 4-column fact table; per spec § 14 audit-check engine format:}
 
+Facts intended for auditor rerun must stay stable after audit and closeout move
+state or git history forward. Prefer state-history checks, fixed commit anchors,
+and artifact-existence checks. Do not assert current `current_round.state ==
+awaiting_audit` or `git rev-parse HEAD == self_audit_doc.commit`.
+
 | # | Command | Expected | Comment |
 |---|---|---|---|
 | 1 | `cd <repo> && git log --oneline {commit_4_sha} -n 4 \| wc -l` | `4` | 4-commit chain present |

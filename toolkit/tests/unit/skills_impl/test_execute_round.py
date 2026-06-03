@@ -575,6 +575,59 @@ def test_self_audit_facts_survive_head_advance(tmp_path: Path) -> None:
     assert audit_result.exit_code == 0, audit_result.summary_text
 
 
+def test_self_audit_facts_survive_audit_state_advance(tmp_path: Path) -> None:
+    """Generated facts should still pass after state advances into audit."""
+    handoff = tmp_path / "handoff.md"
+    handoff.write_text(_MINIMAL_HANDOFF, encoding="utf-8")
+    state_dir = tmp_path / ".agentic-rounds"
+    state_dir.mkdir()
+    state_file = state_dir / "state.yaml"
+    state_file.write_text(
+        "\n".join(
+            [
+                "current_round:",
+                "  state: awaiting_audit",
+                "  state_history:",
+                "    - state: awaiting_audit",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    stub = _make_default_stub()
+    result = run(
+        round_name="R10-L3-aletheia",
+        handoff_path=handoff,
+        dry_run=True,
+        adapter=stub,
+        repo_root=tmp_path,
+    )
+    assert result.exit_code == 0, result.error
+
+    state_file.write_text(
+        "\n".join(
+            [
+                "current_round:",
+                "  state: audit_in_progress",
+                "  state_history:",
+                "    - state: awaiting_audit",
+                "    - state: audit_in_progress",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    audit_result = audit_check_run(
+        result.audit_handoff_path,  # type: ignore[arg-type]
+        strict=True,
+        strict_extended=True,
+        repo_root=tmp_path,
+    )
+    assert audit_result.exit_code == 0, audit_result.summary_text
+
+
 # ---------------------------------------------------------------------------
 # 11. ba-designer dispatch failure → exit_code=1, error mentions ba-designer
 # ---------------------------------------------------------------------------

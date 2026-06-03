@@ -52,7 +52,7 @@ When invoked:
    - **Phase 1 — Entry-admin commit**: commit handoff + state-row updates
    - **Phase 2 — BA design pass**: dispatch ba-designer → write design doc → commit
    - **Phase 3 — Dev body**: dispatch developer → run pre-audit quality gates (mypy / pytest / ruff) → inline CR step → inline SE step (MANDATE #20: NO BA design in SE brief) → commit
-   - **Phase 4 — State refresh + self-audit handoff**: compose self-audit handoff doc → run `arcgentic audit-check --strict-extended` → write → commit
+   - **Phase 4 — State refresh + self-audit handoff**: compose self-audit handoff doc with stable artifact/fixed-anchor facts → run `arcgentic audit-check --strict-extended` → write → commit
 
 4. Read CLI output for result summary (per ExecuteRoundResult.summary()):
    - 4 phase results with commit SHAs
@@ -65,7 +65,7 @@ When invoked:
 ## Known limitations (forward-debts)
 
 - **ER-RETRY**: no retry-with-context loops; if any sub-agent dispatch fails, the run aborts. Re-invoke after fixing the failure manually.
-- **ER-AUDIT-FACTS-RICH**: self-audit has an audit-check-backed fact table, but rich commit-chain / changed-file fact generation is future work.
+- **ER-AUDIT-FACTS-RICH**: self-audit facts avoid mutable current-state / moving-HEAD assertions, but rich commit-chain / changed-file fact generation is future work.
 - **ER-STATE-ROW**: Phase 1's CLAUDE.md state-row update is a NO-OP (project-agnostic).
 
 See `docs/tech-debt.md` for the full forward-debt registry.
