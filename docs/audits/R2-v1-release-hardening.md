@@ -14,7 +14,7 @@ PASS. The R2 release-hardening seams are implemented and independently verified:
 
 | Id | Priority | Summary | Evidence | Expected | Actual | Recommended fix | Verification |
 |---|---|---|---|---|---|---|---|
-| D-R2-v1-release-hardening-1 | P2 | Self-audit fact #3 is a historical state fact, not a stable re-audit fact. | `docs/audits/R2-v1-release-hardening-self-audit.md` fact #3 expects `awaiting_audit`; raw self-audit audit-check now has one failure because the orchestrator correctly moved state to `audit_in_progress` before this auditor session. | Self-audit facts intended for external rerun should remain stable after `awaiting_audit -> audit_in_progress`, or explicitly verify state_history. | Current state is `audit_in_progress`; state_history contains both `awaiting_audit` and `audit_in_progress`, so the workflow is valid but the raw fact is time-sensitive. | In a future cleanup, change developer self-audit state facts to verify state_history or self_audit_doc artifact instead of current mutable state. | Fact rows 3-4 document the raw failure and the stable replacement check. |
+| D-R2-v1-release-hardening-1 | P2 | Self-audit facts #3 and #19 are historical current-state/current-HEAD facts, not stable re-audit facts. | `docs/audits/R2-v1-release-hardening-self-audit.md` fact #3 expects `awaiting_audit`; fact #19 expects current `HEAD` to equal the dev self-audit commit. Both become stale after valid audit/closeout commits. | Self-audit facts intended for external rerun should remain stable after `awaiting_audit -> audit_in_progress` and after audit verdict commits, or explicitly verify state_history/fixed dev anchors. | Current state has advanced past `awaiting_audit`, and current `HEAD` can advance beyond the dev commit while the state self-audit anchor remains valid. | In a future cleanup, change developer self-audit state facts to verify state_history or self_audit_doc artifact instead of current mutable state/HEAD. | Fact rows 3-4 document the raw failure and the stable replacement check. |
 
 ## 3. Lesson codification result
 
@@ -55,7 +55,7 @@ No applicable mandate promotion. This is the first observed instance in this aud
 |---|---|---|---|---|
 | 1 | `git rev-parse 701d5de314cb8702b539ee9a28807eaf3bffd174` | `701d5de314cb8702b539ee9a28807eaf3bffd174` | audited dev HEAD resolves | `701d5de314cb8702b539ee9a28807eaf3bffd174` |
 | 2 | `bash scripts/state/validate-schema.sh .agentic-rounds/state.yaml` | `valid: .agentic-rounds/state.yaml` | state schema valid | `valid: .agentic-rounds/state.yaml` |
-| 3 | `cd toolkit && python3 -m arcgentic.cli audit-check ../docs/audits/R2-v1-release-hardening-self-audit.md --strict-extended \| head -1 \| python3 -c "import sys; print(sys.stdin.read().strip().replace(\"PASS\",\"OK\").replace(chr(124),\"/\"))"` | `18/19 OK, 1 FAIL, 0 SKIP / AC-1: 0 violation(s) / AC-3: 0 violation(s)` | raw self-audit §7 rerun, transformed to avoid verdict AC-1 ambiguity | `18/19 OK, 1 FAIL, 0 SKIP / AC-1: 0 violation(s) / AC-3: 0 violation(s)` |
+| 3 | `cd toolkit && python3 -m arcgentic.cli audit-check ../docs/audits/R2-v1-release-hardening-self-audit.md --strict-extended \| head -1 \| python3 -c "import sys; print(sys.stdin.read().strip().replace(\"PASS\",\"OK\").replace(chr(124),\"/\"))"` | `17/19 OK, 2 FAIL, 0 SKIP / AC-1: 0 violation(s) / AC-3: 0 violation(s)` | raw self-audit §7 rerun after audit commits, transformed to avoid verdict AC-1 ambiguity | `17/19 OK, 2 FAIL, 0 SKIP / AC-1: 0 violation(s) / AC-3: 0 violation(s)` |
 | 4 | `bash -lc 'python3 -c "import yaml; s=yaml.safe_load(open(\".agentic-rounds/state.yaml\")); h=[x[\"state\"] for x in s[\"current_round\"][\"state_history\"]]; print(str(\"awaiting_audit\" in h and \"audit_in_progress\" in h))"'` | `True` | stable replacement for historical developer stop-state fact | `True` |
 | 5 | `cd toolkit && python3 -c "from arcgentic.session_mode import should_request_session_mode; import yaml; s=yaml.safe_load(open('../.agentic-rounds/state.yaml')); print(s['project']['session_mode']['mode']+','+str(should_request_session_mode(s, 'R2-v1-release-hardening')))"` | `multi-session,False` | project-level mode inherited, no per-round question | `multi-session,False` |
 | 6 | `cd toolkit && python3 -m arcgentic.cli orchestrator-dispatch --round R2-v1-release-hardening --handoff ../docs/superpowers/plans/2026-06-03-R2-v1-release-hardening-handoff.md --mode multi-session \| python3 -c "import json,sys; d=json.load(sys.stdin); print(' -> '.join(step['role'] for step in d['steps'])+';'+d['steps'][0]['stop_condition'])"` | `developer -> auditor -> closeout;implementation complete, self-audit written, state = awaiting_audit` | orchestrator dispatch order exists | `developer -> auditor -> closeout;implementation complete, self-audit written, state = awaiting_audit` |
@@ -77,10 +77,10 @@ No applicable mandate promotion. This is the first observed instance in this aud
 
 ## 8. Forward-debt observations
 
-- D-R2-v1-release-hardening-1 (P2): make future self-audit state facts stable across the audit transition by checking `state_history` instead of current mutable state.
+- D-R2-v1-release-hardening-1 (P2): make future self-audit state/HEAD facts stable across audit and closeout transitions by checking `state_history` and fixed dev anchors instead of current mutable state/HEAD.
 
 ## 9. Author's note
 
-The release-hardening work is cohesive and matches the R2 handoff. The one P2 is about audit fact durability, not product behavior. No P0/P1 blockers remain.
+The release-hardening work is cohesive and matches the R2 handoff. The one P2 is about audit fact durability across state and HEAD transitions, not product behavior. No P0/P1 blockers remain.
 
 Outcome: PASS. Fact table 19/19. P0/P1/P2/P3 finding count: 0/0/1/0.
