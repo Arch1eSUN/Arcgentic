@@ -4,6 +4,7 @@ Repository: https://github.com/Arch1eSUN/Arcgentic
 Release: v1.0.0
 PyPI: https://pypi.org/project/arcgentic/
 GitHub Release: https://github.com/Arch1eSUN/Arcgentic/releases/tag/v1.0.0
+Privacy Policy: https://github.com/Arch1eSUN/Arcgentic/blob/main/PRIVACY.md
 
 ## Current distribution status
 
@@ -31,6 +32,7 @@ Submission fields:
 | Install command | `/plugin marketplace add Arch1eSUN/Arcgentic` then `/plugin install arcgentic@arc-studio` |
 | Version | `1.0.0` |
 | License | MIT |
+| Privacy policy URL | `https://github.com/Arch1eSUN/Arcgentic/blob/main/PRIVACY.md` |
 | Category | Productivity / Developer tools |
 | Author | Arc Studio |
 
@@ -115,6 +117,7 @@ After updates:
 - [x] `.claude-plugin/plugin.json` version is `1.0.0`.
 - [x] `.claude-plugin/marketplace.json` version is `1.0.0`.
 - [x] `.codex-plugin/plugin.json` version is `1.0.0`.
+- [x] `PRIVACY.md` exists for plugin submission.
 - [x] Claude plugin validation passes locally.
 - [x] Codex plugin validation passes locally.
 - [ ] Submit via Claude.ai or Console community plugin form.
