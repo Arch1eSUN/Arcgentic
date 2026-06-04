@@ -1,0 +1,56 @@
+name: Workflow fit / adaptation request
+description: Report where Arcgentic's workflow does not fit your project, team, or agent setup.
+title: "[Workflow fit]: "
+labels: ["workflow-fit", "adoption"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this when Arcgentic installed and made sense, but the workflow does not fit how your project actually operates.
+  - type: dropdown
+    id: project_type
+    attributes:
+      label: Project type
+      options:
+        - Solo app or library
+        - Production web app
+        - AI / agent system
+        - Research prototype
+        - Data / analytics project
+        - Team monorepo
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: agent_surface
+    attributes:
+      label: Agent surface
+      options:
+        - Claude Code
+        - Codex
+        - Both Claude Code and Codex
+        - OpenClaw
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: mismatch
+    attributes:
+      label: What does not fit?
+      placeholder: "Example: We need strict external audit, but our test session must run in a separate clean checkout."
+    validations:
+      required: true
+  - type: textarea
+    id: current_workflow
+    attributes:
+      label: Your current workflow
+      description: Summarize your current phase, review, test, and audit process.
+    validations:
+      required: true
+  - type: textarea
+    id: desired_change
+    attributes:
+      label: Desired adaptation
+      placeholder: "Example: A lighter solo mode, a stronger multi-session mode, or clearer gate override guidance."
+    validations:
+      required: true

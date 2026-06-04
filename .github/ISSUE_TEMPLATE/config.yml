@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Arcgentic README
+    url: https://github.com/Arch1eSUN/Arcgentic#readme
+    about: Start here for install commands, quickstart, and the workflow overview.

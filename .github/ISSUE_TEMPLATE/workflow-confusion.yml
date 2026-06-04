@@ -1,0 +1,47 @@
+name: Workflow confusion
+description: Report a place where Arcgentic's phase, round, role, audit, or gate flow was hard to understand.
+title: "[Workflow confusion]: "
+labels: ["documentation", "adoption"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this when the install worked, but the next workflow step was unclear.
+  - type: dropdown
+    id: unclear_area
+    attributes:
+      label: What was unclear?
+      options:
+        - What Arcgentic does
+        - Who should use Arcgentic
+        - How to start a first round
+        - Which role should act next
+        - What a handoff document should contain
+        - What dev self-audit means
+        - What external audit means
+        - Why a gate failed
+        - How to close a round
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: What were you trying to do?
+      placeholder: "Example: I initialized state.yaml and did not know whether to invoke plan-round or orchestrate-round."
+    validations:
+      required: true
+  - type: textarea
+    id: confusing_text
+    attributes:
+      label: Confusing docs, command, or output
+      description: Link or paste the exact section/command/output that confused you.
+      render: text
+    validations:
+      required: false
+  - type: textarea
+    id: useful_answer
+    attributes:
+      label: What answer would have unblocked you?
+      placeholder: "Example: A one-command first-round script, a role decision tree, or a concrete handoff sample."
+    validations:
+      required: true

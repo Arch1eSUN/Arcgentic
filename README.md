@@ -4,7 +4,7 @@
   <img src="./assets/arcgentic-logo.png" alt="Arcgentic logo" width="168">
 </p>
 
-> **A**rc + **agentic** — agentic harness for rigorous round-driven development.
+> **A**rc + **agentic** — turns AI coding from ad-hoc prompting into a gated engineering workflow.
 
 **中文文档 → [README.zh-CN.md](./README.zh-CN.md)**
 
@@ -13,22 +13,101 @@
 [![version](https://img.shields.io/badge/version-v1.0.0-blueviolet.svg)](#status)
 [![PyPI](https://img.shields.io/pypi/v/arcgentic.svg)](https://pypi.org/project/arcgentic/)
 
-`arcgentic` is a [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) / Codex-compatible plugin plus a Python CLI that turns four-role engineering discipline — *planning / development+self-audit / external-audit / reference-tracking* — into a **mechanically-enforced, state-machine-driven workflow**.
+**Arcgentic turns AI coding from ad-hoc prompting into a gated engineering workflow.**
 
-It works as:
-- A **Python CLI** (`arcgentic`) for gates, audits, handoffs, and round utilities
-- A **single-session orchestrator** that dispatches role sub-agents via the Claude Code Task tool
-- A **project-level session mode** where a project chooses single-session orchestration
-  or multi-session role isolation once, then stores that decision in `state.yaml`
-- A **V1 source/spec layer** that records external workflow sources, marketplace capabilities,
-  OpenSpec-style artifacts, and agency role families as auditable planning inputs
+Use it when AI coding sessions keep drifting: vague scope, lost context, unverified
+claims, skipped tests, or no audit trail. Arcgentic gives Claude Code / Codex a
+round protocol: plan the round, implement with dev self-audit, run external audit,
+then close only when gates pass.
 
-Either way, the state machine + gate scripts make discipline mechanical: if the gate fails, the state machine refuses to advance. No "remember to run audit-check" — the system runs it for you and blocks if it doesn't pass.
+## 30-second version
+
+| Question | Answer |
+|---|---|
+| What problem does it solve? | AI coding sessions drift unless scope, audit, and tests are mechanically enforced. |
+| Who should use it? | Engineers using Claude Code or Codex for multi-step coding work where handoff quality, auditability, and test discipline matter. |
+| What does it add? | `phase -> round -> dev self-audit -> external audit -> gate -> close` as an enforceable workflow. |
+| What does it not do? | It does not call paid model APIs, run background agents, or replace your tests. |
+
+## Fastest install
+
+Use PyPI for the CLI toolkit:
+
+```bash
+pipx install arcgentic
+arcgentic --help
+arcgentic audit-check --help
+```
+
+Use Claude Code marketplace for the plugin:
+
+```text
+/plugin marketplace add Arch1eSUN/Arcgentic
+/plugin install arcgentic@arc-studio
+```
+
+Then start a first round in your project:
+
+```bash
+cd ~/projects/your-project
+bash ~/.claude/skills/arcgentic/scripts/state/init.sh \
+  --project-root . \
+  --project-name "your-project" \
+  --round-naming "phase.round[.fix]"
+```
+
+In Claude Code:
+
+```text
+Read .agentic-rounds/state.yaml and run pickup.sh to tell me what role I should take and what I should do.
+```
+
+## Minimal example
+
+Without Arcgentic, a session often looks like this:
+
+```text
+"Fix auth validation"
+-> assistant edits code
+-> maybe tests run
+-> no explicit scope boundary
+-> no self-audit artifact
+-> no independent audit
+-> next session has to reconstruct what happened
+```
+
+With Arcgentic, the same work becomes:
+
+```text
+intake
+-> planning: write round handoff
+-> dev_in_progress: implement against handoff
+-> awaiting_audit: dev self-audit + commit chain complete
+-> audit_in_progress: external audit checks facts and gates
+-> passed
+-> closed
+```
+
+## Demo assets
+
+The next adoption assets should show one complete round:
+
+- AI coding round: scope -> plan -> implementation
+- Dev self-audit: changed files, tests, risk notes
+- External audit: mechanically verifiable fact table
+- Test session: a small isolated validation run
+
+Until the GIF/video is published, use the [Quickstart](#quickstart--first-round-in-5-minutes)
+and dogfood artifacts under `tests/dogfood/` as the working demo trail.
 
 ---
 
 ## Table of Contents
 
+- [30-second version](#30-second-version)
+- [Fastest install](#fastest-install)
+- [Minimal example](#minimal-example)
+- [Demo assets](#demo-assets)
 - [Why arcgentic](#why-arcgentic)
 - [Quick install](#quick-install)
 - [Quickstart — first round in 5 minutes](#quickstart--first-round-in-5-minutes)

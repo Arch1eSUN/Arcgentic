@@ -1,0 +1,53 @@
+name: Installation failure
+description: Report a failed Arcgentic CLI, Claude Code plugin, Codex plugin, or OpenClaw install.
+title: "[Install]: "
+labels: ["installation", "adoption"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this when you tried to install Arcgentic and could not reach a working `arcgentic --help`, plugin validation, or first state-machine init.
+  - type: dropdown
+    id: install_path
+    attributes:
+      label: Install path
+      options:
+        - PyPI CLI via pipx
+        - PyPI CLI via uv
+        - Claude Code marketplace
+        - Manual Claude Code install
+        - Codex local plugin
+        - OpenClaw git-source bundle
+        - Source install for toolkit development
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS and shell
+      placeholder: "macOS 15.5, zsh"
+    validations:
+      required: true
+  - type: textarea
+    id: commands
+    attributes:
+      label: Commands you ran
+      description: Paste commands only. Do not include secrets, tokens, or private repository URLs.
+      render: bash
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Error output
+      description: Paste the relevant failure output. Redact private paths or names if needed.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+      placeholder: "Example: arcgentic --help should print CLI usage, or plugin validation should pass."
+    validations:
+      required: true
