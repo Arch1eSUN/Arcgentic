@@ -17,6 +17,9 @@ the user asks to use Arcgentic.
    - If yes, continue with project-scoped orchestration.
    - If no, use projectless bootstrap mode: create a new workspace from the
      user goal, then continue only inside that workspace.
+   A Codex projectless output directory is a filesystem workspace, but it is not
+   automatically a saved Codex project. Role thread creation must prove project
+   scope before continuing.
 3. Use the current project/workspace as the only valid target for role threads
    after bootstrap.
 4. Do not create projectless Planner / Developer / Auditor threads. Projectless
@@ -67,6 +70,7 @@ Use this only when the user starts Arcgentic outside a saved/current project.
 5. If Codex cannot create project-scoped threads for the new root, stop and
    report the `project_root` path. Do not run Planner / Developer / Auditor in
    projectless threads.
+   This is a host registration blocker, not permission to inline the role work.
 
 ## Bootstrap if state is missing
 

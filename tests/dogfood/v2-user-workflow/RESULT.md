@@ -186,3 +186,31 @@ Fix:
   - Auditor alone can route PASS / NEEDS_FIX / AUDIT_IN_PROGRESS.
 - `skills/arcgentic` and `skills/codex-thread-orchestration` now require
   fail-closed timeout handling instead of Orchestrator fallback development.
+
+## Live Projectless Bootstrap Smoke
+
+Observed thread:
+
+- Orchestrator: `019e9d30-64be-7632-a8e8-4fe2864b6ee7`
+- cwd: `/Users/archiesun/Documents/Codex/2026-06-06/arctest`
+- User goal: AA split / minimum-transfer CLI, not a todo app.
+
+Observed behavior:
+
+- Arcgentic skill triggered.
+- Orchestrator initialized `.agentic-rounds/state.yaml`.
+- `v2-session-plan` returned active/create Planner.
+- Orchestrator attempted to create a project-scoped Planner thread with
+  strongest model policy.
+- Codex rejected project-scoped thread creation because the projectless output
+  directory was not a saved Codex project.
+- Orchestrator stopped fail-closed and did not create a projectless Planner or
+  implement inline.
+
+Conclusion:
+
+- Arcgentic now handles projectless starts up to filesystem workspace bootstrap.
+- Full automatic multi-session continuation still depends on host support for
+  registering or targeting the newly created workspace as a saved project.
+- Until that host capability exists, correct behavior is to stop with the
+  `project_root` path rather than degrade role isolation.

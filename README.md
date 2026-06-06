@@ -292,6 +292,8 @@ If the user starts outside a project, `v2-bootstrap-project` creates a workspace
 initializes git, writes `README.md`, and creates `.agentic-rounds/state.yaml`.
 Then orchestration continues from that project root. Planner / Developer /
 Auditor should still be project-scoped threads, not projectless threads.
+If the host cannot create project-scoped threads for the new root, Arcgentic
+stops and reports the path instead of running role work in projectless threads.
 
 V2 uses fixed Codex role threads: `Orchestrator`, `Planner`, `Developer`, and
 `Auditor`. Arcgentic does not create `R1 Developer`, `R2 Auditor`, or other
