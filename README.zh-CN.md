@@ -4,466 +4,340 @@
   <img src="./assets/arcgentic-logo.png" alt="Arcgentic logo" width="168">
 </p>
 
-> **A**rc + **agentic** —— 严格轮次驱动开发的 agentic harness（agent 约束容器）。
+> **Arcgentic 把随意的 AI coding 变成有阶段、有自审、有外审、有测试门禁的工程流程。**
 
-**English → [README.md](./README.md)**
+**English -> [README.md](./README.md)**
 
-[![status](https://img.shields.io/badge/status-stable-brightgreen.svg)](#状态与路线图)
+[![status](https://img.shields.io/badge/status-stable-brightgreen.svg)](#状态)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-[![version](https://img.shields.io/badge/version-v1.0.0-blueviolet.svg)](#状态与路线图)
+[![version](https://img.shields.io/badge/version-v1.0.0-blueviolet.svg)](#状态)
 [![PyPI](https://img.shields.io/pypi/v/arcgentic.svg)](https://pypi.org/project/arcgentic/)
 
-`arcgentic` 是一个兼容 [Claude Code](https://docs.claude.com/zh-CN/docs/claude-code/overview) / Codex 的插件，加上一套 Python CLI。它把四角色工程纪律 ——*规划 / 开发+自审 / 外审 / 引用追踪* —— 变成一套**机械强制 + 状态机驱动**的工作流。
+Arcgentic 帮助 Codex 和 Claude Code 把软件开发变成一套有纪律的流程：
+先澄清想法，再规划，再开发，再开发者自审，必要时做真实用户测试，
+再外部审计，最后只有证据足够时才 close。
 
-它支持三种入口 / 运行模式：
-- **Python CLI**（`arcgentic`）：运行 gate、audit、handoff 和 round 工具
-- **项目级 session mode**：项目一次性选择单 session 编排或多 session 角色隔离，并把决定写入 `state.yaml`
-- **V1 source/spec 层**：把外部 workflow source、marketplace capability、OpenSpec-style artifact、
-  agency role family 记录成可审计的 planning input
+它适合已经高频使用 AI coding 工具的人：你不想每次 session 都靠模型记忆、
+靠 prompt 运气、靠“它说做完了”来判断项目是否真的完成。
 
-这些入口都靠状态机 + 门控脚本把纪律**机械化**：如果质量门没过，状态机拒绝前进。**不需要"记得跑 audit-check"** —— 系统替你跑，不过就拦下来。
+## 它从哪里来
 
----
+Arcgentic 来自 [Moirai](https://github.com/Arch1eSUN/Moirai) 项目的真实开发纪律。
+Moirai 是一个长期 agent 项目，在 30+ 轮严格开发、反复 `NEEDS_FIX`、
+多 session handoff、开发者自审、外部审计和可恢复状态管理里，沉淀出了一套可复用工作流。
 
-## 目录
+Arcgentic 把这些“存活下来的模式”封装成插件，让 Codex 和 Claude Code 用户可以用在自己的复杂项目里。
+它不是新的 coding agent，也不是 Moirai 的复制品；它不包含 Moirai 特定的 phase 编号、
+fact shape、runtime 内部结构。它提取的是真实 agent 开发中的工程流程。
 
-- [为什么用 arcgentic](#为什么用-arcgentic)
-- [快速安装](#快速安装)
-- [快速上手——5 分钟跑第一轮](#快速上手5-分钟跑第一轮)
-- [工作原理](#工作原理)
-- [四个角色](#四个角色)
-- [状态机](#状态机)
-- [单 session vs 多 session](#单-session-vs-多-session)
-- [成本纪律](#成本纪律)
-- [状态与路线图](#状态与路线图)
-- [起源](#起源)
-- [参与贡献](#参与贡献)
-- [License](#license)
+## 30 秒版本
 
----
-
-## 为什么用 arcgentic
-
-大多数 LLM 辅助开发工作流都有严格的**意图**，但执行靠人**记忆**。"记得跑 audit-check"、"记得先扫 reference"、"记得更新 tech-debt"。第三轮之后纪律就崩塌了。
-
-`arcgentic` 把纪律**机械化**：
-
-| 层 | 机制 |
+| 问题 | 回答 |
 |---|---|
-| **状态机** | 每个 round 都通过强制状态序列（`intake → planning → dev → audit → passed / needs_fix → closed`）。状态存放在 `.agentic-rounds/state.yaml`，由 JSON Schema 校验。 |
-| **质量门** | 每个状态转移都有 Bash 脚本把关。Plan 必须有 N 个 section（否则拒绝转移）。Dev commit 必须形成 N-commit chain。审计 verdict 必须包含 fact table，每条 fact 都可独立机械验证。 |
-| **Sub-agent 派遣** | Orchestrator 通过 Claude Code 的 `Task` tool 派遣角色 sub-agent。每个 sub-agent 在隔离上下文中跑自己的自纠错循环（TDD red-green / code review / contract verification），返回结构化产物。 |
-| **观察层** | `lesson-codifier` sub-agent 扫描最近 N 轮，识别模式。同类问题 3 次出现 → 提议新 mandate。novel preservation type → 宣告 lesson streak 迭代。 |
+| 它解决什么问题？ | AI coding session 容易漂移：范围被悄悄改变、上下文丢失、测试被跳过，“完成”经常只是 assistant 自己说完成。 |
+| 谁应该用？ | 高频使用 Codex / Claude Code 的 senior engineer、agent builder、小型 AI-native 工程团队，以及做复杂 repo、多轮开发、重构、agent 产品的人。 |
+| 它增加什么？ | 一套可重复的门禁流程：计划、开发者自审、可选真实用户测试、外部审计、closeout。 |
+| 它不做什么？ | 它不替代你的判断、测试或 code review。它让这些步骤更难被跳过。 |
 
----
+## 平台状态
 
-## 快速安装
+| 平台 | V2 状态 | 验证情况 |
+|---|---|---|
+| **Codex** | 完整 V2 | 已在真实 Codex 项目工作流中实机验证。 |
+| **Claude Code** | 完整 V2 实验版 | 已适配，但还没有经过真实 Claude Code session 实机验证。 |
 
-### 前置依赖
+Codex 是目前最完整的体验。Claude Code 版本应视为可用的实验工作流候选，
+不是已经证明过的生产级行为。
 
-- Bash 4+
-- Python 3.13+（CLI toolkit）
-- Git
-- Claude Code ≥ 1.0 (https://claude.com/claude-code)
-- Codex（如果要用 Codex 本地插件）
-- 推荐配套：`superpowers` plugin + `plugin-dev` plugin
+## 安装
 
-```bash
-# 验证环境
-bash --version       # >= 4
-python3 --version    # Python package 需要 >= 3.13
-```
-
-### 方式 1 —— 从 PyPI 安装 Python CLI
-
-只想使用 `arcgentic` 命令、不想 clone repo 时用这个：
+### Codex 本地安装
 
 ```bash
-pipx install arcgentic
-
-# 或者
-uv tool install arcgentic
-
-arcgentic --help
-arcgentic audit-check --help
+git clone https://github.com/Arch1eSUN/Arcgentic.git arcgentic
+cd arcgentic
+bash scripts/install-codex-local.sh --plugin-root .
 ```
 
-PyPI package: https://pypi.org/project/arcgentic/
+然后在一个已保存的项目 workspace 里开始：
 
-### 方式 2 —— Claude Code 插件市场
-
+```text
+Use Arcgentic to build this idea: <your idea>
 ```
+
+### Claude Code 安装
+
+```text
 /plugin marketplace add Arch1eSUN/Arcgentic
 /plugin install arcgentic@arc-studio
 ```
 
-这会从 `.claude-plugin/marketplace.json` 声明的 marketplace 安装 Claude Code 插件。
+然后在你的项目里开始：
 
-### 方式 3 —— 手动安装 Claude Code 插件
-
-```bash
-# 克隆到 Claude Code 的用户级 skills 目录
-mkdir -p ~/.claude/skills
-cd ~/.claude/skills
-git clone git@github.com:Arch1eSUN/Arcgentic.git arcgentic
-
-# 或者用 HTTPS:
-git clone https://github.com/Arch1eSUN/Arcgentic.git arcgentic
-
-# 验证
-ls ~/.claude/skills/arcgentic/.claude-plugin/plugin.json
-claude plugin validate ~/.claude/skills/arcgentic
+```text
+Use Arcgentic to build this idea: <your idea>
 ```
 
-安装后，在任意 Claude Code session 里可以调用 arcgentic 的 skills：
-- `arcgentic:using-arcgentic`
-- `arcgentic:audit-round`
-- `arcgentic:orchestrate-round`
-- ……
-
-### 方式 4 —— Codex 本地插件
-
-`arcgentic` 现在也包含 Codex 插件入口：`.codex-plugin/plugin.json`。
-本地 Codex 使用时，把 repo clone 到个人插件目录：
+Claude Code V2 实验工作流需要安装 session broker hooks：
 
 ```bash
-mkdir -p ~/plugins
-cd ~/plugins
-git clone https://github.com/Arch1eSUN/Arcgentic.git arcgentic
-cd arcgentic
-git checkout v1.0.0
-
-# 校验 Codex plugin manifest
-python3 ~/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py ~/plugins/arcgentic
+arcgentic claude-code-broker install-hooks \
+  --settings .claude/settings.local.json \
+  --state .agentic-rounds/state.yaml
 ```
 
-V1 本地 source/spec 命令：
+### 只安装 CLI
+
+如果你只需要命令行工具：
 
 ```bash
-arcgentic session-mode recommend --round R1 --handoff docs/superpowers/plans/R1.md
-arcgentic session-mode prompt --round R1 --handoff docs/superpowers/plans/R1.md --mode multi-session --role developer
-arcgentic orchestrator-dispatch --round R1 --handoff docs/superpowers/plans/R1.md --mode multi-session
-arcgentic source-intake validate docs/source-intake/*.yaml
-arcgentic capability-registry build .claude-plugin/marketplace.json
-arcgentic spec-governance status openspec/changes/<change>
-arcgentic agency-roster inspect references/agency-agents
-arcgentic verdict-completeness docs/audits/R1.md
-arcgentic close-round --state-file .agentic-rounds/state.yaml --verdict docs/audits/R1.md --audit-commit <sha>
-arcgentic v1-release-readiness --repo-root .
-```
-
-如果你通过 personal marketplace 管理 Codex 插件，把这段加入
-`~/.agents/plugins/marketplace.json`：
-
-```json
-{
-  "name": "arcgentic",
-  "source": {
-    "source": "local",
-    "path": "./plugins/arcgentic"
-  },
-  "policy": {
-    "installation": "AVAILABLE",
-    "authentication": "ON_INSTALL"
-  },
-  "category": "Productivity"
-}
-```
-
-### 方式 5 —— OpenClaw git-source bundle
-
-`arcgentic` 已包含 `openclaw.plugin.json`，OpenClaw 可以把它识别为 bundle plugin。
-
-```bash
-openclaw plugins install git:github.com/Arch1eSUN/Arcgentic@main
-openclaw plugins inspect arcgentic
-```
-
-### 方式 6 —— Toolkit 开发者源码安装
-
-```bash
-git clone https://github.com/Arch1eSUN/Arcgentic.git arcgentic
-cd arcgentic/toolkit
-python3 -m pip install -e ".[dev]"
+pipx install arcgentic
 arcgentic --help
 ```
 
----
+## 最小例子
 
-## 快速上手——5 分钟跑第一轮
+不用 Arcgentic：
 
-### 1. 在你的项目里初始化状态机
-
-```bash
-cd ~/projects/your-project
-
-bash ~/.claude/skills/arcgentic/scripts/state/init.sh \
-  --project-root . \
-  --project-name "your-project" \
-  --round-naming "phase.round[.fix]"
+```text
+User: Build a small expense splitter.
+AI: writes code
+AI: says it is done
+User: later discovers missing edge cases, unclear scope, no audit trail
 ```
 
-这会创建 `.agentic-rounds/state.yaml`，处于 `intake` 状态。从此刻起，这个文件就是所有角色的**唯一事实来源**。
+使用 Arcgentic：
 
-> 提示：`.agentic-rounds/` 默认被 .gitignore 排除。项目可以选择是否纳入版本控制。
-
-### 2. 在项目目录开 Claude Code session
-
-```bash
-cd ~/projects/your-project
-claude
+```text
+User idea
+-> Planner creates the project plan and first round
+-> Developer implements and writes a self-audit
+-> Test runs only if this round needs realistic user/session testing
+-> Auditor independently checks evidence
+-> Planner closes the phase or starts the next round
 ```
 
-在对话里让 Claude 读取状态 + 告诉你下一步：
+关键差异不是 AI 写了更多文字，而是每个角色有边界，每个阶段有停止条件，
+“done” 必须能解释为什么可以 done。
 
-```
-读取 .agentic-rounds/state.yaml 并运行 pickup.sh，告诉我应该承担什么角色、做什么。
-```
+## Arcgentic 会先推荐模式
 
-Claude 会加载 `arcgentic:using-arcgentic`，跑 `pickup.sh`，然后回复类似：
+当你用一个新想法启动 Arcgentic，当前 session 会成为 `Orchestrator`。
+在进入规划或开发前，Orchestrator 应该先判断这是小型快速项目，还是需要更强审计的大型项目。
+然后它会推荐一个项目级模式，并让你确认或覆盖。
 
-> *当前状态：`intake`。角色：founder。动作：声明 round 范围（名称 / 目标 / 范围内 / 范围外）。下一状态：`planning`。*
+| 模式 | 适合什么时候 | 取舍 |
+|---|---|---|
+| **单 session，多智能体** | 想更快完成，或者做较小项目 / demo。 | 速度更快，审计隔离更弱。Planner、Developer、Test、Auditor 在当前 Orchestrator session 内以固定命名 role agent 运行，并在后续 round 复用。 |
+| **多 session，多 thread** | 想要更强的 planning / dev / test / audit 隔离。 | 速度更慢，审计纪律更强。Planner、Developer、Test、Auditor 使用固定项目 thread。 |
 
-### 3. 声明 round 范围
+这个选择是项目级决定。Arcgentic 不应该每一轮都重新问，除非你开启新项目或显式重置工作流。
 
-你声明范围，Claude（在 planner 角色下）写 handoff doc，状态机推进。
+## 真实使用时发生了什么变化
 
-### 4. 跑 dev / audit / close
+### Before
 
-`arcgentic:orchestrate-round` 这个 skill 会带你走完每个状态，在合适的状态点派遣 planner / developer / auditor / reference-tracker sub-agent，并在每个转移点跑对应的 gate。
+- 一个很长的 AI coding session 试图记住所有事情。
+- assistant 在同一个上下文里混合 planning、coding、review、closeout。
+- fix 有时被误当成 audit 工作。
+- 下一次 session 需要重新猜之前发生了什么。
+- “pass” 经常只是 assistant 感觉自己有信心。
 
-当 round 到达 `closed` 状态，你就完成了一个完整的、有纪律的开发循环。
+### After
 
-### 完整 walkthrough
+- 当前 session 是 Orchestrator。
+- Planner、Developer、Test、Auditor 是独立角色。
+- Developer 负责开发、修复、本地验证和自审。
+- Auditor 负责更严格的独立审计。
+- Test 只在需要真实用户行为验证时运行。
+- 项目或 phase 条件满足后才 close。
 
-参见 `docs/plans/2026-05-12-arcgentic-mvp-plan.md` 完整实施 plan + `tests/dogfood/gate-2-live-run/` 里的"live run" dogfood gate 实例。
+## V2 工作流
 
----
+Arcgentic V2 的流程是：
 
-## 工作原理
-
-```
-arcgentic/
-├── plugin.json                # 插件 manifest
-├── schema/state.schema.json   # state.yaml 的 JSON Schema
-├── skills/                    # 第 1 层：角色纪律（Markdown SKILL.md）
-│   ├── using-arcgentic/       #   入口 skill
-│   ├── pre-round-scan/        #   共享前置 —— 每个角色第一动作
-│   ├── orchestrate-round/     #   编排器角色
-│   ├── audit-round/           #   外审角色
-│   ├── close-round/           #   只允许 PASS 后执行的 closeout seam
-│   ├── verify-gates/          #   手动 gate 执行器
-│   ├── plan-round/            #   规划角色
-│   ├── execute-round/         #   开发 + 自审角色
-│   ├── track-refs/            #   引用追踪角色
-│   ├── codify-lesson/         #   lesson 编码角色
-│   └── cross-session-handoff/ #   多 session 交接角色
-├── agents/                    # 第 2 层：平台中性的 sub-agent 定义
-│   ├── orchestrator.md        #   总编排器
-│   ├── auditor.md             #   Task-tool 派遣的外审 sub-agent
-│   ├── planner.md             #   规划 sub-agent
-│   ├── developer.md           #   开发 sub-agent
-│   ├── ba-designer.md         #   设计审查 sub-agent
-│   ├── cr-reviewer.md         #   代码审查 sub-agent
-│   ├── se-contract.md         #   contract 验证 sub-agent
-│   ├── lesson-codifier.md     #   lesson 模式 sub-agent
-│   └── ref-tracker.md         #   引用追踪 sub-agent
-├── scripts/                   # 第 3 层：状态机 + gate 机械强制（Bash）
-│   ├── state/                 #   init / transition / pickup / validate-schema
-│   ├── gates/                 #   handoff-doc / round-commit-chain / verdict-fact-table
-│   └── lib/                   #   yaml.sh, state.sh 辅助函数
-└── hooks/examples/            # 第 4 层：项目可选的 commit 级强制
+```text
+idea
+-> brainstorm and planning
+-> round handoff
+-> development
+-> developer self-audit
+-> optional user-test
+-> external audit
+-> pass or fix
+-> next round, next phase, or closeout
 ```
 
-四层架构自上而下：skill 告诉 Claude 在某角色下**如何思考**；agent 让 orchestrator 把某角色**派遣**给 sub-agent；script 在状态机里**强制**纪律；hook 在 commit 时刻**最终防线**。
+角色固定：
 
----
+| 角色 | 负责什么 |
+|---|---|
+| **Orchestrator** | 总控、派发、等待、决定下一个角色。 |
+| **Planner** | brainstorm、项目计划、phase/round 划分、handoff、closeout 判断。 |
+| **Developer** | 开发、修复、本地验证、开发者自审。 |
+| **Test** | 在计划认为需要时，执行真实用户/session 级测试。 |
+| **Auditor** | 独立证据审查，并给出 `PASS` / `NEEDS_FIX` / `AUDIT_INCOMPLETE`。 |
 
-## 四个角色
+Arcgentic 不会每轮创建新的角色身份。角色名始终固定：
+`Orchestrator`、`Planner`、`Developer`、`Test`、`Auditor`。
 
-| 角色 | 职责 | 当前 skill | 当前 agent |
-|------|------|---------------|----------------|
-| **Planner（规划者）** | 读取 scope → 写 16 章节 handoff doc → 推进到 `awaiting_dev_start` | ✅ `plan-round` | ✅ `planner` |
-| **Developer（开发者）** | 读 handoff → 逐 task 执行 + inline 三联自审（BA + CR + SE）→ 产出 N-commit chain | ✅ `execute-round` | ✅ `developer` |
-| **External auditor（外审者）** | 读 handoff + commit chain → 写 verdict 含可机械验证的 fact table → 应用 lesson codification 协议 → 推进到 `passed` 或 `needs_fix` | ✅ `audit-round` | ✅ `auditor` |
-| **Reference tracker（引用追踪者）** | 每日 `references/` git fetch → 给新克隆分类 → 维护 `INDEX.md` | ✅ `track-refs` | ✅ `ref-tracker` |
+## Codex V2
 
-外加一个元角色：
-- **Orchestrator（编排器）** —— 端到端驱动状态机，在角色切换时派遣 sub-agent，并通过 `close-round` seam 负责 PASS 后 closeout。✅ `orchestrate-round` skill + `orchestrator` agent。
+Codex V2 使用 Codex 的 project thread 能力完成多 session / 多 thread 编排。
 
----
+在多 thread 模式下：
 
-## 状态机
-
-```
-       ┌─────────┐
-       │ intake  │
-       └────┬────┘
-            │ founder 声明 scope
-            ▼
-       ┌──────────┐
-       │ planning │
-       └─────┬────┘
-             │ planner 写 handoff
-             │ [GATE: handoff-doc-gate.sh]
-             ▼
-   ┌────────────────────┐
-   │ awaiting_dev_start │
-   └──────────┬─────────┘
-              │
-              ▼
-   ┌────────────────────┐
-   │  dev_in_progress   │ ←──────┐
-   └──────────┬─────────┘        │
-              │ [GATE: round-commit-chain-gate.sh]
-              ▼                  │
-   ┌────────────────────┐        │
-   │  awaiting_audit    │        │
-   └──────────┬─────────┘        │
-              │                  │
-              ▼                  │
-   ┌────────────────────┐        │
-   │ audit_in_progress  │        │
-   └──────────┬─────────┘        │
-              │ [GATE: verdict-fact-table-gate.sh]
-        ┌─────┴─────┐            │
-        ▼           ▼            │
-   ┌────────┐  ┌──────────┐      │
-   │ passed │  │needs_fix │      │
-   └───┬────┘  └─────┬────┘      │
-       │             │           │
-       ▼             ▼           │
-   ┌────────┐  ┌─────────────┐   │
-   │ closed │  │fix_in_progress│ ┘ (→ 回到 awaiting_audit)
-   └────────┘  └─────────────┘
+```text
+Current thread -> Orchestrator
+Planner thread -> fixed name: Planner
+Developer thread -> fixed name: Developer
+Test thread -> fixed name: Test
+Auditor thread -> fixed name: Auditor
 ```
 
-每个状态转移都由 `scripts/state/transition.sh` 执行：
-1. 校验目标状态在当前状态的 `next` 列表里
-2. 跑必需的 gate 脚本（gate 失败则拒绝转移）
-3. 更新 `current_round.state` + 追加到 `state_history`
+Orchestrator 派发任务后应该休眠。角色完成工作后主动把结果返回 Orchestrator，
+Orchestrator 再决定下一步。
 
-想跳过一个状态？拒绝。想 PASS 但 fact table 没验完？拒绝。想没有 PASS audit + strict audit-check 就关 round？拒绝。**状态机就是强制者。**
+在单 session 模式下：
 
----
+```text
+Current thread -> Orchestrator
+role agent -> Planner
+role agent -> Developer
+role agent -> Test
+role agent -> Auditor
+```
 
-## 单 session vs 多 session
+这些 role agent 也应该复用，不应该每一轮重新创建 `R1 Developer`、`R2 Developer`。
 
-### 模式 A —— 单 session（orchestrator 一人承担一切）
+## Claude Code V2 实验版
 
-一个 Claude session。加载 `arcgentic:orchestrate-round`。需要角色切换时通过 Task tool 派遣 sub-agent。
+Claude Code 版本的目标是和 Codex V2 使用同一套 workflow contract。
+区别在于 Claude Code 需要 session broker 帮它接近 Codex 的 thread 编排能力。
 
-**适用场景**：独立开发者 / 小项目 / 概念验证。
+当前状态：
 
-### 模式 B —— 多 session（每个角色由不同人承担）
+- V2 workflow contract 已完成。
+- Claude Code session broker 已提供 hooks 安装路径。
+- role identity、return signal、mode 选择、fixed role reuse 都已按 V2 设计适配。
+- 但还没有完成真实 Claude Code session 的端到端实机验证。
 
-多个 Claude session，每个加载不同角色的 skill：
-- Session 1（founder + planner）—— `arcgentic:plan-round`
-- Session 2（developer）—— `arcgentic:execute-round`
-- Session 3（auditor）—— `arcgentic:audit-round`
-- Session 4（ref-tracker）—— `arcgentic:track-refs`
+如果 push-return 在你的 Claude Code 环境里不可用，先使用显式 copy-back：
+把角色输出的自然语言总结和 `arcgentic-role-return` footer 粘回 Orchestrator。
 
-`state.yaml` 是 session 间通信协议。每个 session 启动时第一动作就是读它。
+## 什么时候适合用 Arcgentic
 
-**适用场景**：多人团队 / 长期项目 / 严格审计独立性要求（合规 / 监管）。
+最适合：
 
-两种模式共享同一个 `state.yaml` schema 和 gate 脚本。mode 是项目级决定，存放在
-`project.session_mode`；一旦设置，后续 round 不再重复询问，除非项目显式重新配置。
+- 高频使用 Codex / Claude Code 的 senior engineer。
+- agent builder。
+- 小型 AI-native 工程团队。
+- 做复杂 repo、多轮开发、重构、agent 产品的人。
+- 需要证明“AI 写的代码经过计划、测试、审计”的团队。
 
----
+Arcgentic 比普通 prompting 更重。如果你的任务不复杂、不需要审计证据、
+不需要多轮上下文恢复，那么它可能是杀鸡用牛刀。
 
-## 成本纪律
+不适合：
 
-`arcgentic` **严格遵守成本纪律**：
+- 一次性小脚本；
+- 你已经能完全掌控上下文的小修小改；
+- 不需要审计性的快速实验；
+- 只想让 assistant 快速改一行代码；
+- 你不关心 auditability 的工作。
 
-- ❌ 插件代码里**绝不**调用任何付费 API（OpenAI / Anthropic API / Gemini / 等等）
-- ❌ **绝不**启后台进程 / daemon / cron 触发器
-- ❌ **绝不**自动从云端 LLM 拉取作为"正常流程"的一部分
-- ✅ 所有 LLM 推理都在你的 Claude Code 订阅里完成
-- ✅ References 只通过手动 `git fetch` 拉取（无自动 cron）
+## 一次好的 Arcgentic run 应该产出什么
 
-如果一个通过 Task tool 派遣的 sub-agent 试图违反任何一条，orchestrator 会拒绝 + 上报。
+- 一个项目计划或 round handoff。
+- Developer 实现结果和自审。
+- 必要时的真实用户/session 测试报告。
+- Auditor 外部审计 verdict。
+- PASS / NEEDS_FIX / AUDIT_INCOMPLETE 的明确结论。
+- closeout 或下一轮 handoff。
+- 可被后续 session 读取的状态和证据。
 
-**这条不可妥协。** 来自 Moirai 原项目 `§ 4 成本纪律` mandate。
+## Demo 和例子
 
----
+当前 README 先优先解决 onboarding。下一批 adoption assets 应该包括：
 
-## 状态与路线图
+- 一个短 demo GIF 或 demo video，展示 Orchestrator -> Planner -> Developer -> Auditor。
+- 一个小型 example project，展示不用 Arcgentic 和使用 Arcgentic 的差异。
+- Claude Code 实验版真实 session 验证记录。
 
-### 当前 —— `v1.0.0`
+## 常见问题
 
-- ✅ 插件 scaffold + JSON Schema (`schema/state.schema.json`)
-- ✅ Foundation：4 个 state 脚本 + 3 个 gate 脚本 + lib 辅助函数 + 测试（48 个 bash assertion，按 TDD 纪律 100% 通过）—— 来自 v0.1.0
-- ✅ Python toolkit（`toolkit/` 目录，Path C hybrid monorepo）：
-  - 6 个 IDE adapter 实现（ClaudeCode 标准 + Cursor + VSCode-Codex + Codex CLI + Inline 兜底）+ `detect_adapter()` 自动检测
-  - audit_check 引擎，支持 AC-1 + AC-3 机械事实核查
-  - 4 质量门聚合器（`quality-gate-enforce`）
-  - 323 个 pytest 单元 + 属性 + 集成测试；mypy --strict 通过；ruff 通过
-- ✅ 11 个 markdown skill（v0.1.0 foundation + plan-round + execute-round + close-round + codify-lesson + track-refs + cross-session-handoff）
-- ✅ 9 个 markdown agent（orchestrator/auditor + planner/developer/BA/CR/SE + lesson-codifier + ref-tracker）
-- ✅ Hooks：pre-commit-fact-check、quality-gate-enforce、round-boundary-lesson-scan
-- ✅ 3 个 handoff 模板 + 3 个收尾模板（18/12/10 章节 handoff + BA 设计 + 自审 + 外审 verdict）
-- ✅ P1 完成：`codify-lesson`、`track-refs`、`round-boundary-lesson-scan`、RT classifier、pattern detection
-- ✅ P2 完成：`cross-session-handoff`，包含 TTL lock、atomic state write、history snapshot
-- ✅ execute-round 自审现在运行 audit-check，不再报告 ER-AUDIT-GATE-4 skipped
-- ✅ V1 release hardening：项目级 session mode、orchestrator dispatch
-  顺序输出、按角色生成 identity prompt、结构化 verdict completeness、
-  以及带 strict audit-check 的 `close-round` seam
-- ✅ Python CLI 版本已对齐 PyPI 发布：`arcgentic==1.0.0`
-- ✅ GitHub Actions trusted publishing 工作流已接入 PyPI 发布
-- ✅ Claude Code 插件 manifest + marketplace：`.claude-plugin/`
-- ✅ Codex 本地插件 manifest：`.codex-plugin/plugin.json`
-- ✅ OpenClaw git-source bundle manifest：`openclaw.plugin.json`
-- ✅ Dogfood Gate 1（对 Moirai R10-L3-llm verdict 回放验证 —— PASS，来自 v0.1.0）
-- ✅ Dogfood Gate 2（v0.1.0-alpha.2-meta round 闭环 PASS —— 来自 v0.1.0）
-- ✅ V1 dogfood R1：source-intake / capability-registry / spec-governance / agency-roster round 闭环 PASS
-- ✅ V1 dogfood R2：项目级 session mode / dispatch / close-round release-hardening round 闭环 PASS
-- ✅ V1 dogfood R3：发布前 self-audit 稳定性 + codify-lesson 精度修复 round 闭环 PASS
+### 它创建了太多 session
 
-### 下一版 —— `v1.0.x` / `v1.1.0`
+V2 不应该每轮创建新角色。正确名称只有：
 
-- 在 2-3 个非 Moirai 项目上做跨项目可移植性强化
-- 从 commit chain 和 changed files 生成更丰富的 execute-round fact table
-- ER-RETRY：sub-agent 派遣的带上下文重试循环
-- GitHub reference discovery/search 接入 `track-refs`
+```text
+Orchestrator
+Planner
+Developer
+Test
+Auditor
+```
 
-### `v1.0.0` 稳定版
+如果看到 `R1 Developer`、`R2 Auditor` 之类的名字，那不是目标行为。
 
-R1-R3 live dogfood 和 external audit 通过后切出稳定版。后续工作默认进入
-`v1.0.x` / `v1.1.0`，除非是发布阻塞回归。
+### Orchestrator 派发后还在继续工作
 
----
+Orchestrator 派发角色后应该等待。Developer、Planner、Test、Auditor 完成后主动返回信息。
+如果 Orchestrator 一边派发一边继续实现功能，说明流程没有遵守 V2。
 
-## 起源
+### Audit 一直循环
 
-`arcgentic` 提炼自 [Moirai](https://github.com/Arch1eSUN/Moirai) 项目 **30+ 轮严格开发**的实战经验 —— 一个本地优先的认知基础设施，founder 为工程纪律支付高额代价：
+Audit 不应该无限循环。Auditor 决定 `PASS`、`NEEDS_FIX` 或 `AUDIT_INCOMPLETE`。
+如果是 fix，工作应该回到 Developer。相同 audit gap 无法通过重复 audit 解决时，
+应该停下来暴露问题，而不是继续创建 audit 循环。
 
-- Manus-grade 类型化错误（runtime 边界 0 raw exception）
-- 每条声明 invariant 都有 hypothesis property test
-- 跨多 impl 的 protocol-parity 测试
-- `doc-vs-impl` re-grep mandate（claim spec 前先重读 impl 源码）
-- Reference-first development order（6 步：references/ → 融合 → 改写 → 评估非 Python → external GitHub → 从头写）
-- 4-列 reference triplet（用了哪个 / 为什么用 / 用了什么部分 / 没用什么）
-- RT0–RT3 reference tier 分类（inspiration / source adapt / binary vendor / full dep）
-- Lesson codification 协议（观察 3 次 → 推断 → 验证 → 编码 → 宣告 NOVEL preservation type）
+### Test 每轮都运行
 
-**经历最多 NEEDS_FIX 迭代后存活下来的纪律**，才进入这个插件。
+Test 不是每轮必跑。它只在需要真实用户行为、UI 使用、模拟 session、
+性能感知、交互细节或更严格体验审查时运行。
 
-arcgentic 里有什么：**模式（patterns）**。
-arcgentic 里**没有**什么：**Moirai 特定实例**（Phase 编号 / fact-shape #1-16+ / EventLog 8 invariants / V2 envelope schema / ...）。
+## 状态
 
----
+当前 release surface：
 
-## 参与贡献
+- Python CLI: `arcgentic`
+- Codex 本地插件 manifest
+- Claude Code 插件 manifest
+- V2 workflow prompts and state helpers
+- Codex V2 实机验证完成
+- Claude Code V2 实验适配完成，等待真实 session 验证
 
-当前是 `v1.0.0`。如果你有：
-- **Bug 报告** —— 提 issue，附最小复现步骤
-- **可移植性 bug** —— 提 issue 加 `portability` 标签，注明项目类型 / 操作系统 / Claude Code 版本
-- **功能建议** —— 开 discussion（我们会对照[路线图](#状态与路线图)评估）
-- **Pull request** —— 请先开 issue 讨论；未经讨论的 PR 可能推迟到下一个 minor release 处理
+## 路线图
 
----
+近期重点不是继续堆复杂功能，而是降低使用门槛：
+
+- README first screen 更清楚；
+- demo GIF / demo video；
+- example project；
+- Before / After 对比；
+- issue template / feedback loop；
+- Claude Code V2 实机验证记录。
+
+## 反馈
+
+如果你试用 Arcgentic，最有价值的反馈是：
+
+- 安装失败；
+- 不知道下一步该做什么；
+- workflow 不适配你的项目；
+- Orchestrator / Planner / Developer / Auditor 行为混乱；
+- audit gate 太重或太轻；
+- Claude Code experimental flow 无法完整跑通。
+
+请在 GitHub issue 里附上：
+
+- 平台：Codex 或 Claude Code；
+- 模式：single-session-subagent 或 multi-session-subthread；
+- 项目类型；
+- 你输入的 idea；
+- 卡住的阶段；
+- 相关 `.agentic-rounds` 状态或角色输出。
 
 ## License
 
-[MIT](./LICENSE) —— Copyright (c) 2026 Arc Studio
+[MIT](./LICENSE) - Copyright (c) 2026 Arc Studio

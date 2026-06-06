@@ -25,12 +25,15 @@ to depend on memory, vibes, or a lucky prompt.
 
 Arcgentic started as the development discipline behind
 [Moirai](https://github.com/Arch1eSUN/Moirai), a real agent project where AI
-coding needed planned rounds, role boundaries, self-audit, external audit, and
-recoverable handoffs.
+coding had to survive 30+ strict development rounds, repeated `NEEDS_FIX`
+audits, planned handoffs, role boundaries, self-audit, external audit, and
+recoverable session state.
 
-This plugin packages that discipline so Codex and Claude Code users can apply it
-to their own complex projects. It is not a new coding agent. It is the workflow
-layer extracted from real agent development.
+This plugin packages the patterns that survived that work so Codex and Claude
+Code users can apply them to their own complex projects. It is not a new coding
+agent, and it does not copy Moirai-specific phase numbers, fact shapes, or
+runtime internals. It is the workflow layer extracted from real agent
+development.
 
 ## 30-second version
 
