@@ -1,6 +1,6 @@
 ---
 name: session-mode
-description: Use when a project has not yet stored session mode, when a user asks for complete arcgentic workflow execution, or when developer/auditor/closeout identity handoff prompts are needed.
+description: Use when a project has not yet stored session mode, when a user asks for complete arcgentic workflow execution, or when role identity handoff prompts are needed.
 ---
 
 # session-mode
@@ -34,11 +34,26 @@ role-specific identity prompts. Once `project.session_mode` is present in
      --role developer
    ```
 
-   Valid roles: `developer`, `auditor`, `closeout`.
+   V1 valid roles: `developer`, `auditor`, `closeout`.
+
+6. For V2 Codex-native orchestration, generate the fixed-role host plan instead
+   of per-round role prompts:
+
+   ```bash
+   arcgentic v2-session-plan \
+     --state .agentic-rounds/state.yaml \
+     --host codex
+   ```
+
+   V2 session roles are fixed to `Orchestrator`, `Planner`, `Developer`, and
+   `Auditor`. `close-round` is an orchestrator-owned command, not a session
+   role.
 
 ## Boundaries
 
 - Do not enter developer work before the mode gate is resolved.
 - Do not re-ask the user when project-level mode is already stored.
 - Do not claim single-session auto-audit when dispatch transport is unavailable.
-- Developer, auditor, and closeout identity prompts must remain separate.
+- In V1, developer, auditor, and closeout identity prompts must remain separate.
+- In V2, keep exactly four fixed role sessions and never create round-numbered
+  role threads.

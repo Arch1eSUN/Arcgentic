@@ -17,6 +17,8 @@ Subcommands wired in this module:
   → hook wrapper around codify-lesson threshold detection
 - `arcgentic cross-session-handoff <action>`
   → manages .arcgentic/state.yaml with TTL locks and atomic writes
+- `arcgentic v2-session-plan --state <state.yaml> --host codex`
+  → emits fixed-role Codex session orchestration JSON
 
 CLI is the bridge between markdown skills (which shell out via Claude Code's
 Bash tool) and the Python toolkit (which holds the actual algorithms).
@@ -319,6 +321,13 @@ def main(argv: list[str] | None = None) -> int:
     close_parser.add_argument("--state-file", required=True)
     close_parser.add_argument("--verdict", required=True)
     close_parser.add_argument("--audit-commit", required=True)
+
+    v2_session_parser = subparsers.add_parser(
+        "v2-session-plan",
+        help="Emit a V2 fixed-role session plan for a host platform.",
+    )
+    v2_session_parser.add_argument("--state", required=True)
+    v2_session_parser.add_argument("--host", choices=["codex"], required=True)
 
     args = parser.parse_args(argv)
 
@@ -630,6 +639,22 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         print(close_result.message)
         return 0
+
+    elif args.command == "v2-session-plan":
+        from pathlib import Path as _Path
+
+        import yaml as _yaml
+
+        from .v2_session_orchestration import build_codex_role_session_plan
+
+        raw_state = _yaml.safe_load(_Path(args.state).read_text(encoding="utf-8")) or {}
+        if not isinstance(raw_state, dict):
+            print("v2-session-plan failed: state must be a YAML object")
+            return 1
+        if args.host == "codex":
+            session_plan = build_codex_role_session_plan(raw_state)
+            print(json.dumps(session_plan.to_dict(), indent=2, sort_keys=True))
+            return 0
 
     parser.print_help()
     return 1

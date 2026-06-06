@@ -9,6 +9,7 @@ Run order:
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -586,3 +587,56 @@ def test_close_round_refuses_non_passed_state_dispatch(tmp_path: Path) -> None:
         )
         == 1
     )
+
+
+def test_v2_session_plan_outputs_codex_role_actions(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    state = tmp_path / "state.yaml"
+    state.write_text(
+        """
+project:
+  arcgentic_v2:
+    host: codex
+    mode: multi-session-subthread
+    role_sessions:
+      orchestrator:
+        thread_id: orch-1
+        title: Orchestrator
+      developer:
+        thread_id: dev-1
+        title: Developer
+current_round:
+  id: R2
+  state: needs_fix
+""",
+        encoding="utf-8",
+    )
+
+    exit_code = main(["v2-session-plan", "--state", str(state), "--host", "codex"])
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["host"] == "codex"
+    assert payload["mode"] == "multi-session-subthread"
+    assert payload["next_role"] == "developer"
+    assert [action["role"] for action in payload["actions"]] == [
+        "orchestrator",
+        "planner",
+        "developer",
+        "auditor",
+    ]
+    assert payload["actions"][0]["kind"] == "reuse"
+    assert payload["actions"][1]["kind"] == "create"
+    assert payload["actions"][2]["thread_id"] == "dev-1"
+
+
+def test_v2_session_plan_rejects_unsupported_host(tmp_path: Path) -> None:
+    state = tmp_path / "state.yaml"
+    state.write_text("current_round:\n  id: R1\n  state: planning\n", encoding="utf-8")
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["v2-session-plan", "--state", str(state), "--host", "claude-code"])
+
+    assert exc_info.value.code == 2

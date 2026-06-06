@@ -30,12 +30,12 @@ RUN `arcgentic orchestrator-dispatch --round <round-id> --handoff <path> --mode 
 DETERMINE next action:
   IF current_state in {intake, planning}:
     → role = planner; dispatch planner-agent OR print planner role prompt
-  IF current_state == dev_in_progress:
+  IF current_state in {awaiting_dev_start, dev_in_progress, needs_fix, fix_in_progress}:
     → role = developer; dispatch developer-agent OR print developer role prompt
   IF current_state == awaiting_audit / audit_in_progress:
     → role = auditor; LOAD audit-round skill OR dispatch auditor-agent
   IF current_state == passed:
-    → role = closeout; load arcgentic:close-round; run only after PASS verdict is anchored
+    → role = planner for next-phase decision OR run orchestrator-owned close-round
   IF current_state == closed:
     → ROUND COMPLETE; refresh state.yaml prior-round-anchor; start next round
 EXECUTE action → wait for structured artifact
@@ -80,6 +80,31 @@ arcgentic orchestrator-dispatch \
 
 In multi-session mode, the order is developer → auditor → closeout. Do not give
 the closeout prompt to the developer or auditor session.
+
+## V2 fixed-role Codex session plan
+
+For V2 Codex-native orchestration, do not create per-round session names such
+as `R1 Developer` or `R2 Auditor`. The host-visible thread titles stay fixed:
+
+- `Orchestrator`
+- `Planner`
+- `Developer`
+- `Auditor`
+
+Round identity lives in `.agentic-rounds/state.yaml` and in the prompt payload,
+not in the thread title. The orchestrator emits the host plan with:
+
+```bash
+arcgentic v2-session-plan --state .agentic-rounds/state.yaml --host codex
+```
+
+V2 routing rules:
+
+- `needs_fix` / `fix_in_progress` → `Developer`
+- `awaiting_audit` / `audit_in_progress` → `Auditor`
+- `passed` → `Planner` for phase decision, not a closeout session
+- `close-round` remains an orchestrator-owned mechanical command after PASS is
+  anchored; it is not a fifth role session
 
 ## Verifying sub-agent output
 

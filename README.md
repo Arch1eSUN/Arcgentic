@@ -270,6 +270,22 @@ arcgentic close-round --state-file .agentic-rounds/state.yaml --verdict docs/aud
 arcgentic v1-release-readiness --repo-root .
 ```
 
+V2 Codex session-orchestration preview:
+
+```bash
+arcgentic v2-session-plan --state .agentic-rounds/state.yaml --host codex
+```
+
+This emits a machine-readable plan for fixed Codex role threads:
+`Orchestrator`, `Planner`, `Developer`, and `Auditor`. Arcgentic does not create
+`R1 Developer`, `R2 Auditor`, or other round-numbered thread names. Round and
+phase identity live in `.agentic-rounds/state.yaml` and in the injected role
+prompt.
+
+V2 keeps `close-round` as an orchestrator-owned mechanical command after an
+anchored PASS. It is not a fifth session role. Claude Code parity is planned as
+a broker-backed adapter over the same V2 core contract.
+
 ---
 
 ## Quickstart — first round in 5 minutes
@@ -372,6 +388,9 @@ Four layers, top to bottom: skills tell Claude *how to think* in a given role; a
 
 Plus a meta-role:
 - **Orchestrator** — drives the state machine end-to-end, dispatches sub-agents when role-switching is needed, and owns PASS-only closeout through the `close-round` seam. ✅ `orchestrate-round` skill + `orchestrator` agent.
+
+V2 Codex mode maps these responsibilities onto four reusable host threads only:
+`Orchestrator`, `Planner`, `Developer`, and `Auditor`.
 
 ---
 
