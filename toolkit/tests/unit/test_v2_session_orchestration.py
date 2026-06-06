@@ -3,6 +3,7 @@ from __future__ import annotations
 from arcgentic.v2_session_orchestration import (
     FIXED_ROLE_TITLES,
     RoleReturnSignal,
+    V2SessionOrchestrationError,
     apply_role_return_signal,
     build_codex_role_session_plan,
     next_role_for_state,
@@ -76,6 +77,21 @@ def test_role_return_signal_round_trips_json() -> None:
     assert parsed == signal
 
 
+def test_role_return_signal_rejects_extra_fields() -> None:
+    payload = (
+        '{"role":"planner","status":"completed","round_id":"R1",'
+        '"state":"awaiting_dev_start","artifacts":{"handoff":"docs/plans/R1.md"},'
+        '"next_recommended_role":"developer","plan":{"steps":[]}}'
+    )
+
+    try:
+        RoleReturnSignal.from_json(payload)
+    except V2SessionOrchestrationError as exc:
+        assert "unexpected fields: plan" in str(exc)
+    else:
+        raise AssertionError("expected extra RoleReturnSignal fields to be rejected")
+
+
 def test_role_prompt_mentions_fixed_role_and_current_round() -> None:
     state: dict[str, object] = {"current_round": {"id": "R3", "state": "awaiting_audit"}}
 
@@ -141,3 +157,69 @@ def test_apply_role_return_signal_stores_signal_and_next_role() -> None:
     current_round = updated["current_round"]
     assert isinstance(current_round, dict)
     assert current_round["state"] == "needs_fix"
+
+
+def test_apply_role_return_signal_rejects_stale_role_state() -> None:
+    state: dict[str, object] = {
+        "project": {},
+        "current_round": {"id": "R1", "state": "awaiting_audit"},
+    }
+    signal = RoleReturnSignal(
+        role="planner",
+        status="completed",
+        round_id="R1",
+        state="awaiting_dev_start",
+        artifacts={"handoff": "docs/plans/R1.md"},
+        next_recommended_role="developer",
+    )
+
+    try:
+        apply_role_return_signal(state, signal)
+    except V2SessionOrchestrationError as exc:
+        assert "stale planner signal" in str(exc)
+    else:
+        raise AssertionError("expected stale planner signal to be rejected")
+
+
+def test_apply_role_return_signal_rejects_planner_skipping_developer() -> None:
+    state: dict[str, object] = {
+        "project": {},
+        "current_round": {"id": "R1", "state": "planning"},
+    }
+    signal = RoleReturnSignal(
+        role="planner",
+        status="completed",
+        round_id="R1",
+        state="awaiting_audit",
+        artifacts={"handoff": "docs/plans/R1.md"},
+        next_recommended_role="auditor",
+    )
+
+    try:
+        apply_role_return_signal(state, signal)
+    except V2SessionOrchestrationError as exc:
+        assert "planner cannot route round to state 'awaiting_audit'" in str(exc)
+    else:
+        raise AssertionError("expected planner audit skip to be rejected")
+
+
+def test_apply_role_return_signal_rejects_wrong_next_role_for_state() -> None:
+    state: dict[str, object] = {
+        "project": {},
+        "current_round": {"id": "R1", "state": "planning"},
+    }
+    signal = RoleReturnSignal(
+        role="planner",
+        status="completed",
+        round_id="R1",
+        state="awaiting_dev_start",
+        artifacts={"handoff": "docs/plans/R1.md"},
+        next_recommended_role="auditor",
+    )
+
+    try:
+        apply_role_return_signal(state, signal)
+    except V2SessionOrchestrationError as exc:
+        assert "cannot recommend next role 'auditor'" in str(exc)
+    else:
+        raise AssertionError("expected wrong next role to be rejected")

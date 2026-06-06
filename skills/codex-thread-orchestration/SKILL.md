@@ -58,6 +58,12 @@ thread role.
 
 3. Wait for the role thread to complete and read its latest result.
 
+   If the role thread does not return promptly, send one status/constraint
+   tightening message that repeats the required role boundary and
+   `RoleReturnSignal` shape. If it still does not return a valid signal, stop
+   with a role-timeout report. Do not perform that role's work in the
+   Orchestrator.
+
 4. Require the role thread to return a `RoleReturnSignal` JSON object:
 
    ```json
@@ -81,6 +87,9 @@ thread role.
      --signal-json '<RoleReturnSignal JSON>'
    ```
 
+   Treat rejection from this command as authoritative. Do not edit the signal
+   by hand unless the same role thread explicitly returns a corrected signal.
+
 6. Re-run `v2-session-plan` and dispatch the next role.
 
 ## Routing
@@ -92,6 +101,23 @@ thread role.
 The auditor decides PASS / NEEDS_FIX / AUDIT_INCOMPLETE. The planner decides
 whether the current phase is complete and what the next phase is. The developer
 handles implementation, fixes, and self-audit.
+
+Role-specific returns are stricter than generic routing:
+
+- Planner may return only `awaiting_dev_start` with next `Developer`, or
+  `planning` with next `Planner`.
+- Developer may return only `awaiting_audit` with next `Auditor`, or
+  `needs_fix` with next `Developer`.
+- Auditor may return only `passed` with next `Planner`, `needs_fix` with next
+  `Developer`, or `audit_in_progress` with next `Auditor`.
+- A role signal is stale if the current round state no longer belongs to that
+  role. Stale signals must be rejected, not merged.
+- `RoleReturnSignal` must contain only `role`, `status`, `round_id`, `state`,
+  `artifacts`, and `next_recommended_role`.
+
+The Orchestrator may update `.agentic-rounds/state.yaml` and session registry
+only. It must not create implementation files, test files, handoff documents,
+self-audits, or external audit verdicts.
 
 ## Verification
 

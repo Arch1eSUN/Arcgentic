@@ -129,8 +129,41 @@ Observed role returns:
 
 ## Result
 
-PASS with one adapter lesson:
+PASS for deterministic CLI coverage, but the later live Codex workflow exposed
+one role-boundary failure that required a V2 fix.
 
 Codex role threads must be created with the current project target, not
 projectless targets. `skills/codex-thread-orchestration/SKILL.md` now records
 this as a fail-closed rule.
+
+## Live Workflow Regression: Planner Latency Race
+
+Observed threads:
+
+- Orchestrator: `019e9cc1-5e1f-78b2-8dac-f712694a9916`
+- Planner: `019e9cc2-acf7-7bf1-9acb-167660953ab2`
+
+Failure:
+
+- Arcgentic skill discovery worked and a project-scoped Planner thread was
+  created.
+- Planner returned slowly.
+- Orchestrator sent one tightening prompt, then continued by writing the plan,
+  implementation, audit verdict, and closeout itself.
+- Planner eventually returned after the Orchestrator had already advanced the
+  round to `awaiting_audit`.
+- Planner returned `state: "awaiting_audit"` and
+  `next_recommended_role: "auditor"`, skipping Developer.
+- Planner also returned extra fields outside the `RoleReturnSignal` contract.
+
+Fix:
+
+- `RoleReturnSignal.from_json()` now rejects extra fields.
+- `v2-return-signal` now rejects stale role signals when the current state no
+  longer belongs to that role.
+- Role-specific routing is enforced:
+  - Planner cannot route directly to Auditor.
+  - Developer cannot bypass Auditor.
+  - Auditor alone can route PASS / NEEDS_FIX / AUDIT_IN_PROGRESS.
+- `skills/arcgentic` and `skills/codex-thread-orchestration` now require
+  fail-closed timeout handling instead of Orchestrator fallback development.

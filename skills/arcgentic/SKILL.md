@@ -68,9 +68,17 @@ PY
   pretending Arcgentic is active.
 - If `.agentic-rounds/state.yaml` cannot be created or validated, stop.
 - If role threads cannot be created in the current project/workspace, stop.
+- If a role thread is slow, send at most one status/constraint-tightening
+  message. If it still does not return a valid `RoleReturnSignal`, stop with a
+  role-timeout status. Do not continue the workflow in the Orchestrator.
+- If `arcgentic v2-return-signal` rejects the role output, stop and report the
+  rejected signal. Do not repair it by hand in the Orchestrator.
 - Do not silently fall back to "Arcgentic-style" hand-written evidence.
 - Do not run ordinary coding work before Planner has produced or approved the
   round plan.
+- Do not create source files, tests, handoff docs, self-audits, or external
+  audit verdicts from the Orchestrator. Those belong to Planner, Developer, and
+  Auditor role threads.
 
 ## Continue
 

@@ -25,6 +25,39 @@ FIXED_ROLE_TITLES: Final[dict[str, str]] = {
 
 ROLE_ORDER: tuple[Role, ...] = ("orchestrator", "planner", "developer", "auditor")
 
+ROLE_RETURN_SIGNAL_KEYS: Final[frozenset[str]] = frozenset(
+    {"role", "status", "round_id", "state", "artifacts", "next_recommended_role"}
+)
+
+ROLE_ALLOWED_CURRENT_STATES: Final[dict[Role, frozenset[str]]] = {
+    "orchestrator": frozenset({"intake", "planning", "passed", "closed"}),
+    "planner": frozenset({"intake", "planning", "passed", "closed"}),
+    "developer": frozenset(
+        {"awaiting_dev_start", "dev_in_progress", "needs_fix", "fix_in_progress"}
+    ),
+    "auditor": frozenset({"awaiting_audit", "audit_in_progress"}),
+}
+
+ROLE_ALLOWED_SIGNAL_ROUTES: Final[dict[Role, dict[str, frozenset[Role]]]] = {
+    "orchestrator": {
+        "planning": frozenset({"planner"}),
+        "closed": frozenset({"planner"}),
+    },
+    "planner": {
+        "awaiting_dev_start": frozenset({"developer"}),
+        "planning": frozenset({"planner"}),
+    },
+    "developer": {
+        "awaiting_audit": frozenset({"auditor"}),
+        "needs_fix": frozenset({"developer"}),
+    },
+    "auditor": {
+        "passed": frozenset({"planner"}),
+        "needs_fix": frozenset({"developer"}),
+        "audit_in_progress": frozenset({"auditor"}),
+    },
+}
+
 
 class V2SessionOrchestrationError(ValueError):
     """Raised when V2 session orchestration input is malformed."""
@@ -94,6 +127,12 @@ class RoleReturnSignal:
         raw = json.loads(payload)
         if not isinstance(raw, dict):
             raise V2SessionOrchestrationError("role return signal must be a JSON object")
+        extra_keys = sorted(set(raw) - ROLE_RETURN_SIGNAL_KEYS)
+        if extra_keys:
+            joined = ", ".join(extra_keys)
+            raise V2SessionOrchestrationError(
+                f"role return signal has unexpected fields: {joined}"
+            )
         role = normalize_role(raw.get("role"))
         next_role_raw = raw.get("next_recommended_role")
         next_recommended_role = normalize_role(next_role_raw) if next_role_raw else None
@@ -227,10 +266,33 @@ def apply_role_return_signal(
     state: dict[str, object],
     signal: RoleReturnSignal,
 ) -> dict[str, object]:
+    round_id, current_state = _current_round(state)
+    if signal.round_id != round_id:
+        raise V2SessionOrchestrationError(
+            f"stale role signal for round {signal.round_id!r}; current round is {round_id!r}"
+        )
+    allowed_current_states = ROLE_ALLOWED_CURRENT_STATES[signal.role]
+    if current_state not in allowed_current_states:
+        raise V2SessionOrchestrationError(
+            f"stale {signal.role} signal cannot apply from current state {current_state!r}"
+        )
+    route_options = ROLE_ALLOWED_SIGNAL_ROUTES[signal.role]
+    allowed_next_roles = route_options.get(signal.state)
+    if allowed_next_roles is None:
+        raise V2SessionOrchestrationError(
+            f"{signal.role} cannot route round to state {signal.state!r}"
+        )
+    next_role = signal.next_recommended_role or next_role_for_state(signal.state)
+    if next_role not in allowed_next_roles:
+        allowed = ", ".join(sorted(allowed_next_roles))
+        raise V2SessionOrchestrationError(
+            f"{signal.role} cannot recommend next role {next_role!r} for state "
+            f"{signal.state!r}; expected one of: {allowed}"
+        )
+
     updated = deepcopy(state)
     v2 = _ensure_project_v2_block(updated, "codex")
     v2["last_signal"] = signal.to_dict()
-    next_role = signal.next_recommended_role or next_role_for_state(signal.state)
     v2["next_role"] = next_role
     current_round = updated.setdefault("current_round", {})
     if isinstance(current_round, dict):
@@ -261,7 +323,13 @@ def role_prompt(role: Role, state: dict[str, object]) -> str:
         "- Developer owns implementation, self-audit, and NEEDS_FIX repair.\n"
         "- Auditor owns PASS / NEEDS_FIX / AUDIT_INCOMPLETE.\n"
         "- Orchestrator owns routing and mechanical close-round only.\n"
-        "Return a RoleReturnSignal JSON object when this role turn is complete."
+        "Return a RoleReturnSignal JSON object only when this role turn is complete.\n"
+        "Do not add extra fields outside role, status, round_id, state, artifacts, "
+        "and next_recommended_role.\n"
+        "Planner may route only to awaiting_dev_start/developer or planning/planner.\n"
+        "Developer may route only to awaiting_audit/auditor or needs_fix/developer.\n"
+        "Auditor may route only to passed/planner, needs_fix/developer, or "
+        "audit_in_progress/auditor."
     )
 
 
