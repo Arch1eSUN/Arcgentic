@@ -808,6 +808,50 @@ current_round:
     )
 
 
+def test_v2_return_signal_accepts_natural_language_signal_text(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    state = tmp_path / "state.yaml"
+    state.write_text(
+        """
+project:
+  arcgentic_v2:
+    orchestrator_status: sleeping
+    pending_role: planner
+    pending_thread_id: planner-1
+current_round:
+  id: R1
+  state: intake
+""",
+        encoding="utf-8",
+    )
+    signal_text = """
+Planner completed the natural-language plan in docs/plans/R1.md.
+
+```arcgentic-role-return
+{"role":"planner","status":"planned","round_id":"R1","state":"awaiting_dev_start","artifacts":{"handoff":"docs/plans/R1.md"},"next_recommended_role":"developer"}
+```
+"""
+
+    exit_code = main(
+        [
+            "v2-return-signal",
+            "--state",
+            str(state),
+            "--signal-text",
+            signal_text,
+        ]
+    )
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["next_role"] == "developer"
+    saved = state.read_text(encoding="utf-8")
+    assert "orchestrator_status: active" in saved
+    assert "state: awaiting_dev_start" in saved
+
+
 def test_v2_session_plan_supports_claude_code_broker_host(tmp_path: Path) -> None:
     state = tmp_path / "state.yaml"
     state.write_text(

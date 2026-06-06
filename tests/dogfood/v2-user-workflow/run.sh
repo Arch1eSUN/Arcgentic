@@ -33,6 +33,12 @@ state["project"]["arcgentic_v2"] = {
 path.write_text(yaml.safe_dump(state, sort_keys=False), encoding="utf-8")
 PY
 
+"${CLI[@]}" v2-record-session \
+  --state "$STATE" \
+  --host codex \
+  --role orchestrator \
+  --thread-id "codex-orchestrator-thread" > "$TARGET/record-orchestrator.json"
+
 "${CLI[@]}" v2-session-plan \
   --state "$STATE" \
   --host codex \
@@ -49,13 +55,9 @@ assert payload["next_role"] == "planner"
 assert payload["orchestrator_status"] == "active"
 assert [action["title"] for action in payload["actions"]] == ["Planner"]
 assert "Current user request: 我想做一个很小的命令行工具" in payload["actions"][0]["prompt"]
+assert "Use natural language for your role-owned output" in payload["actions"][0]["prompt"]
+assert "send a message to Orchestrator thread codex-orchestrator-thread" in payload["actions"][0]["prompt"]
 PY
-
-"${CLI[@]}" v2-record-session \
-  --state "$STATE" \
-  --host codex \
-  --role orchestrator \
-  --thread-id "codex-orchestrator-thread" > "$TARGET/record-orchestrator.json"
 
 "${CLI[@]}" v2-record-session \
   --state "$STATE" \
@@ -88,7 +90,11 @@ PY
 
 "${CLI[@]}" v2-return-signal \
   --state "$STATE" \
-  --signal-json '{"role":"planner","status":"planned","round_id":"R1","state":"awaiting_dev_start","artifacts":{"handoff":"docs/plans/R1-expense-splitter.md"},"next_recommended_role":"developer"}' \
+  --signal-text 'Planner completed a natural-language plan for the AA split CLI.
+
+```arcgentic-role-return
+{"role":"planner","status":"planned","round_id":"R1","state":"awaiting_dev_start","artifacts":{"handoff":"docs/plans/R1-expense-splitter.md"},"next_recommended_role":"developer"}
+```' \
   > "$TARGET/02-planner-signal.json"
 
 "${CLI[@]}" v2-session-plan \
@@ -111,7 +117,11 @@ PY
 
 "${CLI[@]}" v2-return-signal \
   --state "$STATE" \
-  --signal-json '{"role":"developer","status":"completed","round_id":"R1","state":"awaiting_audit","artifacts":{"self_audit":"docs/audits/R1-self-audit.md"},"next_recommended_role":"auditor"}' \
+  --signal-text 'Developer completed implementation, tests, and self-audit.
+
+ARCGENTIC_ROLE_RETURN
+{"role":"developer","status":"completed","round_id":"R1","state":"awaiting_audit","artifacts":{"self_audit":"docs/audits/R1-self-audit.md"},"next_recommended_role":"auditor"}
+END_ARCGENTIC_ROLE_RETURN' \
   > "$TARGET/04-dev-signal.json"
 
 "${CLI[@]}" v2-session-plan \
@@ -134,7 +144,11 @@ PY
 
 "${CLI[@]}" v2-return-signal \
   --state "$STATE" \
-  --signal-json '{"role":"auditor","status":"PASS","round_id":"R1","state":"passed","artifacts":{"verdict":"docs/audits/R1.md"},"next_recommended_role":"planner"}' \
+  --signal-text 'Auditor completed an external audit verdict and found PASS.
+
+```arcgentic-role-return
+{"role":"auditor","status":"PASS","round_id":"R1","state":"passed","artifacts":{"verdict":"docs/audits/R1.md"},"next_recommended_role":"planner"}
+```' \
   > "$TARGET/06-auditor-signal.json"
 
 python - "$STATE" <<'PY'

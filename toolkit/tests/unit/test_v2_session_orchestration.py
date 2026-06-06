@@ -158,8 +158,50 @@ def test_role_return_signal_rejects_extra_fields() -> None:
         raise AssertionError("expected extra RoleReturnSignal fields to be rejected")
 
 
+def test_role_return_signal_extracts_from_natural_language_footer() -> None:
+    payload = """
+Plan
+
+I will build the smallest useful expense splitter.
+
+```arcgentic-role-return
+{"role":"planner","status":"planned","round_id":"R1","state":"awaiting_dev_start","artifacts":{"handoff":"docs/plans/R1.md"},"next_recommended_role":"developer"}
+```
+"""
+
+    signal = RoleReturnSignal.from_text(payload)
+
+    assert signal.role == "planner"
+    assert signal.state == "awaiting_dev_start"
+    assert signal.artifacts == {"handoff": "docs/plans/R1.md"}
+
+
+def test_role_return_signal_extracts_from_push_message_markers() -> None:
+    payload = """
+Developer finished implementation and self-audit.
+
+ARCGENTIC_ROLE_RETURN
+{"role":"developer","status":"completed","round_id":"R1","state":"awaiting_audit","artifacts":{"self_audit":"docs/audits/R1-self-audit.md"},"next_recommended_role":"auditor"}
+END_ARCGENTIC_ROLE_RETURN
+"""
+
+    signal = RoleReturnSignal.from_text(payload)
+
+    assert signal.role == "developer"
+    assert signal.next_recommended_role == "auditor"
+
+
 def test_role_prompt_mentions_fixed_role_and_current_round() -> None:
-    state: dict[str, object] = {"current_round": {"id": "R3", "state": "awaiting_audit"}}
+    state: dict[str, object] = {
+        "project": {
+            "arcgentic_v2": {
+                "role_sessions": {
+                    "orchestrator": {"thread_id": "orch-1", "title": "Orchestrator"}
+                }
+            }
+        },
+        "current_round": {"id": "R3", "state": "awaiting_audit"},
+    }
 
     prompt = role_prompt("auditor", state)
 
@@ -168,7 +210,9 @@ def test_role_prompt_mentions_fixed_role_and_current_round() -> None:
     assert "Only the Orchestrator may mutate .agentic-rounds/state.yaml" in prompt
     assert "Do not stop after acknowledging the role" in prompt
     assert "project.arcgentic_v2.last_signal.artifacts" in prompt
-    assert "Return a RoleReturnSignal JSON object" in prompt
+    assert "Use natural language for your role-owned output" in prompt
+    assert "```arcgentic-role-return" in prompt
+    assert "send a message to Orchestrator thread orch-1" in prompt
 
 
 def test_initial_round_id_defaults_to_r1_before_planning() -> None:

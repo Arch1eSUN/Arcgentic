@@ -26,14 +26,18 @@ dispatching Planner.
 5. Use the strongest available Codex model for real Planner / Developer /
    Auditor work. Do not default role threads to a lightweight or spark model
    unless the user explicitly asks for a low-cost smoke test.
-6. Before reading implementation files, running tests, checking git log, or
+6. Record the current thread as fixed role `Orchestrator` in
+   `.agentic-rounds/state.yaml` before dispatching Planner. If the host cannot
+   provide the current Orchestrator thread id, stop because push-return cannot
+   work.
+7. Before reading implementation files, running tests, checking git log, or
    summarizing prior work, initialize/check `.agentic-rounds/state.yaml` and run
    `v2-session-plan`.
-7. Initialize `.agentic-rounds/state.yaml` if it does not exist.
+8. Initialize `.agentic-rounds/state.yaml` if it does not exist.
    If state exists and `current_round.state` is `closed`, treat the new user
    request as input for Planner to decide the next phase or next round. Do not
    answer "already complete" unless the user explicitly asked only for status.
-8. Run:
+9. Run:
 
    ```bash
    arcgentic v2-session-plan \
@@ -42,10 +46,10 @@ dispatching Planner.
      --user-request '<current user request>'
    ```
 
-9. If the plan is active and contains an action, dispatch that one role before
+10. If the plan is active and contains an action, dispatch that one role before
    any verification or implementation inspection, then call
    `arcgentic v2-dispatch-role` and end the Orchestrator turn.
-10. Load `codex-thread-orchestration` and follow it.
+11. Load `codex-thread-orchestration` and follow it.
 
 ## Bootstrap if state is missing
 
@@ -95,7 +99,7 @@ PY
   role-timeout status. Do not continue the workflow in the Orchestrator.
 - After dispatching a role prompt, call `arcgentic v2-dispatch-role` and end
   the Orchestrator turn. The Orchestrator resumes only when the pending role
-  returns information.
+  actively sends return information back to the Orchestrator thread.
 - If `arcgentic v2-return-signal` rejects the role output, stop and report the
   rejected signal. Do not repair it by hand in the Orchestrator.
 - Do not silently fall back to "Arcgentic-style" hand-written evidence.
@@ -107,12 +111,15 @@ PY
   round plan.
 - Planner, Developer, and Auditor must not mutate `.agentic-rounds/state.yaml`,
   run transition commands, dispatch roles, consume `RoleReturnSignal`, or close
-  rounds. They write their role-owned artifacts and return JSON for the
-  Orchestrator to consume.
+  rounds. They write their role-owned artifacts and return natural-language
+  output plus one `arcgentic-role-return` footer for the Orchestrator to consume.
 - Role threads must not stop after acknowledging their role. They must complete
   role-owned work in the same turn, using tools as needed, before returning
   `RoleReturnSignal`. Developer and Auditor consume prior-role artifacts from
   `project.arcgentic_v2.last_signal.artifacts`.
+- Role threads must actively wake the Orchestrator by sending their completed
+  natural-language output and machine footer to the recorded Orchestrator
+  thread. The Orchestrator must not poll role threads to discover completion.
 - Do not create source files, tests, handoff docs, self-audits, or external
   audit verdicts from the Orchestrator. Those belong to Planner, Developer, and
   Auditor role threads.

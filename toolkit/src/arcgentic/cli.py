@@ -24,6 +24,7 @@ Subcommands wired in this module:
 - `arcgentic v2-dispatch-role --state <state.yaml> --role developer --thread-id <id>`
   → marks the Orchestrator sleeping after dispatching one role turn
 - `arcgentic v2-return-signal --state <state.yaml> --signal-json <json>`
+  or `--signal-text <natural-language-return-with-footer>`
   → wakes the Orchestrator, records a role return signal, and prints next routing JSON
 
 CLI is the bridge between markdown skills (which shell out via Claude Code's
@@ -376,7 +377,8 @@ def main(argv: list[str] | None = None) -> int:
         help="Record a V2 role return signal and print next routing.",
     )
     v2_signal_parser.add_argument("--state", required=True)
-    v2_signal_parser.add_argument("--signal-json", required=True)
+    v2_signal_parser.add_argument("--signal-json", default=None)
+    v2_signal_parser.add_argument("--signal-text", default=None)
 
     args = parser.parse_args(argv)
 
@@ -787,7 +789,15 @@ def main(argv: list[str] | None = None) -> int:
 
         state_path = _Path(args.state)
         try:
-            signal = RoleReturnSignal.from_json(args.signal_json)
+            if bool(args.signal_json) == bool(args.signal_text):
+                raise V2SessionOrchestrationError(
+                    "provide exactly one of --signal-json or --signal-text"
+                )
+            signal = (
+                RoleReturnSignal.from_json(args.signal_json)
+                if args.signal_json
+                else RoleReturnSignal.from_text(args.signal_text)
+            )
             updated_state = apply_role_return_signal(load_state_file(state_path), signal)
         except (json.JSONDecodeError, V2SessionOrchestrationError) as exc:
             print(f"v2-return-signal failed: {exc}")

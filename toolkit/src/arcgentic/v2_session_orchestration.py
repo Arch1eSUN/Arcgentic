@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from copy import deepcopy
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
@@ -28,6 +29,12 @@ ROLE_ORDER: tuple[Role, ...] = ("orchestrator", "planner", "developer", "auditor
 
 ROLE_RETURN_SIGNAL_KEYS: Final[frozenset[str]] = frozenset(
     {"role", "status", "round_id", "state", "artifacts", "next_recommended_role"}
+)
+
+ROLE_RETURN_SIGNAL_BLOCK_RE: Final[re.Pattern[str]] = re.compile(
+    r"```arcgentic-role-return\s*(?P<fenced>\{.*?\})\s*```|"
+    r"ARCGENTIC_ROLE_RETURN\s*(?P<marked>\{.*?\})\s*END_ARCGENTIC_ROLE_RETURN",
+    re.DOTALL,
 )
 
 ROLE_ALLOWED_CURRENT_STATES: Final[dict[Role, frozenset[str]]] = {
@@ -154,6 +161,16 @@ class RoleReturnSignal:
             artifacts=artifacts,
             next_recommended_role=next_recommended_role,
         )
+
+    @classmethod
+    def from_text(cls, payload: str) -> RoleReturnSignal:
+        match = ROLE_RETURN_SIGNAL_BLOCK_RE.search(payload)
+        if match is None:
+            raise V2SessionOrchestrationError(
+                "role return text must contain an arcgentic-role-return block"
+            )
+        json_payload = match.group("fenced") or match.group("marked")
+        return cls.from_json(json_payload)
 
 
 def normalize_role(value: object) -> Role:
@@ -380,6 +397,24 @@ def apply_role_return_signal(
 def role_prompt(role: Role, state: dict[str, object], *, user_request: str = "") -> str:
     round_id, current_state = _current_round(state)
     title = fixed_role_title(role)
+    v2 = _project_v2_block(state)
+    sessions = _role_sessions(v2)
+    orchestrator_session = sessions.get("orchestrator")
+    orchestrator_thread_id = (
+        str(orchestrator_session.get("thread_id") or "")
+        if isinstance(orchestrator_session, dict)
+        else ""
+    )
+    wake_instruction = (
+        "When your role-owned work is complete, actively send a message to "
+        f"Orchestrator thread {orchestrator_thread_id} containing your natural-language "
+        "summary and the same ARCGENTIC_ROLE_RETURN block. Do not wait for the "
+        "Orchestrator to poll your thread.\n"
+        if orchestrator_thread_id
+        else "Orchestrator thread id is not recorded in state. Report this as a "
+        "blocking orchestration setup issue instead of assuming the Orchestrator "
+        "can poll your thread.\n"
+    )
     request_line = f"Current user request: {user_request.strip()}\n" if user_request.strip() else ""
     return (
         f"You are {title}.\n"
@@ -399,7 +434,17 @@ def role_prompt(role: Role, state: dict[str, object], *, user_request: str = "")
         "this turn, using tools as needed, before returning the RoleReturnSignal.\n"
         "Developer and Auditor must use project.arcgentic_v2.last_signal.artifacts "
         "to locate the prior role artifact they need to consume.\n"
-        "Return a RoleReturnSignal JSON object only when this role turn is complete.\n"
+        "Use natural language for your role-owned output: Planner writes a readable "
+        "plan, Developer writes a readable self-audit summary, and Auditor writes a "
+        "readable verdict. Do not make the whole response raw JSON.\n"
+        "At the end of your role-owned output, include exactly one machine-readable "
+        "footer in this format:\n"
+        "```arcgentic-role-return\n"
+        "{\"role\":\"planner\",\"status\":\"planned\",\"round_id\":\"R1\","
+        "\"state\":\"awaiting_dev_start\",\"artifacts\":{\"handoff\":\"docs/plans/R1.md\"},"
+        "\"next_recommended_role\":\"developer\"}\n"
+        "```\n"
+        f"{wake_instruction}"
         "Do not add extra fields outside role, status, round_id, state, artifacts, "
         "and next_recommended_role.\n"
         "Planner may route only to awaiting_dev_start/developer or planning/planner.\n"

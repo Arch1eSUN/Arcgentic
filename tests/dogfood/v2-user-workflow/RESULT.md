@@ -11,7 +11,7 @@ Validate the user-facing V2 workflow after local Codex installation:
 3. Generate a V2 Codex fixed-role session plan.
 4. Record fixed role sessions.
 5. Dispatch one role at a time and put Orchestrator to sleep.
-6. Wake Orchestrator only through `RoleReturnSignal`.
+6. Wake Orchestrator only through a pushed role-return message.
 7. Route Planner -> Developer -> Auditor through sleep/wake cycles.
 8. Validate final state against `schema/state.schema.json`.
 9. Run a Codex project-scoped host-thread smoke.
@@ -56,15 +56,19 @@ Workflow covered:
 - `arcgentic v2-session-plan --host codex`
 - `arcgentic v2-record-session` for fixed role sessions
 - `arcgentic v2-dispatch-role` for Orchestrator sleep after dispatch
-- `arcgentic v2-return-signal` for Planner, Developer, Auditor
+- `arcgentic v2-return-signal --signal-text` for Planner, Developer, Auditor
 - `scripts/state/validate-schema.sh`
 
 The deterministic workflow now verifies that:
 
 - an active Orchestrator receives exactly one next-role action;
 - the next-role prompt includes the current user request;
+- the next-role prompt includes the recorded Orchestrator thread id;
+- Planner / Developer / Auditor returns may be natural language with an
+  `arcgentic-role-return` footer instead of raw JSON;
 - a sleeping Orchestrator receives no dispatch actions;
-- `v2-return-signal` wakes the Orchestrator and clears pending dispatch fields.
+- `v2-return-signal --signal-text` extracts the footer, wakes the Orchestrator,
+  and clears pending dispatch fields.
 
 ## Codex Skill Discovery Fix
 
@@ -180,6 +184,12 @@ Fix:
   round is already closed.
 - `v2-return-signal` now reports invalid role routes as clean CLI failures
   instead of Python tracebacks.
+- `v2-return-signal --signal-text` now accepts natural-language role returns
+  with an `arcgentic-role-return` footer, so Planner can write a readable plan
+  while Orchestrator still gets a machine-checkable routing envelope.
+- Role prompts now require push-return: a completed role sends its natural
+  language result plus footer back to the recorded Orchestrator thread instead
+  of waiting for Orchestrator polling.
 - Role-specific routing is enforced:
   - Planner cannot route directly to Auditor.
   - Developer cannot bypass Auditor.

@@ -273,16 +273,26 @@ arcgentic v2-session-plan \
   --state .agentic-rounds/state.yaml \
   --host codex \
   --user-request '<current user request>'
+arcgentic v2-record-session --state .agentic-rounds/state.yaml --host codex --role orchestrator --thread-id <orchestrator-id>
 arcgentic v2-record-session --state .agentic-rounds/state.yaml --host codex --role developer --thread-id <id>
 arcgentic v2-dispatch-role --state .agentic-rounds/state.yaml --host codex --role developer --thread-id <id>
-arcgentic v2-return-signal --state .agentic-rounds/state.yaml --signal-json '<RoleReturnSignal JSON>'
+arcgentic v2-return-signal --state .agentic-rounds/state.yaml --signal-text '<natural-language role return with arcgentic-role-return footer>'
 ```
 
 This emits a machine-readable plan for exactly one next role while the
 Orchestrator is active. After the Orchestrator dispatches that role, it records
 `v2-dispatch-role` and goes to sleep. `v2-session-plan` then emits no further
-actions until the pending role returns a valid `RoleReturnSignal` through
-`v2-return-signal`.
+actions until the pending role actively pushes a valid return message back to
+the Orchestrator. The Orchestrator consumes that whole message with
+`v2-return-signal --signal-text`; it does not poll role threads or hand-extract
+JSON.
+
+Planner / Developer / Auditor output is natural language by default. The
+machine protocol lives only in a footer:
+
+```arcgentic-role-return
+{"role":"planner","status":"planned","round_id":"R1","state":"awaiting_dev_start","artifacts":{"handoff":"docs/plans/R1.md"},"next_recommended_role":"developer"}
+```
 
 Start Arcgentic from an existing project or saved project workspace. Planner /
 Developer / Auditor must be project-scoped threads, not projectless threads.

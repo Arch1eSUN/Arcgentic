@@ -25,7 +25,22 @@ thread role.
 
 ## Procedure
 
-1. Run:
+1. Ensure `.agentic-rounds/state.yaml` records the current thread as
+   `Orchestrator` before dispatching any role:
+
+   ```bash
+   arcgentic v2-record-session \
+     --state .agentic-rounds/state.yaml \
+     --host codex \
+     --role orchestrator \
+     --thread-id <current-orchestrator-thread-id> \
+     --title Orchestrator
+   ```
+
+   If the host cannot provide the current Orchestrator thread id, stop. Without
+   this id, Planner / Developer / Auditor cannot actively send completion back.
+
+2. Run:
 
    ```bash
    arcgentic v2-session-plan \
@@ -37,11 +52,11 @@ thread role.
    This must happen before source inspection, test runs, git-log verification,
    or summaries of prior closed rounds.
 
-2. If `orchestrator_status` is `sleeping`, stop immediately. The
+3. If `orchestrator_status` is `sleeping`, stop immediately. The
    Orchestrator is waiting for `pending_role` to return a `RoleReturnSignal`;
    do not dispatch another role and do not do the pending role's work inline.
 
-3. If `orchestrator_status` is `active`, dispatch the single action in
+4. If `orchestrator_status` is `active`, dispatch the single action in
    `actions`:
 
    - `reuse`: send `prompt` to `thread_id`.
@@ -67,7 +82,7 @@ thread role.
    the override so the current project/session default is preserved rather than
    downgraded.
 
-4. After sending the role prompt, put the Orchestrator to sleep:
+5. After sending the role prompt, put the Orchestrator to sleep:
 
    ```bash
    arcgentic v2-dispatch-role \
@@ -81,7 +96,9 @@ thread role.
    do not dispatch another role. The next Orchestrator turn starts only after
    the role thread returns information.
 
-5. When the role thread returns, read its latest result.
+6. When the role thread completes, it must actively send its return message to
+   the Orchestrator thread. The Orchestrator must not poll role threads to
+   discover completion.
 
    If the role thread does not return promptly, send one status/constraint
    tightening message that repeats the required role boundary and
@@ -89,9 +106,10 @@ thread role.
    with a role-timeout report. Do not perform that role's work in the
    Orchestrator.
 
-6. Require the role thread to return a `RoleReturnSignal` JSON object:
+7. Require the role thread to produce natural-language role output plus exactly
+   one machine-readable footer:
 
-   ```json
+   ```arcgentic-role-return
    {
      "role": "developer",
      "status": "completed",
@@ -104,19 +122,24 @@ thread role.
    }
    ```
 
-7. Record the signal. This wakes the Orchestrator and clears the pending
+   Planner output should be a readable plan, not raw JSON. Developer output
+   should be a readable self-audit summary, not raw JSON. Auditor output should
+   be a readable verdict, not raw JSON. The footer is the routing envelope.
+
+8. Record the signal. This wakes the Orchestrator and clears the pending
    dispatch:
 
    ```bash
    arcgentic v2-return-signal \
      --state .agentic-rounds/state.yaml \
-     --signal-json '<RoleReturnSignal JSON>'
+     --signal-text '<role return message including arcgentic-role-return block>'
    ```
 
-   Treat rejection from this command as authoritative. Do not edit the signal
-   by hand unless the same role thread explicitly returns a corrected signal.
+   Treat rejection from this command as authoritative. Do not hand-extract or
+   hand-repair JSON in the Orchestrator unless the same role thread explicitly
+   returns a corrected message.
 
-8. Re-run `v2-session-plan` and dispatch the next role if the plan is active.
+9. Re-run `v2-session-plan` and dispatch the next role if the plan is active.
 
 ## Routing
 
@@ -143,7 +166,7 @@ Role-specific returns are stricter than generic routing:
   `Developer`, or `audit_in_progress` with next `Auditor`.
 - A role signal is stale if the current round state no longer belongs to that
   role. Stale signals must be rejected, not merged.
-- `RoleReturnSignal` must contain only `role`, `status`, `round_id`, `state`,
+- The machine footer must contain only `role`, `status`, `round_id`, `state`,
   `artifacts`, and `next_recommended_role`.
 
 The Orchestrator may update `.agentic-rounds/state.yaml` and session registry
@@ -159,6 +182,11 @@ Role threads must not stop after acknowledging their role. They must complete
 the role-owned work in the same turn, using tools as needed, and only then
 return `RoleReturnSignal`. Developer and Auditor consume prior-role artifacts
 from `project.arcgentic_v2.last_signal.artifacts`.
+
+Role threads must actively wake the Orchestrator when complete by sending their
+natural-language return message plus `arcgentic-role-return` footer to the
+recorded Orchestrator thread id. This is a push-return protocol, not an
+Orchestrator polling protocol.
 
 ## Verification
 
