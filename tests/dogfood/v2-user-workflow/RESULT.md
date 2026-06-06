@@ -10,9 +10,11 @@ Validate the user-facing V2 workflow after local Codex installation:
 2. Initialize a target project.
 3. Generate a V2 Codex fixed-role session plan.
 4. Record fixed role sessions.
-5. Route Planner -> Developer -> Auditor through `RoleReturnSignal`.
-6. Validate final state against `schema/state.schema.json`.
-7. Run a Codex project-scoped host-thread smoke.
+5. Dispatch one role at a time and put Orchestrator to sleep.
+6. Wake Orchestrator only through `RoleReturnSignal`.
+7. Route Planner -> Developer -> Auditor through sleep/wake cycles.
+8. Validate final state against `schema/state.schema.json`.
+9. Run a Codex project-scoped host-thread smoke.
 
 ## Local Codex Install
 
@@ -52,9 +54,16 @@ Workflow covered:
 
 - `scripts/state/init.sh`
 - `arcgentic v2-session-plan --host codex`
-- `arcgentic v2-record-session` for all four fixed roles
+- `arcgentic v2-record-session` for fixed role sessions
+- `arcgentic v2-dispatch-role` for Orchestrator sleep after dispatch
 - `arcgentic v2-return-signal` for Planner, Developer, Auditor
 - `scripts/state/validate-schema.sh`
+
+The deterministic workflow now verifies that:
+
+- an active Orchestrator receives exactly one next-role action;
+- a sleeping Orchestrator receives no dispatch actions;
+- `v2-return-signal` wakes the Orchestrator and clears pending dispatch fields.
 
 ## Codex Skill Discovery Fix
 
@@ -161,6 +170,10 @@ Fix:
 - `RoleReturnSignal.from_json()` now rejects extra fields.
 - `v2-return-signal` now rejects stale role signals when the current state no
   longer belongs to that role.
+- `v2-session-plan` now emits only one next-role action while active, and no
+  actions while `orchestrator_status` is `sleeping`.
+- `v2-dispatch-role` now records `pending_role`, `pending_thread_id`, and
+  `pending_since`, making Orchestrator sleep explicit in state.
 - Role-specific routing is enforced:
   - Planner cannot route directly to Auditor.
   - Developer cannot bypass Auditor.

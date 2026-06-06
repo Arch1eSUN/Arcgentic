@@ -621,15 +621,10 @@ current_round:
     assert payload["host"] == "codex"
     assert payload["mode"] == "multi-session-subthread"
     assert payload["next_role"] == "developer"
-    assert [action["role"] for action in payload["actions"]] == [
-        "orchestrator",
-        "planner",
-        "developer",
-        "auditor",
-    ]
+    assert payload["orchestrator_status"] == "active"
+    assert [action["role"] for action in payload["actions"]] == ["developer"]
     assert payload["actions"][0]["kind"] == "reuse"
-    assert payload["actions"][1]["kind"] == "create"
-    assert payload["actions"][2]["thread_id"] == "dev-1"
+    assert payload["actions"][0]["thread_id"] == "dev-1"
 
 
 def test_v2_session_plan_rejects_unsupported_host(tmp_path: Path) -> None:
@@ -667,13 +662,66 @@ def test_v2_record_session_persists_thread_id(tmp_path: Path) -> None:
     assert "title: Developer" in saved
 
 
+def test_v2_dispatch_role_puts_orchestrator_to_sleep(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    state = tmp_path / "state.yaml"
+    state.write_text(
+        """
+project:
+  arcgentic_v2:
+    host: codex
+    role_sessions:
+      planner:
+        thread_id: planner-1
+        title: Planner
+current_round:
+  id: R1
+  state: planning
+""",
+        encoding="utf-8",
+    )
+
+    exit_code = main(
+        [
+            "v2-dispatch-role",
+            "--state",
+            str(state),
+            "--role",
+            "planner",
+            "--thread-id",
+            "planner-1",
+        ]
+    )
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["orchestrator_status"] == "sleeping"
+    assert payload["pending_role"] == "planner"
+    saved = state.read_text(encoding="utf-8")
+    assert "orchestrator_status: sleeping" in saved
+    assert "pending_role: planner" in saved
+    assert "pending_thread_id: planner-1" in saved
+
+
 def test_v2_return_signal_records_signal_and_prints_next_role(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     state = tmp_path / "state.yaml"
     state.write_text(
-        "project:\n  name: demo\ncurrent_round:\n  id: R1\n  state: awaiting_audit\n",
+        """
+project:
+  name: demo
+  arcgentic_v2:
+    orchestrator_status: sleeping
+    pending_role: auditor
+    pending_thread_id: auditor-1
+current_round:
+  id: R1
+  state: awaiting_audit
+""",
         encoding="utf-8",
     )
     signal = {
@@ -701,6 +749,8 @@ def test_v2_return_signal_records_signal_and_prints_next_role(
     saved = state.read_text(encoding="utf-8")
     assert "last_signal:" in saved
     assert "next_role: developer" in saved
+    assert "orchestrator_status: active" in saved
+    assert "pending_role:" not in saved
 
 
 def test_v2_session_plan_supports_claude_code_broker_host(tmp_path: Path) -> None:

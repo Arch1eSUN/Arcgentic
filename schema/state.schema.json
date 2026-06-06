@@ -61,6 +61,10 @@
             "host": { "type": "string", "enum": ["codex", "claude-code-broker"] },
             "mode": { "type": "string", "enum": ["single-session-subagent", "multi-session-subthread"] },
             "next_role": { "type": "string", "enum": ["orchestrator", "planner", "developer", "auditor"] },
+            "orchestrator_status": { "type": "string", "enum": ["active", "sleeping"] },
+            "pending_role": { "type": "string", "enum": ["planner", "developer", "auditor"] },
+            "pending_thread_id": { "type": "string" },
+            "pending_since": { "type": "string", "format": "date-time" },
             "role_sessions": {
               "type": "object",
               "additionalProperties": false,

@@ -31,7 +31,12 @@ thread role.
    arcgentic v2-session-plan --state .agentic-rounds/state.yaml --host codex
    ```
 
-2. For each action in `actions`:
+2. If `orchestrator_status` is `sleeping`, stop immediately. The
+   Orchestrator is waiting for `pending_role` to return a `RoleReturnSignal`;
+   do not dispatch another role and do not do the pending role's work inline.
+
+3. If `orchestrator_status` is `active`, dispatch the single action in
+   `actions`:
 
    - `reuse`: send `prompt` to `thread_id`.
    - `create`: create a Codex project thread in the current project/workspace,
@@ -56,7 +61,21 @@ thread role.
    the override so the current project/session default is preserved rather than
    downgraded.
 
-3. Wait for the role thread to complete and read its latest result.
+4. After sending the role prompt, put the Orchestrator to sleep:
+
+   ```bash
+   arcgentic v2-dispatch-role \
+     --state .agentic-rounds/state.yaml \
+     --host codex \
+     --role <role> \
+     --thread-id <thread-id>
+   ```
+
+   End the Orchestrator turn here. Do not wait in the Orchestrator thread and
+   do not dispatch another role. The next Orchestrator turn starts only after
+   the role thread returns information.
+
+5. When the role thread returns, read its latest result.
 
    If the role thread does not return promptly, send one status/constraint
    tightening message that repeats the required role boundary and
@@ -64,7 +83,7 @@ thread role.
    with a role-timeout report. Do not perform that role's work in the
    Orchestrator.
 
-4. Require the role thread to return a `RoleReturnSignal` JSON object:
+6. Require the role thread to return a `RoleReturnSignal` JSON object:
 
    ```json
    {
@@ -79,7 +98,8 @@ thread role.
    }
    ```
 
-5. Record the signal:
+7. Record the signal. This wakes the Orchestrator and clears the pending
+   dispatch:
 
    ```bash
    arcgentic v2-return-signal \
@@ -90,7 +110,7 @@ thread role.
    Treat rejection from this command as authoritative. Do not edit the signal
    by hand unless the same role thread explicitly returns a corrected signal.
 
-6. Re-run `v2-session-plan` and dispatch the next role.
+8. Re-run `v2-session-plan` and dispatch the next role if the plan is active.
 
 ## Routing
 

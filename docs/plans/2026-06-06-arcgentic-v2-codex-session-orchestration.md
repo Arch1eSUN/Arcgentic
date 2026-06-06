@@ -104,7 +104,8 @@ Expected: PASS.
 
 Add tests for:
 - `arcgentic v2-session-plan --state <state.yaml> --host codex`
-- JSON output contains fixed roles and `create_or_reuse` actions
+- JSON output contains one next-role `create` or `reuse` action while active
+- sleeping output contains `orchestrator_status: sleeping` and no actions
 - CLI rejects unsupported host values
 
 **Step 2: Implement parser and dispatch**

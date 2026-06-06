@@ -15,6 +15,7 @@ Role = Literal["orchestrator", "planner", "developer", "auditor"]
 HostKind = Literal["codex", "claude-code-broker"]
 V2Mode = Literal["single-session-subagent", "multi-session-subthread"]
 RoleActionKind = Literal["create", "reuse"]
+OrchestratorStatus = Literal["active", "sleeping"]
 
 FIXED_ROLE_TITLES: Final[dict[str, str]] = {
     "orchestrator": "Orchestrator",
@@ -95,6 +96,9 @@ class SessionPlan:
     current_state: str
     next_role: Role
     actions: tuple[RoleAction, ...]
+    orchestrator_status: OrchestratorStatus = "active"
+    pending_role: Role | None = None
+    pending_thread_id: str = ""
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -103,6 +107,9 @@ class SessionPlan:
             "current_round": self.current_round,
             "current_state": self.current_state,
             "next_role": self.next_role,
+            "orchestrator_status": self.orchestrator_status,
+            "pending_role": self.pending_role,
+            "pending_thread_id": self.pending_thread_id,
             "actions": [action.to_dict() for action in self.actions],
         }
 
@@ -262,6 +269,31 @@ def record_role_session(
     return updated
 
 
+def record_role_dispatch(
+    state: dict[str, object],
+    role: Role,
+    *,
+    thread_id: str,
+    host: HostKind = "codex",
+) -> dict[str, object]:
+    if not thread_id:
+        raise V2SessionOrchestrationError("thread_id is required")
+    updated = deepcopy(state)
+    v2 = _ensure_project_v2_block(updated, host)
+    role_sessions = _role_sessions(v2)
+    existing = role_sessions.get(role)
+    if isinstance(existing, dict) and existing.get("thread_id") != thread_id:
+        raise V2SessionOrchestrationError(
+            f"dispatch thread {thread_id!r} does not match recorded {role} thread "
+            f"{existing.get('thread_id')!r}"
+        )
+    v2["orchestrator_status"] = "sleeping"
+    v2["pending_role"] = role
+    v2["pending_thread_id"] = thread_id
+    v2["pending_since"] = _utc_now()
+    return updated
+
+
 def apply_role_return_signal(
     state: dict[str, object],
     signal: RoleReturnSignal,
@@ -275,6 +307,18 @@ def apply_role_return_signal(
     if current_state not in allowed_current_states:
         raise V2SessionOrchestrationError(
             f"stale {signal.role} signal cannot apply from current state {current_state!r}"
+        )
+    v2_state = _project_v2_block(state)
+    orchestrator_status = str(v2_state.get("orchestrator_status") or "active")
+    if orchestrator_status == "sleeping":
+        pending_role = normalize_role(v2_state.get("pending_role"))
+        if pending_role != signal.role:
+            raise V2SessionOrchestrationError(
+                f"sleeping orchestrator is waiting for {pending_role}, got {signal.role}"
+            )
+    elif orchestrator_status != "active":
+        raise V2SessionOrchestrationError(
+            f"unsupported orchestrator_status: {orchestrator_status}"
         )
     route_options = ROLE_ALLOWED_SIGNAL_ROUTES[signal.role]
     allowed_next_roles = route_options.get(signal.state)
@@ -294,6 +338,10 @@ def apply_role_return_signal(
     v2 = _ensure_project_v2_block(updated, "codex")
     v2["last_signal"] = signal.to_dict()
     v2["next_role"] = next_role
+    v2["orchestrator_status"] = "active"
+    v2.pop("pending_role", None)
+    v2.pop("pending_thread_id", None)
+    v2.pop("pending_since", None)
     current_round = updated.setdefault("current_round", {})
     if isinstance(current_round, dict):
         current_round["state"] = signal.state
@@ -347,36 +395,54 @@ def build_role_session_plan(state: dict[str, object], *, host: HostKind = "codex
 
     round_id, current_state = _current_round(state)
     sessions = _role_sessions(v2)
-    actions: list[RoleAction] = []
-    for role in ROLE_ORDER:
-        title = fixed_role_title(role)
-        session = sessions.get(role)
-        if isinstance(session, dict) and session.get("thread_id"):
-            actions.append(
-                RoleAction(
-                    role=role,
-                    title=title,
-                    kind="reuse",
-                    thread_id=str(session["thread_id"]),
-                    prompt=role_prompt(role, state),
-                )
-            )
-        else:
-            actions.append(
-                RoleAction(
-                    role=role,
-                    title=title,
-                    kind="create",
-                    prompt=role_prompt(role, state),
-                )
-            )
+    orchestrator_status = str(v2.get("orchestrator_status") or "active")
+    next_role = next_role_for_state(current_state)
+    if orchestrator_status == "sleeping":
+        pending_role = normalize_role(v2.get("pending_role"))
+        return SessionPlan(
+            host=host,
+            mode=typed_mode,
+            current_round=round_id,
+            current_state=current_state,
+            next_role=pending_role,
+            actions=(),
+            orchestrator_status="sleeping",
+            pending_role=pending_role,
+            pending_thread_id=str(v2.get("pending_thread_id") or ""),
+        )
+    if orchestrator_status != "active":
+        raise V2SessionOrchestrationError(
+            f"unsupported orchestrator_status: {orchestrator_status}"
+        )
+
+    title = fixed_role_title(next_role)
+    session = sessions.get(next_role)
+    if isinstance(session, dict) and session.get("thread_id"):
+        actions = (
+            RoleAction(
+                role=next_role,
+                title=title,
+                kind="reuse",
+                thread_id=str(session["thread_id"]),
+                prompt=role_prompt(next_role, state),
+            ),
+        )
+    else:
+        actions = (
+            RoleAction(
+                role=next_role,
+                title=title,
+                kind="create",
+                prompt=role_prompt(next_role, state),
+            ),
+        )
     return SessionPlan(
         host=host,
         mode=typed_mode,
         current_round=round_id,
         current_state=current_state,
-        next_role=next_role_for_state(current_state),
-        actions=tuple(actions),
+        next_role=next_role,
+        actions=actions,
     )
 
 

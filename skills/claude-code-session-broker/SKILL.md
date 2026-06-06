@@ -52,7 +52,11 @@ All three transports must write the same state shape.
      --host claude-code-broker
    ```
 
-2. For each created/resumed Claude Code role context, record its broker id:
+2. If `orchestrator_status` is `sleeping`, stop immediately. The broker is
+   waiting for `pending_role`; do not dispatch another role.
+
+3. If `orchestrator_status` is `active`, create or resume only the single role
+   context in `actions`, then record its broker id:
 
    ```bash
    arcgentic v2-record-session \
@@ -62,13 +66,25 @@ All three transports must write the same state shape.
      --thread-id <broker-session-id>
    ```
 
-3. Inject only that role's prompt. The developer does not receive auditor
+4. Inject only that role's prompt. The developer does not receive auditor
    reasoning. The auditor does not receive developer chat transcript. The
    planner owns phase decisions.
 
-4. Require every role turn to end with `RoleReturnSignal` JSON.
+5. After injecting the role prompt, put the Orchestrator to sleep and end the
+   Orchestrator turn:
 
-5. Record the signal:
+   ```bash
+   arcgentic v2-dispatch-role \
+     --state .agentic-rounds/state.yaml \
+     --host claude-code-broker \
+     --role <planner|developer|auditor> \
+     --thread-id <broker-session-id>
+   ```
+
+6. Require every role turn to end with `RoleReturnSignal` JSON.
+
+7. Record the signal. This wakes the Orchestrator and clears the pending
+   dispatch:
 
    ```bash
    arcgentic v2-return-signal \
@@ -76,7 +92,7 @@ All three transports must write the same state shape.
      --signal-json '<RoleReturnSignal JSON>'
    ```
 
-6. Re-run `v2-session-plan --host claude-code-broker` and dispatch the next
+8. Re-run `v2-session-plan --host claude-code-broker` and dispatch the next
    role.
 
 ## Hook guidance
@@ -90,6 +106,8 @@ invent a PASS/NEEDS_FIX outcome. It only transports the role's own
 
 - If a role returns prose without valid `RoleReturnSignal`, do not advance.
 - If the broker cannot identify which role produced a signal, do not advance.
+- If the Orchestrator is sleeping, do not dispatch more work until the pending
+  role returns.
 - If a role tries to rename itself outside the four fixed titles, reject it.
 - If Claude Code transport is unavailable, fall back to explicit copy-back
   rather than pretending automation succeeded.

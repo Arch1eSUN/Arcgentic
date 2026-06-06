@@ -21,8 +21,10 @@ Subcommands wired in this module:
   → emits fixed-role Codex session orchestration JSON
 - `arcgentic v2-record-session --state <state.yaml> --role developer --thread-id <id>`
   → records a fixed-role host session in state.yaml
+- `arcgentic v2-dispatch-role --state <state.yaml> --role developer --thread-id <id>`
+  → marks the Orchestrator sleeping after dispatching one role turn
 - `arcgentic v2-return-signal --state <state.yaml> --signal-json <json>`
-  → records a role return signal and prints next routing JSON
+  → wakes the Orchestrator, records a role return signal, and prints next routing JSON
 
 CLI is the bridge between markdown skills (which shell out via Claude Code's
 Bash tool) and the Python toolkit (which holds the actual algorithms).
@@ -346,6 +348,23 @@ def main(argv: list[str] | None = None) -> int:
     v2_record_parser.add_argument("--thread-id", required=True)
     v2_record_parser.add_argument("--title", default=None)
     v2_record_parser.add_argument(
+        "--host",
+        choices=["codex", "claude-code-broker"],
+        default="codex",
+    )
+
+    v2_dispatch_parser = subparsers.add_parser(
+        "v2-dispatch-role",
+        help="Mark the Orchestrator sleeping after dispatching one V2 role turn.",
+    )
+    v2_dispatch_parser.add_argument("--state", required=True)
+    v2_dispatch_parser.add_argument(
+        "--role",
+        choices=["planner", "developer", "auditor"],
+        required=True,
+    )
+    v2_dispatch_parser.add_argument("--thread-id", required=True)
+    v2_dispatch_parser.add_argument(
         "--host",
         choices=["codex", "claude-code-broker"],
         default="codex",
@@ -698,6 +717,37 @@ def main(argv: list[str] | None = None) -> int:
         )
         write_state_file(state_path, updated_state)
         print(json.dumps({"recorded": True, "role": args.role, "thread_id": args.thread_id}))
+        return 0
+
+    elif args.command == "v2-dispatch-role":
+        from pathlib import Path as _Path
+
+        from .v2_session_orchestration import (
+            load_state_file,
+            record_role_dispatch,
+            write_state_file,
+        )
+
+        state_path = _Path(args.state)
+        updated_state = record_role_dispatch(
+            load_state_file(state_path),
+            args.role,
+            thread_id=args.thread_id,
+            host=args.host,
+        )
+        write_state_file(state_path, updated_state)
+        print(
+            json.dumps(
+                {
+                    "dispatched": True,
+                    "orchestrator_status": "sleeping",
+                    "pending_role": args.role,
+                    "thread_id": args.thread_id,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
         return 0
 
     elif args.command == "v2-return-signal":

@@ -7,6 +7,7 @@ from arcgentic.v2_session_orchestration import (
     apply_role_return_signal,
     build_codex_role_session_plan,
     next_role_for_state,
+    record_role_dispatch,
     record_role_session,
     role_prompt,
 )
@@ -21,7 +22,7 @@ def test_fixed_role_titles_do_not_include_round_ids() -> None:
     }
 
 
-def test_codex_plan_reuses_existing_threads_and_creates_missing_roles() -> None:
+def test_codex_plan_dispatches_only_the_next_role() -> None:
     state = {
         "project": {
             "arcgentic_v2": {
@@ -38,19 +39,38 @@ def test_codex_plan_reuses_existing_threads_and_creates_missing_roles() -> None:
 
     plan = build_codex_role_session_plan(state)
 
-    assert [action.role for action in plan.actions] == [
-        "orchestrator",
-        "planner",
-        "developer",
-        "auditor",
-    ]
+    assert plan.orchestrator_status == "active"
+    assert plan.next_role == "developer"
+    assert len(plan.actions) == 1
+    assert plan.actions[0].role == "developer"
     assert plan.actions[0].kind == "reuse"
-    assert plan.actions[0].thread_id == "orch-1"
-    assert plan.actions[1].kind == "create"
-    assert plan.actions[1].title == "Planner"
-    assert plan.actions[2].kind == "reuse"
-    assert plan.actions[2].thread_id == "dev-1"
-    assert plan.actions[3].kind == "create"
+    assert plan.actions[0].thread_id == "dev-1"
+
+
+def test_sleeping_codex_plan_does_not_dispatch_more_actions() -> None:
+    state = {
+        "project": {
+            "arcgentic_v2": {
+                "host": "codex",
+                "mode": "multi-session-subthread",
+                "orchestrator_status": "sleeping",
+                "pending_role": "planner",
+                "pending_thread_id": "planner-1",
+                "role_sessions": {
+                    "planner": {"thread_id": "planner-1", "title": "Planner"}
+                },
+            }
+        },
+        "current_round": {"id": "R1", "state": "planning"},
+    }
+
+    plan = build_codex_role_session_plan(state)
+
+    assert plan.orchestrator_status == "sleeping"
+    assert plan.next_role == "planner"
+    assert plan.pending_role == "planner"
+    assert plan.pending_thread_id == "planner-1"
+    assert plan.actions == ()
 
 
 def test_needs_fix_routes_back_to_developer() -> None:
@@ -132,9 +152,40 @@ def test_record_role_session_rejects_non_fixed_title() -> None:
         raise AssertionError("expected non-fixed title to be rejected")
 
 
+def test_record_role_dispatch_puts_orchestrator_to_sleep() -> None:
+    state: dict[str, object] = {
+        "project": {
+            "arcgentic_v2": {
+                "host": "codex",
+                "role_sessions": {
+                    "planner": {"thread_id": "planner-1", "title": "Planner"}
+                },
+            }
+        },
+        "current_round": {"id": "R1", "state": "planning"},
+    }
+
+    updated = record_role_dispatch(state, "planner", thread_id="planner-1")
+
+    project = updated["project"]
+    assert isinstance(project, dict)
+    v2 = project["arcgentic_v2"]
+    assert isinstance(v2, dict)
+    assert v2["orchestrator_status"] == "sleeping"
+    assert v2["pending_role"] == "planner"
+    assert v2["pending_thread_id"] == "planner-1"
+    assert isinstance(v2["pending_since"], str)
+
+
 def test_apply_role_return_signal_stores_signal_and_next_role() -> None:
     state: dict[str, object] = {
-        "project": {},
+        "project": {
+            "arcgentic_v2": {
+                "orchestrator_status": "sleeping",
+                "pending_role": "auditor",
+                "pending_thread_id": "audit-1",
+            }
+        },
         "current_round": {"id": "R4", "state": "awaiting_audit"},
     }
     signal = RoleReturnSignal(
@@ -154,9 +205,40 @@ def test_apply_role_return_signal_stores_signal_and_next_role() -> None:
     assert isinstance(v2, dict)
     assert v2["last_signal"] == signal.to_dict()
     assert v2["next_role"] == "developer"
+    assert v2["orchestrator_status"] == "active"
+    assert "pending_role" not in v2
+    assert "pending_thread_id" not in v2
     current_round = updated["current_round"]
     assert isinstance(current_round, dict)
     assert current_round["state"] == "needs_fix"
+
+
+def test_apply_role_return_signal_rejects_non_pending_role_while_sleeping() -> None:
+    state: dict[str, object] = {
+        "project": {
+            "arcgentic_v2": {
+                "orchestrator_status": "sleeping",
+                "pending_role": "developer",
+                "pending_thread_id": "dev-1",
+            }
+        },
+        "current_round": {"id": "R1", "state": "awaiting_audit"},
+    }
+    signal = RoleReturnSignal(
+        role="auditor",
+        status="PASS",
+        round_id="R1",
+        state="passed",
+        artifacts={"verdict": "docs/audits/R1.md"},
+        next_recommended_role="planner",
+    )
+
+    try:
+        apply_role_return_signal(state, signal)
+    except V2SessionOrchestrationError as exc:
+        assert "waiting for developer, got auditor" in str(exc)
+    else:
+        raise AssertionError("expected non-pending sleeping role to be rejected")
 
 
 def test_apply_role_return_signal_rejects_stale_role_state() -> None:

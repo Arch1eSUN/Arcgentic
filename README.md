@@ -271,14 +271,20 @@ V2 session-orchestration commands:
 ```bash
 arcgentic v2-session-plan --state .agentic-rounds/state.yaml --host codex
 arcgentic v2-record-session --state .agentic-rounds/state.yaml --host codex --role developer --thread-id <id>
+arcgentic v2-dispatch-role --state .agentic-rounds/state.yaml --host codex --role developer --thread-id <id>
 arcgentic v2-return-signal --state .agentic-rounds/state.yaml --signal-json '<RoleReturnSignal JSON>'
 ```
 
-This emits a machine-readable plan for fixed Codex role threads:
-`Orchestrator`, `Planner`, `Developer`, and `Auditor`. Arcgentic does not create
-`R1 Developer`, `R2 Auditor`, or other round-numbered thread names. Round and
-phase identity live in `.agentic-rounds/state.yaml` and in the injected role
-prompt.
+This emits a machine-readable plan for exactly one next role while the
+Orchestrator is active. After the Orchestrator dispatches that role, it records
+`v2-dispatch-role` and goes to sleep. `v2-session-plan` then emits no further
+actions until the pending role returns a valid `RoleReturnSignal` through
+`v2-return-signal`.
+
+V2 uses fixed Codex role threads: `Orchestrator`, `Planner`, `Developer`, and
+`Auditor`. Arcgentic does not create `R1 Developer`, `R2 Auditor`, or other
+round-numbered thread names. Round and phase identity live in
+`.agentic-rounds/state.yaml` and in the injected role prompt.
 
 V2 keeps `close-round` as an orchestrator-owned mechanical command after an
 anchored PASS. It is not a fifth session role. Claude Code parity is planned as

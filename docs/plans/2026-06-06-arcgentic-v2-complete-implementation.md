@@ -88,8 +88,10 @@ Expected: PASS.
 Add tests for:
 
 - `arcgentic v2-record-session --state <state> --role developer --thread-id <id>`
+- `arcgentic v2-dispatch-role --state <state> --role developer --thread-id <id>`
 - `arcgentic v2-return-signal --state <state> --signal-json <json>`
-- `arcgentic v2-session-plan --host claude-code-broker` emits the same fixed roles with broker host metadata
+- `arcgentic v2-session-plan --host claude-code-broker` emits one next-role action
+  with broker host metadata when active, and no actions while sleeping
 
 **Step 2: Implement CLI dispatch**
 
@@ -115,6 +117,9 @@ Allow:
 
 - `host`: `codex` or `claude-code-broker`
 - `mode`: `single-session-subagent` or `multi-session-subthread`
+- `orchestrator_status`: `active` or `sleeping`
+- `pending_role`, `pending_thread_id`, `pending_since`: the in-flight dispatch
+  that must return before Orchestrator can continue
 - `role_sessions`: fixed role keys with `thread_id`, `title`, `host`, `updated_at`
 - `last_signal`: role return-signal snapshot
 
@@ -140,10 +145,12 @@ Document the Codex host procedure:
 
 1. Current thread is `Orchestrator`.
 2. Run `arcgentic v2-session-plan --host codex`.
-3. For `create` actions, create thread, set title, send prompt, record id.
-4. For `reuse` actions, send prompt to existing thread.
-5. Read role result and require `RoleReturnSignal`.
-6. Run `v2-return-signal`.
+3. If sleeping, stop until the pending role returns.
+4. If active, dispatch exactly one next-role action.
+5. Run `v2-dispatch-role` and end the Orchestrator turn.
+6. Read role result only on the next Orchestrator turn and require
+   `RoleReturnSignal`.
+7. Run `v2-return-signal` to wake the Orchestrator and calculate the next role.
 
 **Step 2: Register skill**
 

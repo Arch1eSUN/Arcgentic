@@ -71,6 +71,9 @@ PY
 - If a role thread is slow, send at most one status/constraint-tightening
   message. If it still does not return a valid `RoleReturnSignal`, stop with a
   role-timeout status. Do not continue the workflow in the Orchestrator.
+- After dispatching a role prompt, call `arcgentic v2-dispatch-role` and end
+  the Orchestrator turn. The Orchestrator resumes only when the pending role
+  returns information.
 - If `arcgentic v2-return-signal` rejects the role output, stop and report the
   rejected signal. Do not repair it by hand in the Orchestrator.
 - Do not silently fall back to "Arcgentic-style" hand-written evidence.
