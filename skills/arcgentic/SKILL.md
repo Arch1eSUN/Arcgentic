@@ -10,6 +10,10 @@ This is the Codex-facing entry skill for Arcgentic V2.
 Use this before `build-feature`, `executing-plans`, or direct coding whenever
 the user asks to use Arcgentic.
 
+Do not directly implement, test, or scaffold the requested feature from the
+Orchestrator, even in a greenfield or empty project. Arcgentic work starts by
+dispatching Planner.
+
 ## Immediate behavior in Codex
 
 1. Treat the current thread as `Orchestrator`.
@@ -95,10 +99,20 @@ PY
 - If `arcgentic v2-return-signal` rejects the role output, stop and report the
   rejected signal. Do not repair it by hand in the Orchestrator.
 - Do not silently fall back to "Arcgentic-style" hand-written evidence.
+- Do not treat "greenfield" or "empty repo" as permission for Orchestrator
+  implementation.
 - Do not verify, summarize, or inspect a previous closed round as the response
   to a new implementation request. Route the request to Planner first.
 - Do not run ordinary coding work before Planner has produced or approved the
   round plan.
+- Planner, Developer, and Auditor must not mutate `.agentic-rounds/state.yaml`,
+  run transition commands, dispatch roles, consume `RoleReturnSignal`, or close
+  rounds. They write their role-owned artifacts and return JSON for the
+  Orchestrator to consume.
+- Role threads must not stop after acknowledging their role. They must complete
+  role-owned work in the same turn, using tools as needed, before returning
+  `RoleReturnSignal`. Developer and Auditor consume prior-role artifacts from
+  `project.arcgentic_v2.last_signal.artifacts`.
 - Do not create source files, tests, handoff docs, self-audits, or external
   audit verdicts from the Orchestrator. Those belong to Planner, Developer, and
   Auditor role threads.

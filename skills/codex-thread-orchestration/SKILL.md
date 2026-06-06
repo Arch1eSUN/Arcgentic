@@ -150,6 +150,16 @@ The Orchestrator may update `.agentic-rounds/state.yaml` and session registry
 only. It must not create implementation files, test files, handoff documents,
 self-audits, or external audit verdicts.
 
+Planner, Developer, and Auditor must not update `.agentic-rounds/state.yaml`,
+run transition commands, dispatch roles, consume `RoleReturnSignal`, or close
+rounds. They write their role-owned artifacts and return JSON; the Orchestrator
+is the only state writer for role returns.
+
+Role threads must not stop after acknowledging their role. They must complete
+the role-owned work in the same turn, using tools as needed, and only then
+return `RoleReturnSignal`. Developer and Auditor consume prior-role artifacts
+from `project.arcgentic_v2.last_signal.artifacts`.
+
 ## Verification
 
 Before advancing:

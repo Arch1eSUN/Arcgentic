@@ -201,6 +201,25 @@ def _current_round(state: dict[str, object]) -> tuple[str, str]:
     )
 
 
+def ensure_initial_round_id(state: dict[str, object]) -> dict[str, object]:
+    """Return state with a durable first-round id when the project is at intake."""
+    current_round = state.get("current_round")
+    if not isinstance(current_round, dict):
+        updated = deepcopy(state)
+        updated["current_round"] = {"id": "R1", "state": "intake"}
+        return updated
+    if str(current_round.get("id") or "").strip():
+        return state
+
+    updated = deepcopy(state)
+    updated_round = updated.setdefault("current_round", {})
+    if not isinstance(updated_round, dict):
+        raise V2SessionOrchestrationError("current_round must be an object")
+    updated_round["id"] = "R1"
+    updated_round.setdefault("state", "intake")
+    return updated
+
+
 def _role_sessions(v2: dict[str, object]) -> dict[str, object]:
     raw = v2.get("role_sessions")
     if raw is None:
@@ -373,6 +392,13 @@ def role_prompt(role: Role, state: dict[str, object], *, user_request: str = "")
         "- Developer owns implementation, self-audit, and NEEDS_FIX repair.\n"
         "- Auditor owns PASS / NEEDS_FIX / AUDIT_INCOMPLETE.\n"
         "- Orchestrator owns routing and mechanical close-round only.\n"
+        "Only the Orchestrator may mutate .agentic-rounds/state.yaml, dispatch roles, "
+        "or record role return signals. Planner, Developer, and Auditor must write "
+        "their own artifacts only, then return JSON for Orchestrator to consume.\n"
+        "Do not stop after acknowledging the role. Complete the role-owned work in "
+        "this turn, using tools as needed, before returning the RoleReturnSignal.\n"
+        "Developer and Auditor must use project.arcgentic_v2.last_signal.artifacts "
+        "to locate the prior role artifact they need to consume.\n"
         "Return a RoleReturnSignal JSON object only when this role turn is complete.\n"
         "Do not add extra fields outside role, status, round_id, state, artifacts, "
         "and next_recommended_role.\n"

@@ -823,3 +823,29 @@ current_round:
     )
 
     assert main(["v2-session-plan", "--state", str(state), "--host", "claude-code-broker"]) == 0
+
+
+def test_v2_session_plan_persists_initial_round_id(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    state = tmp_path / "state.yaml"
+    state.write_text(
+        """
+project:
+  arcgentic_v2:
+    host: codex
+current_round:
+  id: ''
+  state: intake
+""",
+        encoding="utf-8",
+    )
+
+    exit_code = main(["v2-session-plan", "--state", str(state), "--host", "codex"])
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["current_round"] == "R1"
+    assert "Current round: R1" in payload["actions"][0]["prompt"]
+    assert "id: R1" in state.read_text(encoding="utf-8")

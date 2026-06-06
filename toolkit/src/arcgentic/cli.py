@@ -695,11 +695,15 @@ def main(argv: list[str] | None = None) -> int:
         from .v2_session_orchestration import (
             V2SessionOrchestrationError,
             build_role_session_plan,
+            ensure_initial_round_id,
             load_state_file,
+            write_state_file,
         )
 
         try:
-            raw_state = load_state_file(_Path(args.state))
+            state_path = _Path(args.state)
+            raw_state = ensure_initial_round_id(load_state_file(state_path))
+            write_state_file(state_path, raw_state)
             session_plan = build_role_session_plan(
                 raw_state, host=args.host, user_request=args.user_request
             )

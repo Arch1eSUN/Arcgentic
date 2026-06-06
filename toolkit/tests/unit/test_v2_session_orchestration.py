@@ -6,6 +6,7 @@ from arcgentic.v2_session_orchestration import (
     V2SessionOrchestrationError,
     apply_role_return_signal,
     build_codex_role_session_plan,
+    ensure_initial_round_id,
     next_role_for_state,
     record_role_dispatch,
     record_role_session,
@@ -164,7 +165,27 @@ def test_role_prompt_mentions_fixed_role_and_current_round() -> None:
 
     assert "You are Auditor." in prompt
     assert "Current round: R3" in prompt
+    assert "Only the Orchestrator may mutate .agentic-rounds/state.yaml" in prompt
+    assert "Do not stop after acknowledging the role" in prompt
+    assert "project.arcgentic_v2.last_signal.artifacts" in prompt
     assert "Return a RoleReturnSignal JSON object" in prompt
+
+
+def test_initial_round_id_defaults_to_r1_before_planning() -> None:
+    state: dict[str, object] = {"current_round": {"id": "", "state": "intake"}}
+
+    updated = ensure_initial_round_id(state)
+
+    assert updated["current_round"] == {"id": "R1", "state": "intake"}
+    assert state["current_round"] == {"id": "", "state": "intake"}
+
+
+def test_initial_round_id_is_not_rewritten_when_present() -> None:
+    state: dict[str, object] = {"current_round": {"id": "R4", "state": "planning"}}
+
+    updated = ensure_initial_round_id(state)
+
+    assert updated is state
 
 
 def test_record_role_session_persists_fixed_title_and_thread_id() -> None:
