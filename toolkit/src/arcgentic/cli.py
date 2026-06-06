@@ -19,8 +19,6 @@ Subcommands wired in this module:
   → manages .arcgentic/state.yaml with TTL locks and atomic writes
 - `arcgentic v2-session-plan --state <state.yaml> --host codex`
   → emits fixed-role Codex session orchestration JSON
-- `arcgentic v2-bootstrap-project --goal <goal> --parent <dir>`
-  → creates a new project workspace with git and Arcgentic V2 state
 - `arcgentic v2-record-session --state <state.yaml> --role developer --thread-id <id>`
   → records a fixed-role host session in state.yaml
 - `arcgentic v2-dispatch-role --state <state.yaml> --role developer --thread-id <id>`
@@ -36,7 +34,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import subprocess
 import sys
 
 
@@ -338,20 +335,6 @@ def main(argv: list[str] | None = None) -> int:
     v2_session_parser.add_argument("--state", required=True)
     v2_session_parser.add_argument("--host", choices=["codex", "claude-code-broker"], required=True)
     v2_session_parser.add_argument("--user-request", default="")
-
-    v2_bootstrap_parser = subparsers.add_parser(
-        "v2-bootstrap-project",
-        help="Create a project workspace from a projectless Arcgentic user goal.",
-    )
-    v2_bootstrap_parser.add_argument("--goal", required=True)
-    v2_bootstrap_parser.add_argument("--parent", required=True)
-    v2_bootstrap_parser.add_argument("--project-name", default=None)
-    v2_bootstrap_parser.add_argument(
-        "--host",
-        choices=["codex", "claude-code-broker"],
-        default="codex",
-    )
-    v2_bootstrap_parser.add_argument("--reuse-existing", action="store_true")
 
     v2_record_parser = subparsers.add_parser(
         "v2-record-session",
@@ -724,28 +707,6 @@ def main(argv: list[str] | None = None) -> int:
             print(f"v2-session-plan failed: {exc}")
             return 1
         print(json.dumps(session_plan.to_dict(), indent=2, sort_keys=True))
-        return 0
-
-    elif args.command == "v2-bootstrap-project":
-        from pathlib import Path as _Path
-
-        from .v2_session_orchestration import (
-            V2SessionOrchestrationError,
-            bootstrap_project_from_goal,
-        )
-
-        try:
-            bootstrap_result = bootstrap_project_from_goal(
-                args.goal,
-                parent=_Path(args.parent),
-                project_name=args.project_name,
-                host=args.host,
-                reuse_existing=args.reuse_existing,
-            )
-        except (OSError, subprocess.CalledProcessError, V2SessionOrchestrationError) as exc:
-            print(f"v2-bootstrap-project failed: {exc}")
-            return 1
-        print(json.dumps(bootstrap_result.to_dict(), indent=2, sort_keys=True))
         return 0
 
     elif args.command == "v2-record-session":

@@ -648,56 +648,6 @@ def test_v2_session_plan_rejects_unsupported_host(tmp_path: Path) -> None:
     assert exc_info.value.code == 2
 
 
-def test_v2_bootstrap_project_creates_workspace(
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    exit_code = main(
-        [
-            "v2-bootstrap-project",
-            "--goal",
-            "Build a tiny expense splitter CLI",
-            "--parent",
-            str(tmp_path),
-            "--project-name",
-            "ArcTest",
-        ]
-    )
-
-    assert exit_code == 0
-    payload = json.loads(capsys.readouterr().out)
-    project_root = Path(payload["project_root"])
-    assert project_root == tmp_path / "arctest"
-    assert payload["project_name"] == "ArcTest"
-    assert payload["created_project"] is True
-    assert (project_root / ".git").exists()
-    assert (project_root / ".agentic-rounds" / "state.yaml").exists()
-
-
-def test_v2_bootstrap_project_refuses_existing_nonempty_without_reuse(
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    existing = tmp_path / "arctest"
-    existing.mkdir()
-    (existing / "README.md").write_text("existing\n", encoding="utf-8")
-
-    exit_code = main(
-        [
-            "v2-bootstrap-project",
-            "--goal",
-            "Build a tiny expense splitter CLI",
-            "--parent",
-            str(tmp_path),
-            "--project-name",
-            "ArcTest",
-        ]
-    )
-
-    assert exit_code == 1
-    assert "already exists and is not empty" in capsys.readouterr().out
-
-
 def test_v2_record_session_persists_thread_id(tmp_path: Path) -> None:
     state = tmp_path / "state.yaml"
     state.write_text(

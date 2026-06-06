@@ -1,15 +1,11 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 from arcgentic.v2_session_orchestration import (
     FIXED_ROLE_TITLES,
     RoleReturnSignal,
     V2SessionOrchestrationError,
     apply_role_return_signal,
-    bootstrap_project_from_goal,
     build_codex_role_session_plan,
-    goal_to_project_slug,
     next_role_for_state,
     record_role_dispatch,
     record_role_session,
@@ -24,36 +20,6 @@ def test_fixed_role_titles_do_not_include_round_ids() -> None:
         "developer": "Developer",
         "auditor": "Auditor",
     }
-
-
-def test_goal_to_project_slug_uses_goal_words_or_hash() -> None:
-    assert goal_to_project_slug("Build an expense splitter CLI") == (
-        "build-an-expense-splitter-cli"
-    )
-    assert goal_to_project_slug("做一个极简分账工具").startswith("arcgentic-")
-
-
-def test_bootstrap_project_from_goal_creates_git_repo_and_state(tmp_path: Path) -> None:
-    result = bootstrap_project_from_goal(
-        "Build a tiny expense splitter CLI",
-        parent=tmp_path,
-        project_name="ArcTest",
-    )
-
-    assert result.project_root == tmp_path / "arctest"
-    assert result.state_path == tmp_path / "arctest" / ".agentic-rounds" / "state.yaml"
-    assert result.created_project is True
-    assert result.initialized_git is True
-    assert (result.project_root / ".git").exists()
-    assert "Build a tiny expense splitter CLI" in (
-        result.project_root / "README.md"
-    ).read_text(encoding="utf-8")
-
-    state = result.state_path.read_text(encoding="utf-8")
-    assert "name: ArcTest" in state
-    assert "state: intake" in state
-    assert "host: codex" in state
-    assert "orchestrator_status: active" in state
 
 
 def test_codex_plan_dispatches_only_the_next_role() -> None:

@@ -35,7 +35,7 @@ marketplace=/Users/archiesun/plugins/.agents/plugins/marketplace.json
 
 ## Deterministic User Workflow Target
 
-Target: temporary `ArcTest` project created from a projectless user goal by:
+Target: temporary project-scoped `ArcTest` workspace created by the test script:
 
 ```bash
 bash tests/dogfood/v2-user-workflow/run.sh
@@ -52,7 +52,7 @@ result=PASS
 
 Workflow covered:
 
-- `arcgentic v2-bootstrap-project` for non-project start
+- `scripts/state/init.sh` for project-scoped start
 - `arcgentic v2-session-plan --host codex`
 - `arcgentic v2-record-session` for fixed role sessions
 - `arcgentic v2-dispatch-role` for Orchestrator sleep after dispatch
@@ -187,7 +187,7 @@ Fix:
 - `skills/arcgentic` and `skills/codex-thread-orchestration` now require
   fail-closed timeout handling instead of Orchestrator fallback development.
 
-## Live Projectless Bootstrap Smoke
+## Projectless Start Decision
 
 Observed thread:
 
@@ -209,8 +209,7 @@ Observed behavior:
 
 Conclusion:
 
-- Arcgentic now handles projectless starts up to filesystem workspace bootstrap.
-- Full automatic multi-session continuation still depends on host support for
-  registering or targeting the newly created workspace as a saved project.
-- Until that host capability exists, correct behavior is to stop with the
-  `project_root` path rather than degrade role isolation.
+- Automatic project creation is removed for now.
+- Arcgentic should start from an existing saved/current project workspace.
+- If the user starts projectless, correct behavior is to stop and ask the user
+  to open or create a project workspace rather than degrade role isolation.

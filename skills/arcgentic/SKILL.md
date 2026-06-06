@@ -15,15 +15,10 @@ the user asks to use Arcgentic.
 1. Treat the current thread as `Orchestrator`.
 2. Determine whether the current thread has a real project/workspace root.
    - If yes, continue with project-scoped orchestration.
-   - If no, use projectless bootstrap mode: create a new workspace from the
-     user goal, then continue only inside that workspace.
-   A Codex projectless output directory is a filesystem workspace, but it is not
-   automatically a saved Codex project. Role thread creation must prove project
-   scope before continuing.
+   - If no, stop and ask the user to open or create a saved project workspace.
 3. Use the current project/workspace as the only valid target for role threads
-   after bootstrap.
-4. Do not create projectless Planner / Developer / Auditor threads. Projectless
-   mode is only for creating the initial workspace.
+   after initialization.
+4. Do not create projectless Planner / Developer / Auditor threads.
 5. Use the strongest available Codex model for real Planner / Developer /
    Auditor work. Do not default role threads to a lightweight or spark model
    unless the user explicitly asks for a low-cost smoke test.
@@ -47,30 +42,6 @@ the user asks to use Arcgentic.
    any verification or implementation inspection, then call
    `arcgentic v2-dispatch-role` and end the Orchestrator turn.
 10. Load `codex-thread-orchestration` and follow it.
-
-## Projectless bootstrap
-
-Use this only when the user starts Arcgentic outside a saved/current project.
-
-1. Choose a project parent directory. Prefer a user-provided path. If absent,
-   use a local workspace parent such as `~/Documents/Codex/ArcgenticProjects`.
-2. Create a workspace from the user goal:
-
-   ```bash
-   arcgentic v2-bootstrap-project \
-     --goal '<current user request>' \
-     --parent '<project parent>' \
-     --project-name '<optional project name>'
-   ```
-
-3. Continue only in the created `project_root`.
-4. If Codex can create a project-scoped thread for the new `project_root`, create
-   or continue an `Orchestrator` thread there and proceed with
-   `codex-thread-orchestration`.
-5. If Codex cannot create project-scoped threads for the new root, stop and
-   report the `project_root` path. Do not run Planner / Developer / Auditor in
-   projectless threads.
-   This is a host registration blocker, not permission to inline the role work.
 
 ## Bootstrap if state is missing
 
@@ -111,7 +82,8 @@ PY
 
 - If `arcgentic` CLI is not available, report installation failure instead of
   pretending Arcgentic is active.
-- If projectless bootstrap cannot create a workspace, stop.
+- If the current thread is projectless or cannot create project-scoped role
+  threads, stop.
 - If `.agentic-rounds/state.yaml` cannot be created or validated, stop.
 - If role threads cannot be created in the current project/workspace, stop.
 - If a role thread is slow, send at most one status/constraint-tightening

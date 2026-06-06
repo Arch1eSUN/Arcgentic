@@ -3,27 +3,35 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 TARGET="$(mktemp -d -t arcgentic-v2-user-workflow-XXXXXX)"
+PROJECT="$TARGET/arctest"
+mkdir -p "$PROJECT"
+STATE="$PROJECT/.agentic-rounds/state.yaml"
 CLI=(python -m arcgentic.cli)
+
+cd "$ROOT"
+bash scripts/state/init.sh \
+  --project-root "$PROJECT" \
+  --project-name "ArcTest" \
+  --round-naming "R<n>"
 
 cd "$ROOT/toolkit"
 
-BOOTSTRAP_JSON="$TARGET/bootstrap.json"
-"${CLI[@]}" v2-bootstrap-project \
-  --goal "我想做一个很小的命令行工具，用来计算几个人聚餐后的 AA 分账和最少转账方案。请用 Arcgentic 来完成。" \
-  --parent "$TARGET" \
-  --project-name "ArcTest" \
-  > "$BOOTSTRAP_JSON"
-
-PROJECT="$(python - "$BOOTSTRAP_JSON" <<'PY'
+python - "$STATE" <<'PY'
 from pathlib import Path
-import json
 import sys
+import yaml
 
-payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-print(payload["project_root"])
+path = Path(sys.argv[1])
+state = yaml.safe_load(path.read_text(encoding="utf-8"))
+state["current_round"]["id"] = "R1"
+state["project"]["arcgentic_v2"] = {
+    "host": "codex",
+    "mode": "multi-session-subthread",
+    "orchestrator_status": "active",
+    "role_sessions": {},
+}
+path.write_text(yaml.safe_dump(state, sort_keys=False), encoding="utf-8")
 PY
-)"
-STATE="$PROJECT/.agentic-rounds/state.yaml"
 
 "${CLI[@]}" v2-session-plan \
   --state "$STATE" \
