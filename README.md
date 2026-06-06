@@ -26,7 +26,7 @@ to depend on memory, vibes, or a lucky prompt.
 | Question | Answer |
 |---|---|
 | What problem does it solve? | AI coding sessions drift: scope changes silently, context gets lost, tests are skipped, and "done" often means "the assistant said it is done." |
-| Who should use it? | Engineers, agent builders, indie hackers, and teams using Codex or Claude Code for multi-step development. |
+| Who should use it? | Heavy Codex / Claude Code users, agent builders, AI-native teams, and people doing complex multi-round engineering work. |
 | What does it add? | A repeatable gated workflow with planning, dev self-audit, optional user testing, external audit, and closeout. |
 | What does it not do? | It does not replace your judgment, your tests, or your review process. It makes those steps harder to skip. |
 
@@ -241,17 +241,24 @@ are comfortable with experimental workflow behavior.
 
 Use Arcgentic for:
 
-- building a feature that takes more than one prompt;
-- greenfield projects where scope can drift quickly;
-- agent projects where role boundaries matter;
-- UI or product work that needs realistic user testing;
-- code that needs an independent audit before closeout;
+- frequent Codex / Claude Code users who run real engineering work through AI;
+- agent builders who need clear role boundaries and handoffs;
+- small AI-native engineering teams;
+- complex repos, multi-round development, refactors, and agent products;
+- work where you need to prove AI-written code went through planning, testing,
+  and audit before it was accepted;
 - sessions where you want future you to understand what happened.
+
+Arcgentic is intentionally heavier than normal prompting. If the task is not
+substantial, risky, or multi-step, the workflow can feel like using a full
+engineering gate for a tiny change.
 
 Do not use Arcgentic for:
 
 - a one-line command;
 - a tiny copy edit;
+- quick experiments where auditability does not matter;
+- small tasks where normal Codex or Claude Code prompting is enough;
 - exploratory questions with no development goal;
 - work where you do not care about auditability.
 
