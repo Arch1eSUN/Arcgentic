@@ -269,6 +269,10 @@ arcgentic v1-release-readiness --repo-root .
 V2 session-orchestration commands:
 
 ```bash
+arcgentic v2-bootstrap-project \
+  --goal '<current user request>' \
+  --parent ~/Documents/Codex/ArcgenticProjects \
+  --project-name '<optional project name>'
 arcgentic v2-session-plan \
   --state .agentic-rounds/state.yaml \
   --host codex \
@@ -283,6 +287,11 @@ Orchestrator is active. After the Orchestrator dispatches that role, it records
 `v2-dispatch-role` and goes to sleep. `v2-session-plan` then emits no further
 actions until the pending role returns a valid `RoleReturnSignal` through
 `v2-return-signal`.
+
+If the user starts outside a project, `v2-bootstrap-project` creates a workspace,
+initializes git, writes `README.md`, and creates `.agentic-rounds/state.yaml`.
+Then orchestration continues from that project root. Planner / Developer /
+Auditor should still be project-scoped threads, not projectless threads.
 
 V2 uses fixed Codex role threads: `Orchestrator`, `Planner`, `Developer`, and
 `Auditor`. Arcgentic does not create `R1 Developer`, `R2 Auditor`, or other

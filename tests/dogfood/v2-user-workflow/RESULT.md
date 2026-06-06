@@ -35,7 +35,7 @@ marketplace=/Users/archiesun/plugins/.agents/plugins/marketplace.json
 
 ## Deterministic User Workflow Target
 
-Target: temporary `todo-cli` project created by:
+Target: temporary `ArcTest` project created from a projectless user goal by:
 
 ```bash
 bash tests/dogfood/v2-user-workflow/run.sh
@@ -44,15 +44,15 @@ bash tests/dogfood/v2-user-workflow/run.sh
 Observed output:
 
 ```text
-valid: <tmp>/todo-cli/.agentic-rounds/state.yaml
-target=<tmp>/todo-cli
-state=<tmp>/todo-cli/.agentic-rounds/state.yaml
+valid: <tmp>/arctest/.agentic-rounds/state.yaml
+target=<tmp>/arctest
+state=<tmp>/arctest/.agentic-rounds/state.yaml
 result=PASS
 ```
 
 Workflow covered:
 
-- `scripts/state/init.sh`
+- `arcgentic v2-bootstrap-project` for non-project start
 - `arcgentic v2-session-plan --host codex`
 - `arcgentic v2-record-session` for fixed role sessions
 - `arcgentic v2-dispatch-role` for Orchestrator sleep after dispatch

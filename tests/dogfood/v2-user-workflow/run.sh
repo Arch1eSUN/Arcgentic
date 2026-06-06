@@ -3,41 +3,32 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 TARGET="$(mktemp -d -t arcgentic-v2-user-workflow-XXXXXX)"
-PROJECT="$TARGET/todo-cli"
-mkdir -p "$PROJECT"
-
-STATE="$PROJECT/.agentic-rounds/state.yaml"
 CLI=(python -m arcgentic.cli)
-
-cd "$ROOT"
-bash scripts/state/init.sh \
-  --project-root "$PROJECT" \
-  --project-name "todo-cli" \
-  --round-naming "R<n>"
 
 cd "$ROOT/toolkit"
 
-python - "$STATE" <<'PY'
-from pathlib import Path
-import sys
-import yaml
+BOOTSTRAP_JSON="$TARGET/bootstrap.json"
+"${CLI[@]}" v2-bootstrap-project \
+  --goal "我想做一个很小的命令行工具，用来计算几个人聚餐后的 AA 分账和最少转账方案。请用 Arcgentic 来完成。" \
+  --parent "$TARGET" \
+  --project-name "ArcTest" \
+  > "$BOOTSTRAP_JSON"
 
-path = Path(sys.argv[1])
-state = yaml.safe_load(path.read_text(encoding="utf-8"))
-state["current_round"]["id"] = "R1"
-state["current_round"]["state"] = "planning"
-state["project"]["arcgentic_v2"] = {
-    "host": "codex",
-    "mode": "multi-session-subthread",
-    "role_sessions": {},
-}
-path.write_text(yaml.safe_dump(state, sort_keys=False), encoding="utf-8")
+PROJECT="$(python - "$BOOTSTRAP_JSON" <<'PY'
+from pathlib import Path
+import json
+import sys
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+print(payload["project_root"])
 PY
+)"
+STATE="$PROJECT/.agentic-rounds/state.yaml"
 
 "${CLI[@]}" v2-session-plan \
   --state "$STATE" \
   --host codex \
-  --user-request "我想做一个极简 todo CLI。请用 Arcgentic 来完成。" \
+  --user-request "我想做一个很小的命令行工具，用来计算几个人聚餐后的 AA 分账和最少转账方案。请用 Arcgentic 来完成。" \
   > "$TARGET/01-plan.json"
 
 python - "$TARGET/01-plan.json" <<'PY'
@@ -49,7 +40,7 @@ payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 assert payload["next_role"] == "planner"
 assert payload["orchestrator_status"] == "active"
 assert [action["title"] for action in payload["actions"]] == ["Planner"]
-assert "Current user request: 我想做一个极简 todo CLI" in payload["actions"][0]["prompt"]
+assert "Current user request: 我想做一个很小的命令行工具" in payload["actions"][0]["prompt"]
 PY
 
 "${CLI[@]}" v2-record-session \
@@ -73,7 +64,7 @@ PY
 "${CLI[@]}" v2-session-plan \
   --state "$STATE" \
   --host codex \
-  --user-request "我想做一个极简 todo CLI。请用 Arcgentic 来完成。" \
+  --user-request "我想做一个很小的命令行工具，用来计算几个人聚餐后的 AA 分账和最少转账方案。请用 Arcgentic 来完成。" \
   > "$TARGET/01-sleeping-plan.json"
 
 python - "$TARGET/01-sleeping-plan.json" <<'PY'
@@ -89,13 +80,13 @@ PY
 
 "${CLI[@]}" v2-return-signal \
   --state "$STATE" \
-  --signal-json '{"role":"planner","status":"planned","round_id":"R1","state":"awaiting_dev_start","artifacts":{"handoff":"docs/plans/R1.md"},"next_recommended_role":"developer"}' \
+  --signal-json '{"role":"planner","status":"planned","round_id":"R1","state":"awaiting_dev_start","artifacts":{"handoff":"docs/plans/R1-expense-splitter.md"},"next_recommended_role":"developer"}' \
   > "$TARGET/02-planner-signal.json"
 
 "${CLI[@]}" v2-session-plan \
   --state "$STATE" \
   --host codex \
-  --user-request "我想做一个极简 todo CLI。请用 Arcgentic 来完成。" \
+  --user-request "我想做一个很小的命令行工具，用来计算几个人聚餐后的 AA 分账和最少转账方案。请用 Arcgentic 来完成。" \
   > "$TARGET/03-dev-plan.json"
 
 "${CLI[@]}" v2-record-session \
@@ -118,7 +109,7 @@ PY
 "${CLI[@]}" v2-session-plan \
   --state "$STATE" \
   --host codex \
-  --user-request "我想做一个极简 todo CLI。请用 Arcgentic 来完成。" \
+  --user-request "我想做一个很小的命令行工具，用来计算几个人聚餐后的 AA 分账和最少转账方案。请用 Arcgentic 来完成。" \
   > "$TARGET/05-audit-plan.json"
 
 "${CLI[@]}" v2-record-session \

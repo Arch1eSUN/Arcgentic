@@ -13,19 +13,25 @@ the user asks to use Arcgentic.
 ## Immediate behavior in Codex
 
 1. Treat the current thread as `Orchestrator`.
-2. Use the current project/workspace as the only valid target for role threads.
-3. Do not create projectless Planner / Developer / Auditor threads.
-4. Use the strongest available Codex model for real Planner / Developer /
+2. Determine whether the current thread has a real project/workspace root.
+   - If yes, continue with project-scoped orchestration.
+   - If no, use projectless bootstrap mode: create a new workspace from the
+     user goal, then continue only inside that workspace.
+3. Use the current project/workspace as the only valid target for role threads
+   after bootstrap.
+4. Do not create projectless Planner / Developer / Auditor threads. Projectless
+   mode is only for creating the initial workspace.
+5. Use the strongest available Codex model for real Planner / Developer /
    Auditor work. Do not default role threads to a lightweight or spark model
    unless the user explicitly asks for a low-cost smoke test.
-5. Before reading implementation files, running tests, checking git log, or
+6. Before reading implementation files, running tests, checking git log, or
    summarizing prior work, initialize/check `.agentic-rounds/state.yaml` and run
    `v2-session-plan`.
-6. Initialize `.agentic-rounds/state.yaml` if it does not exist.
+7. Initialize `.agentic-rounds/state.yaml` if it does not exist.
    If state exists and `current_round.state` is `closed`, treat the new user
    request as input for Planner to decide the next phase or next round. Do not
    answer "already complete" unless the user explicitly asked only for status.
-7. Run:
+8. Run:
 
    ```bash
    arcgentic v2-session-plan \
@@ -34,10 +40,33 @@ the user asks to use Arcgentic.
      --user-request '<current user request>'
    ```
 
-8. If the plan is active and contains an action, dispatch that one role before
+9. If the plan is active and contains an action, dispatch that one role before
    any verification or implementation inspection, then call
    `arcgentic v2-dispatch-role` and end the Orchestrator turn.
-9. Load `codex-thread-orchestration` and follow it.
+10. Load `codex-thread-orchestration` and follow it.
+
+## Projectless bootstrap
+
+Use this only when the user starts Arcgentic outside a saved/current project.
+
+1. Choose a project parent directory. Prefer a user-provided path. If absent,
+   use a local workspace parent such as `~/Documents/Codex/ArcgenticProjects`.
+2. Create a workspace from the user goal:
+
+   ```bash
+   arcgentic v2-bootstrap-project \
+     --goal '<current user request>' \
+     --parent '<project parent>' \
+     --project-name '<optional project name>'
+   ```
+
+3. Continue only in the created `project_root`.
+4. If Codex can create a project-scoped thread for the new `project_root`, create
+   or continue an `Orchestrator` thread there and proceed with
+   `codex-thread-orchestration`.
+5. If Codex cannot create project-scoped threads for the new root, stop and
+   report the `project_root` path. Do not run Planner / Developer / Auditor in
+   projectless threads.
 
 ## Bootstrap if state is missing
 
@@ -78,6 +107,7 @@ PY
 
 - If `arcgentic` CLI is not available, report installation failure instead of
   pretending Arcgentic is active.
+- If projectless bootstrap cannot create a workspace, stop.
 - If `.agentic-rounds/state.yaml` cannot be created or validated, stop.
 - If role threads cannot be created in the current project/workspace, stop.
 - If a role thread is slow, send at most one status/constraint-tightening

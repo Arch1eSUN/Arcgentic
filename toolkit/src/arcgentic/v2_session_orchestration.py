@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import re
+import subprocess
 from copy import deepcopy
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
@@ -111,6 +114,26 @@ class SessionPlan:
             "pending_role": self.pending_role,
             "pending_thread_id": self.pending_thread_id,
             "actions": [action.to_dict() for action in self.actions],
+        }
+
+
+@dataclass(frozen=True)
+class ProjectBootstrapResult:
+    project_root: Path
+    state_path: Path
+    project_name: str
+    slug: str
+    created_project: bool
+    initialized_git: bool
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "project_root": str(self.project_root),
+            "state_path": str(self.state_path),
+            "project_name": self.project_name,
+            "slug": self.slug,
+            "created_project": self.created_project,
+            "initialized_git": self.initialized_git,
         }
 
 
@@ -225,6 +248,126 @@ def _ensure_project_v2_block(state: dict[str, object], host: HostKind) -> dict[s
 
 def _utc_now() -> str:
     return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _default_states() -> dict[str, dict[str, object]]:
+    return {
+        "intake": {"next": ["planning"]},
+        "planning": {"next": ["awaiting_dev_start"], "gate": "handoff-doc-gate.sh"},
+        "awaiting_dev_start": {"next": ["dev_in_progress"]},
+        "dev_in_progress": {
+            "next": ["awaiting_audit"],
+            "gate": "round-commit-chain-gate.sh",
+        },
+        "awaiting_audit": {"next": ["audit_in_progress"]},
+        "audit_in_progress": {
+            "next": ["passed", "needs_fix"],
+            "gate": "verdict-fact-table-gate.sh",
+        },
+        "needs_fix": {"next": ["fix_in_progress"]},
+        "fix_in_progress": {
+            "next": ["awaiting_audit"],
+            "gate": "round-commit-chain-gate.sh",
+        },
+        "passed": {"next": ["closed"]},
+        "closed": {"next": []},
+    }
+
+
+def goal_to_project_slug(goal: str, *, prefix: str = "arcgentic") -> str:
+    words = re.findall(r"[a-z0-9]+", goal.lower())
+    slug = "-".join(words[:6]).strip("-")
+    if not slug:
+        digest = hashlib.sha256(goal.encode("utf-8")).hexdigest()[:10]
+        slug = f"{prefix}-{digest}"
+    return slug[:72].strip("-") or prefix
+
+
+def bootstrap_project_from_goal(
+    goal: str,
+    *,
+    parent: Path,
+    project_name: str | None = None,
+    host: HostKind = "codex",
+    reuse_existing: bool = False,
+) -> ProjectBootstrapResult:
+    if not goal.strip():
+        raise V2SessionOrchestrationError("goal is required")
+    slug = goal_to_project_slug(project_name or goal)
+    root = (parent / slug).expanduser().resolve()
+    created_project = not root.exists()
+    if root.exists() and not root.is_dir():
+        raise V2SessionOrchestrationError(f"project path exists and is not a directory: {root}")
+    if root.exists() and any(root.iterdir()) and not reuse_existing:
+        raise V2SessionOrchestrationError(
+            f"project path already exists and is not empty: {root}"
+        )
+
+    root.mkdir(parents=True, exist_ok=True)
+    readme = root / "README.md"
+    if not readme.exists():
+        readme.write_text(
+            f"# {project_name or slug}\n\nArcgentic bootstrap goal:\n\n{goal.strip()}\n",
+            encoding="utf-8",
+        )
+
+    initialized_git = False
+    if not (root / ".git").exists():
+        subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True, text=True)
+        initialized_git = True
+
+    now = _utc_now()
+    state_path = root / ".agentic-rounds" / "state.yaml"
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    if state_path.exists() and not reuse_existing:
+        raise V2SessionOrchestrationError(f"state file already exists: {state_path}")
+    state: dict[str, object] = {
+        "schema_version": "0.1",
+        "project": {
+            "name": project_name or slug,
+            "root": str(root),
+            "round_naming": "R<n>",
+            "paths": {"plans_dir": "docs/plans", "audits_dir": "docs/audits"},
+            "session_mode": {
+                "mode": "multi-session",
+                "decided_at_round": "R1",
+                "decided_by": "arcgentic-v2-bootstrap",
+                "decided_at": now,
+            },
+            "arcgentic_v2": {
+                "host": host,
+                "mode": "multi-session-subthread",
+                "orchestrator_status": "active",
+                "role_sessions": {},
+            },
+        },
+        "current_round": {
+            "id": "R1",
+            "state": "intake",
+            "state_history": [
+                {
+                    "state": "intake",
+                    "ts": now,
+                    "by": "arcgentic-v2-bootstrap",
+                    "artifact": "README.md",
+                }
+            ],
+        },
+        "states": _default_states(),
+        "last_passed_round": None,
+        "mandates": [],
+        "lessons": [],
+        "active_debts": {"p0": 0, "p1": 0, "p2": 0, "p3": 0},
+    }
+    write_state_file(state_path, state)
+    return ProjectBootstrapResult(
+        project_root=root,
+        state_path=state_path,
+        project_name=project_name or slug,
+        slug=slug,
+        created_project=created_project,
+        initialized_git=initialized_git,
+    )
 
 
 def next_role_for_state(state_name: str) -> Role:
