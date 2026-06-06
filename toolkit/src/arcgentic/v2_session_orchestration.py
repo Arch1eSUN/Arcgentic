@@ -232,6 +232,19 @@ def apply_role_return_signal(
     v2["last_signal"] = signal.to_dict()
     next_role = signal.next_recommended_role or next_role_for_state(signal.state)
     v2["next_role"] = next_role
+    current_round = updated.setdefault("current_round", {})
+    if isinstance(current_round, dict):
+        current_round["state"] = signal.state
+        history = current_round.setdefault("state_history", [])
+        if isinstance(history, list):
+            history.append(
+                {
+                    "state": signal.state,
+                    "ts": _utc_now(),
+                    "by": signal.role,
+                    "artifact": json.dumps(signal.artifacts, sort_keys=True),
+                }
+            )
     return updated
 
 

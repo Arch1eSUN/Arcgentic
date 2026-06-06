@@ -138,3 +138,6 @@ def test_apply_role_return_signal_stores_signal_and_next_role() -> None:
     assert isinstance(v2, dict)
     assert v2["last_signal"] == signal.to_dict()
     assert v2["next_role"] == "developer"
+    current_round = updated["current_round"]
+    assert isinstance(current_round, dict)
+    assert current_round["state"] == "needs_fix"

@@ -34,8 +34,8 @@ thread role.
 2. For each action in `actions`:
 
    - `reuse`: send `prompt` to `thread_id`.
-   - `create`: create a Codex project thread, set its title to `title`, send
-     `prompt`, then record the returned id:
+   - `create`: create a Codex project thread in the current project/workspace,
+     set its title to `title`, send `prompt`, then record the returned id:
 
      ```bash
      arcgentic v2-record-session \
@@ -44,6 +44,10 @@ thread role.
        --role <role> \
        --thread-id <created-thread-id>
      ```
+
+   Do not use projectless threads for Arcgentic role sessions. If the created
+   thread does not show the current project `cwd`, archive it and recreate it
+   under the current project.
 
 3. Wait for the role thread to complete and read its latest result.
 
@@ -92,3 +96,5 @@ Before advancing:
 3. Confirm every recorded title is one of the four fixed titles.
 4. Confirm `last_signal.role` matches the role thread that returned.
 5. Confirm `next_role` matches the routing rule.
+6. Confirm every role thread is project-scoped to the same repo as the
+   orchestrator.

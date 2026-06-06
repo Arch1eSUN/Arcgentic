@@ -206,17 +206,13 @@ Now in any Claude Code session, you can invoke arcgentic skills:
 ### Method 4 — Codex local plugin
 
 `arcgentic` also ships a Codex plugin manifest at `.codex-plugin/plugin.json`.
-For local Codex use, copy or clone the repo under your personal plugin folder:
+For local Codex use, clone the repo anywhere and install it as a local plugin
+source:
 
 ```bash
-mkdir -p ~/plugins
-cd ~/plugins
 git clone https://github.com/Arch1eSUN/Arcgentic.git arcgentic
 cd arcgentic
-git checkout v1.0.0
-
-# Validate Codex plugin manifest
-python3 ~/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py ~/plugins/arcgentic
+bash scripts/install-codex-local.sh --plugin-root .
 ```
 
 If you manage Codex plugins through a personal marketplace, add this entry to
