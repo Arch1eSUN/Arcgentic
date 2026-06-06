@@ -36,18 +36,21 @@ fact shape、runtime 内部结构。它提取的是真实 agent 开发中的工�
 |---|---|
 | 它解决什么问题？ | AI coding session 容易漂移：范围被悄悄改变、上下文丢失、测试被跳过，“完成”经常只是 assistant 自己说完成。 |
 | 谁应该用？ | 高频使用 Codex / Claude Code 的 senior engineer、agent builder、小型 AI-native 工程团队，以及做复杂 repo、多轮开发、重构、agent 产品的人。 |
-| 它增加什么？ | 一套可重复的门禁流程：计划、开发者自审、可选真实用户测试、外部审计、closeout。 |
+| 它增加什么？ | 一套可重复的门禁流程，并自动派发角色：计划、开发者自审、可选真实用户测试、外部审计、closeout。 |
 | 它不做什么？ | 它不替代你的判断、测试或 code review。它让这些步骤更难被跳过。 |
 
 ## 平台状态
 
 | 平台 | V2 状态 | 验证情况 |
 |---|---|---|
-| **Codex** | 完整 V2 | 已在真实 Codex 项目工作流中实机验证。 |
+| **Codex** | 完整 V2 | 已在真实 Codex 项目工作流中实机验证，包括自动标记 Orchestrator、创建/复用角色 thread、派发 prompt 和等待回传。 |
 | **Claude Code** | 完整 V2 实验版 | 已适配，但还没有经过真实 Claude Code session 实机验证。 |
 
-Codex 是目前最完整的体验。Claude Code 版本应视为可用的实验工作流候选，
-不是已经证明过的生产级行为。
+Codex 是目前最完整的体验。在已验证的 Codex 路径里，当前项目对话会成为
+`Orchestrator`；Arcgentic 会创建或复用角色 thread、命名它们、发送对应角色 prompt、
+等待角色回传，再自动派发下一步。中间不需要用户手动创建 thread 或搬运 prompt。
+
+Claude Code 版本应视为可用的实验工作流候选，不是已经证明过的生产级行为。
 
 ## 安装
 
@@ -110,11 +113,15 @@ User: later discovers missing edge cases, unclear scope, no audit trail
 
 ```text
 User idea
--> Planner creates the project plan and first round
--> Developer implements and writes a self-audit
--> Test runs only if this round needs realistic user/session testing
--> Auditor independently checks evidence
--> Planner closes the phase or starts the next round
+-> current conversation becomes Orchestrator
+-> Orchestrator creates or reuses Planner and sends the planning prompt
+-> Planner returns the plan to Orchestrator
+-> Orchestrator creates or reuses Developer and sends the dev prompt
+-> Developer implements and returns a self-audit
+-> Orchestrator dispatches optional Test only if realistic use needs it
+-> Orchestrator creates or reuses Auditor and sends the audit prompt
+-> Auditor returns PASS / NEEDS_FIX / AUDIT_INCOMPLETE
+-> Orchestrator routes the next step
 ```
 
 关键差异不是 AI 写了更多文字，而是每个角色有边界，每个阶段有停止条件，
@@ -185,14 +192,31 @@ Arcgentic 不会每轮创建新的角色身份。角色名始终固定：
 
 Codex V2 使用 Codex 的 project thread 能力完成多 session / 多 thread 编排。
 
+已经实机验证的自动化流程是：
+
+```text
+用户在项目对话里启动 Arcgentic
+-> Arcgentic 把当前对话标记为 Orchestrator
+-> Orchestrator 询问或记录项目模式
+-> Orchestrator 创建或复用固定角色 thread / agent
+-> Orchestrator 投放对应角色 prompt 和 artifact 指针
+-> 角色完成后主动回传给 Orchestrator
+-> Orchestrator 消费回传信息并派发下一个角色
+```
+
+在已验证的 Codex 流程里，用户不应该手动创建 Planner、Developer、Test 或 Auditor thread。
+
 在多 thread 模式下：
 
 ```text
 Current thread -> Orchestrator
-Planner thread -> fixed name: Planner
-Developer thread -> fixed name: Developer
-Test thread -> fixed name: Test
-Auditor thread -> fixed name: Auditor
+-> create/reuse Planner thread and send Planner prompt
+-> Planner returns to Orchestrator
+-> create/reuse Developer thread and send Developer prompt
+-> Developer returns to Orchestrator
+-> create/reuse optional Test thread only when needed
+-> create/reuse Auditor thread and send Auditor prompt
+-> Auditor returns to Orchestrator
 ```
 
 Orchestrator 派发任务后应该休眠。角色完成工作后主动把结果返回 Orchestrator，
@@ -222,8 +246,22 @@ Claude Code 版本的目标是和 Codex V2 使用同一套 workflow contract。
 - role identity、return signal、mode 选择、fixed role reuse 都已按 V2 设计适配。
 - 但还没有完成真实 Claude Code session 的端到端实机验证。
 
-如果 push-return 在你的 Claude Code 环境里不可用，先使用显式 copy-back：
-把角色输出的自然语言总结和 `arcgentic-role-return` footer 粘回 Orchestrator。
+目标行为是和 Codex 一样自动化：
+
+```text
+current session = Orchestrator
+-> create/reuse Planner session and send Planner prompt
+-> Planner returns
+-> create/reuse Developer session and send Developer prompt
+-> Developer returns
+-> optional Test only when needed
+-> create/reuse Auditor session and send Auditor prompt
+-> Auditor returns
+```
+
+Claude Code experimental mode 会通过 session broker 尽量达到同样的无手动路由行为。
+这套完整自动化还没有经过真实 Claude Code session 验证。如果 push-return 在你的环境里不可用，
+先使用显式 copy-back：把角色输出的自然语言总结和 `arcgentic-role-return` footer 粘回 Orchestrator。
 
 ## 什么时候适合用 Arcgentic
 

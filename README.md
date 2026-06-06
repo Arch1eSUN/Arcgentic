@@ -41,19 +41,23 @@ development.
 |---|---|
 | What problem does it solve? | AI coding sessions drift: scope changes silently, context gets lost, tests are skipped, and "done" often means "the assistant said it is done." |
 | Who should use it? | Heavy Codex / Claude Code users, agent builders, AI-native teams, and people doing complex multi-round engineering work. |
-| What does it add? | A repeatable gated workflow with planning, dev self-audit, optional user testing, external audit, and closeout. |
+| What does it add? | A repeatable gated workflow with automated role dispatch: planning, dev self-audit, optional user testing, external audit, and closeout. |
 | What does it not do? | It does not replace your judgment, your tests, or your review process. It makes those steps harder to skip. |
 
 ## Platform status
 
 | Platform | V2 status | Verification |
 |---|---|---|
-| **Codex** | Complete V2 | Verified in a real Codex project workflow. |
+| **Codex** | Complete V2 | Verified in a real Codex project workflow, including automatic Orchestrator thread setup and role-thread dispatch. |
 | **Claude Code** | Complete V2 experimental | Not yet verified in a real Claude Code session. |
 
-Codex is the best current experience. Claude Code support is available as an
-experimental version and should be treated as a real workflow candidate, not as
-proven production behavior yet.
+Codex is the best current experience. In the verified Codex path, the current
+project conversation becomes `Orchestrator`; Arcgentic then creates or reuses
+the role threads, names them, sends the right role prompt, waits for their
+return signal, and dispatches the next role without manual thread switching.
+
+Claude Code support is available as an experimental version and should be
+treated as a real workflow candidate, not as proven production behavior yet.
 
 ## Install
 
@@ -116,11 +120,15 @@ With Arcgentic:
 
 ```text
 User idea
--> Planner creates the project plan and first round
--> Developer implements and writes a self-audit
--> Test runs only if this round needs realistic user/session testing
--> Auditor independently checks evidence
--> Planner closes the phase or starts the next round
+-> current conversation becomes Orchestrator
+-> Orchestrator creates or reuses Planner and sends the planning prompt
+-> Planner returns the plan to Orchestrator
+-> Orchestrator creates or reuses Developer and sends the dev prompt
+-> Developer implements and returns a self-audit
+-> Orchestrator dispatches optional Test only if realistic use needs it
+-> Orchestrator creates or reuses Auditor and sends the audit prompt
+-> Auditor returns PASS / NEEDS_FIX / AUDIT_INCOMPLETE
+-> Orchestrator routes the next step
 ```
 
 The important difference is not that the AI writes more text. The important
@@ -196,6 +204,21 @@ Codex V2 is the verified path.
 
 In Codex, Arcgentic can run either V2 mode.
 
+The verified automation is:
+
+```text
+User starts in a project conversation
+-> Arcgentic marks that conversation as Orchestrator
+-> Orchestrator asks for or records the project mode
+-> Orchestrator creates or reuses the fixed role thread/agent
+-> Orchestrator sends the role-specific prompt and artifact pointers
+-> the role finishes and actively returns to Orchestrator
+-> Orchestrator consumes the return and dispatches the next role
+```
+
+The user should not have to manually create Planner, Developer, Test, or Auditor
+threads in the verified Codex flow.
+
 Single session, multiple agents:
 
 ```text
@@ -211,11 +234,13 @@ Multiple sessions, multiple threads:
 
 ```text
 Current project thread = Orchestrator
--> Planner thread
--> Developer thread
--> optional Test thread
--> Auditor thread
--> back to Orchestrator
+-> create/reuse Planner thread and send Planner prompt
+-> Planner returns to Orchestrator
+-> create/reuse Developer thread and send Developer prompt
+-> Developer returns to Orchestrator
+-> create/reuse optional Test thread only when needed
+-> create/reuse Auditor thread and send Auditor prompt
+-> Auditor returns to Orchestrator
 ```
 
 In multiple-thread mode, the Orchestrator should sleep after dispatching a
@@ -236,17 +261,21 @@ verified in a real Claude Code session.
 The intended behavior is the same:
 
 ```text
-Orchestrator
--> Planner
--> Developer
--> optional Test
--> Auditor
--> Orchestrator
+current session = Orchestrator
+-> create/reuse Planner session and send Planner prompt
+-> Planner returns
+-> create/reuse Developer session and send Developer prompt
+-> Developer returns
+-> optional Test only when needed
+-> create/reuse Auditor session and send Auditor prompt
+-> Auditor returns
 ```
 
-Claude Code experimental mode aims to keep the same role flow. If automatic
-return does not work in your setup, use explicit copy-back: paste the role's
-return message into the Orchestrator so the workflow can continue.
+Claude Code experimental mode aims to reach the same no-manual-routing behavior
+through the session broker. That full automation has not yet been verified in a
+real Claude Code session. If automatic return does not work in your setup, use
+explicit copy-back: paste the role's return message into the Orchestrator so the
+workflow can continue.
 
 Use Claude Code V2 when you want to try the same discipline in Claude Code and
 are comfortable with experimental workflow behavior.
