@@ -1461,7 +1461,9 @@ current_round:
     )
 
 
-def test_claude_code_broker_install_hooks_cli(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_claude_code_broker_install_hooks_cli(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     settings = tmp_path / ".claude" / "settings.local.json"
 
     exit_code = main(

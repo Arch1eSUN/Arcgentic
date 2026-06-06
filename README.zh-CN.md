@@ -10,7 +10,7 @@
 
 [![status](https://img.shields.io/badge/status-stable-brightgreen.svg)](#状态)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-[![version](https://img.shields.io/badge/version-v1.0.0-blueviolet.svg)](#状态)
+[![version](https://img.shields.io/badge/version-v2.0.0-blueviolet.svg)](#状态)
 [![PyPI](https://img.shields.io/pypi/v/arcgentic.svg)](https://pypi.org/project/arcgentic/)
 
 Arcgentic 帮助 Codex 和 Claude Code 把软件开发变成一套有纪律的流程：
@@ -67,6 +67,18 @@ bash scripts/install-codex-local.sh --plugin-root .
 ```text
 Use Arcgentic to build this idea: <your idea>
 ```
+
+### npm bundle 安装
+
+如果你希望通过 npm 获取 Arcgentic 插件资产：
+
+```bash
+npm install -g arcgentic
+arcgentic install-codex-local
+```
+
+npm 包是零依赖的插件资产包和 Codex 本地安装 helper。它包含 skills、agents、
+scripts、schemas、templates 和平台 manifest。Python CLI 仍然单独通过 PyPI 发布。
 
 ### Claude Code 安装
 
@@ -342,6 +354,7 @@ Test 不是每轮必跑。它只在需要真实用户行为、UI 使用、模拟
 - Codex 本地插件 manifest
 - Claude Code 插件 manifest
 - V2 workflow prompts and state helpers
+- npm bundle / Codex local install helper
 - Codex V2 实机验证完成
 - Claude Code V2 实验适配完成，等待真实 session 验证
 

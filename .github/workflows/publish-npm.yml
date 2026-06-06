@@ -1,0 +1,34 @@
+name: Publish npm bundle
+
+"on":
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    name: Build and publish arcgentic npm bundle
+    runs-on: ubuntu-latest
+    environment: npm
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Verify npm bundle
+        run: |
+          node bin/arcgentic.js --help
+          npm pack --dry-run
+
+      - name: Publish to npm
+        run: npm publish --provenance --access public

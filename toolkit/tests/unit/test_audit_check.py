@@ -610,15 +610,21 @@ def test_run_strict_extended_ac3_violation_exit_1(tmp_path: Path) -> None:
 
 def test_run_strict_extended_ac4_violation_exit_1(tmp_path: Path) -> None:
     audit_path = tmp_path / "audit.md"
+    transient_command = (
+        r"`bash -lc 'python3 -c "
+        r'"import yaml; s=yaml.safe_load(open(\".agentic-rounds/state.yaml\")); '
+        r'print(s[\"project\"][\"arcgentic_v2\"][\"last_signal\"][\"role\"])"'
+        r"'`"
+    )
     audit_path.write_text(
-        textwrap.dedent("""\
+        textwrap.dedent(f"""\
         # Audit
 
         ## § 7. Mechanical audit facts
 
         | # | Command | Expected | Comment |
         |---|---|---|---|
-        | 1 | `bash -lc 'python3 -c "import yaml; s=yaml.safe_load(open(\\".agentic-rounds/state.yaml\\")); print(s[\\"project\\"][\\"arcgentic_v2\\"][\\"last_signal\\"][\\"role\\"])"'` | `test` | transient last signal |
+        | 1 | {transient_command} | `test` | transient last signal |
 
         ## § 8. Verdict
 

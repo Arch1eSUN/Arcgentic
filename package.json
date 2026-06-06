@@ -1,0 +1,46 @@
+{
+  "name": "arcgentic",
+  "version": "2.0.0",
+  "description": "Moirai-derived gated engineering workflow for AI coding with verified Codex V2 orchestration.",
+  "license": "MIT",
+  "author": "Arc Studio",
+  "homepage": "https://github.com/Arch1eSUN/Arcgentic",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Arch1eSUN/Arcgentic.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Arch1eSUN/Arcgentic/issues"
+  },
+  "keywords": [
+    "ai-coding",
+    "codex",
+    "claude-code",
+    "agentic-workflow",
+    "external-audit",
+    "software-engineering",
+    "orchestration"
+  ],
+  "bin": {
+    "arcgentic": "bin/arcgentic.js"
+  },
+  "files": [
+    "agents/",
+    "bin/",
+    "hooks/",
+    "schema/",
+    "scripts/",
+    "skills/",
+    "templates/",
+    ".claude-plugin/",
+    ".codex-plugin/",
+    "plugin.json",
+    "openclaw.plugin.json",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

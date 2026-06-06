@@ -1,7 +1,7 @@
 {
   "name": "arcgentic",
-  "version": "1.0.0",
-  "description": "Agentic harness for rigorous round-driven development.",
+  "version": "2.0.0",
+  "description": "Moirai-derived gated engineering workflow for AI coding with verified Codex V2 orchestration.",
   "author": {
     "name": "Arc Studio"
   },
@@ -18,8 +18,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Arcgentic",
-    "shortDescription": "Plan, execute, audit, and hand off rigorous development rounds.",
-    "longDescription": "Arcgentic packages Moirai-derived plan/dev/audit/reference discipline as reusable Codex skills backed by a Python CLI.",
+    "shortDescription": "Turn AI coding into an orchestrated plan/dev/audit workflow.",
+    "longDescription": "Arcgentic packages Moirai-derived development discipline as reusable Codex skills backed by a Python CLI. Codex V2 is verified for automatic Orchestrator setup, role-thread dispatch, return handling, and gated closeout.",
     "developerName": "Arc Studio",
     "category": "Productivity",
     "capabilities": [

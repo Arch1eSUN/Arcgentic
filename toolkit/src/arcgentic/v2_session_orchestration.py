@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Iterator
 from copy import deepcopy
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
@@ -341,7 +342,9 @@ def _role_return_footer_example(role: Role, round_id: str) -> str:
                                     "handoff": f"docs/plans/{round_id}.md",
                                     "test_gate": {
                                         "required": False,
-                                        "reason": "No separate reality QA gate is needed for this round.",
+                                        "reason": (
+                                            "No separate reality QA gate is needed for this round."
+                                        ),
                                     },
                                 }
                             ],
@@ -519,7 +522,9 @@ def _sync_project_plan_from_planner_return(
         v2["project_plan"] = project_plan
 
 
-def _iter_project_plan_rounds(project_plan: dict[str, object]):
+def _iter_project_plan_rounds(
+    project_plan: dict[str, object],
+) -> Iterator[tuple[int, dict[str, object], int, dict[str, object]]]:
     phases = project_plan.get("phases")
     if not isinstance(phases, list):
         return
@@ -531,7 +536,12 @@ def _iter_project_plan_rounds(project_plan: dict[str, object]):
             continue
         for round_index, round_plan in enumerate(rounds):
             if isinstance(round_plan, dict):
-                yield phase_index, phase, round_index, round_plan
+                yield (
+                    phase_index,
+                    cast(dict[str, object], phase),
+                    round_index,
+                    cast(dict[str, object], round_plan),
+                )
 
 
 def advance_passed_round_from_project_plan(state: dict[str, object]) -> dict[str, object]:

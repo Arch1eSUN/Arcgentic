@@ -10,7 +10,7 @@
 
 [![status](https://img.shields.io/badge/status-stable-brightgreen.svg)](#status)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-[![version](https://img.shields.io/badge/version-v1.0.0-blueviolet.svg)](#status)
+[![version](https://img.shields.io/badge/version-v2.0.0-blueviolet.svg)](#status)
 [![PyPI](https://img.shields.io/pypi/v/arcgentic.svg)](https://pypi.org/project/arcgentic/)
 
 Arcgentic helps Codex and Claude Code run software work as a disciplined
@@ -74,6 +74,19 @@ Then start in a saved project workspace and ask:
 ```text
 Use Arcgentic to build this idea: <your idea>
 ```
+
+### npm bundle install
+
+Use this if you want the Arcgentic plugin assets through npm:
+
+```bash
+npm install -g arcgentic
+arcgentic install-codex-local
+```
+
+The npm package is a zero-dependency plugin bundle and Codex local install
+helper. It includes the skills, agents, scripts, schemas, templates, and
+platform manifests. The Python CLI is still published separately on PyPI.
 
 ### Claude Code install
 
@@ -382,6 +395,7 @@ Developer self-audit to Auditor.
 | External audit | Complete. |
 | Closed-project status no-op | Complete. |
 | README onboarding | Updated for adoption-first use. |
+| npm bundle | Prepared as a zero-dependency plugin asset bundle for v2.0.0. |
 
 ## Roadmap
 

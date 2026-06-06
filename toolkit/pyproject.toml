@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "arcgentic"
-version = "1.0.0"
-description = "Agentic harness for rigorous round-driven development — Python CLI for the arcgentic Claude Code plugin"
+version = "2.0.0"
+description = "Moirai-derived gated engineering workflow for AI coding — Python CLI for Arcgentic V2"
 readme = "README.md"
 requires-python = ">=3.13"
 license = { text = "MIT" }
