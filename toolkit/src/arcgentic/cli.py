@@ -334,6 +334,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     v2_session_parser.add_argument("--state", required=True)
     v2_session_parser.add_argument("--host", choices=["codex", "claude-code-broker"], required=True)
+    v2_session_parser.add_argument("--user-request", default="")
 
     v2_record_parser = subparsers.add_parser(
         "v2-record-session",
@@ -691,10 +692,20 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "v2-session-plan":
         from pathlib import Path as _Path
 
-        from .v2_session_orchestration import build_role_session_plan, load_state_file
+        from .v2_session_orchestration import (
+            V2SessionOrchestrationError,
+            build_role_session_plan,
+            load_state_file,
+        )
 
-        raw_state = load_state_file(_Path(args.state))
-        session_plan = build_role_session_plan(raw_state, host=args.host)
+        try:
+            raw_state = load_state_file(_Path(args.state))
+            session_plan = build_role_session_plan(
+                raw_state, host=args.host, user_request=args.user_request
+            )
+        except V2SessionOrchestrationError as exc:
+            print(f"v2-session-plan failed: {exc}")
+            return 1
         print(json.dumps(session_plan.to_dict(), indent=2, sort_keys=True))
         return 0
 
@@ -708,13 +719,17 @@ def main(argv: list[str] | None = None) -> int:
         )
 
         state_path = _Path(args.state)
-        updated_state = record_role_session(
-            load_state_file(state_path),
-            args.role,
-            thread_id=args.thread_id,
-            title=args.title,
-            host=args.host,
-        )
+        try:
+            updated_state = record_role_session(
+                load_state_file(state_path),
+                args.role,
+                thread_id=args.thread_id,
+                title=args.title,
+                host=args.host,
+            )
+        except ValueError as exc:
+            print(f"v2-record-session failed: {exc}")
+            return 1
         write_state_file(state_path, updated_state)
         print(json.dumps({"recorded": True, "role": args.role, "thread_id": args.thread_id}))
         return 0
@@ -723,18 +738,23 @@ def main(argv: list[str] | None = None) -> int:
         from pathlib import Path as _Path
 
         from .v2_session_orchestration import (
+            V2SessionOrchestrationError,
             load_state_file,
             record_role_dispatch,
             write_state_file,
         )
 
         state_path = _Path(args.state)
-        updated_state = record_role_dispatch(
-            load_state_file(state_path),
-            args.role,
-            thread_id=args.thread_id,
-            host=args.host,
-        )
+        try:
+            updated_state = record_role_dispatch(
+                load_state_file(state_path),
+                args.role,
+                thread_id=args.thread_id,
+                host=args.host,
+            )
+        except V2SessionOrchestrationError as exc:
+            print(f"v2-dispatch-role failed: {exc}")
+            return 1
         write_state_file(state_path, updated_state)
         print(
             json.dumps(
@@ -755,14 +775,19 @@ def main(argv: list[str] | None = None) -> int:
 
         from .v2_session_orchestration import (
             RoleReturnSignal,
+            V2SessionOrchestrationError,
             apply_role_return_signal,
             load_state_file,
             write_state_file,
         )
 
         state_path = _Path(args.state)
-        signal = RoleReturnSignal.from_json(args.signal_json)
-        updated_state = apply_role_return_signal(load_state_file(state_path), signal)
+        try:
+            signal = RoleReturnSignal.from_json(args.signal_json)
+            updated_state = apply_role_return_signal(load_state_file(state_path), signal)
+        except (json.JSONDecodeError, V2SessionOrchestrationError) as exc:
+            print(f"v2-return-signal failed: {exc}")
+            return 1
         write_state_file(state_path, updated_state)
         project = updated_state.get("project")
         v2 = project.get("arcgentic_v2") if isinstance(project, dict) else {}

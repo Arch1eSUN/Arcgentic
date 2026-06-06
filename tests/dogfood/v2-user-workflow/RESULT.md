@@ -62,6 +62,7 @@ Workflow covered:
 The deterministic workflow now verifies that:
 
 - an active Orchestrator receives exactly one next-role action;
+- the next-role prompt includes the current user request;
 - a sleeping Orchestrator receives no dispatch actions;
 - `v2-return-signal` wakes the Orchestrator and clears pending dispatch fields.
 
@@ -174,6 +175,11 @@ Fix:
   actions while `orchestrator_status` is `sleeping`.
 - `v2-dispatch-role` now records `pending_role`, `pending_thread_id`, and
   `pending_since`, making Orchestrator sleep explicit in state.
+- `v2-session-plan --user-request` now injects the live user request into the
+  role prompt, so Planner can decide new phase/new round when the previous
+  round is already closed.
+- `v2-return-signal` now reports invalid role routes as clean CLI failures
+  instead of Python tracebacks.
 - Role-specific routing is enforced:
   - Planner cannot route directly to Auditor.
   - Developer cannot bypass Auditor.

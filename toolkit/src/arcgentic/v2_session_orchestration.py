@@ -358,13 +358,15 @@ def apply_role_return_signal(
     return updated
 
 
-def role_prompt(role: Role, state: dict[str, object]) -> str:
+def role_prompt(role: Role, state: dict[str, object], *, user_request: str = "") -> str:
     round_id, current_state = _current_round(state)
     title = fixed_role_title(role)
+    request_line = f"Current user request: {user_request.strip()}\n" if user_request.strip() else ""
     return (
         f"You are {title}.\n"
         f"Current round: {round_id}\n"
         f"Current state: {current_state}\n"
+        f"{request_line}"
         "Read .agentic-rounds/state.yaml before acting.\n"
         "Use Arcgentic V2 fixed-role boundaries:\n"
         "- Planner owns brainstorming, plan completeness, and phase decisions.\n"
@@ -375,13 +377,20 @@ def role_prompt(role: Role, state: dict[str, object]) -> str:
         "Do not add extra fields outside role, status, round_id, state, artifacts, "
         "and next_recommended_role.\n"
         "Planner may route only to awaiting_dev_start/developer or planning/planner.\n"
+        "If the current state is closed and the user request asks for new work, "
+        "Planner must decide the next phase or next round instead of returning closed.\n"
         "Developer may route only to awaiting_audit/auditor or needs_fix/developer.\n"
         "Auditor may route only to passed/planner, needs_fix/developer, or "
         "audit_in_progress/auditor."
     )
 
 
-def build_role_session_plan(state: dict[str, object], *, host: HostKind = "codex") -> SessionPlan:
+def build_role_session_plan(
+    state: dict[str, object],
+    *,
+    host: HostKind = "codex",
+    user_request: str = "",
+) -> SessionPlan:
     v2 = _project_v2_block(state)
     state_host = str(v2.get("host") or host)
     if state_host != host:
@@ -424,7 +433,7 @@ def build_role_session_plan(state: dict[str, object], *, host: HostKind = "codex
                 title=title,
                 kind="reuse",
                 thread_id=str(session["thread_id"]),
-                prompt=role_prompt(next_role, state),
+                prompt=role_prompt(next_role, state, user_request=user_request),
             ),
         )
     else:
@@ -433,7 +442,7 @@ def build_role_session_plan(state: dict[str, object], *, host: HostKind = "codex
                 role=next_role,
                 title=title,
                 kind="create",
-                prompt=role_prompt(next_role, state),
+                prompt=role_prompt(next_role, state, user_request=user_request),
             ),
         )
     return SessionPlan(
@@ -446,5 +455,7 @@ def build_role_session_plan(state: dict[str, object], *, host: HostKind = "codex
     )
 
 
-def build_codex_role_session_plan(state: dict[str, object]) -> SessionPlan:
-    return build_role_session_plan(state, host="codex")
+def build_codex_role_session_plan(
+    state: dict[str, object], *, user_request: str = ""
+) -> SessionPlan:
+    return build_role_session_plan(state, host="codex", user_request=user_request)

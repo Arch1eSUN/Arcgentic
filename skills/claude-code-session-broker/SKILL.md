@@ -49,7 +49,8 @@ All three transports must write the same state shape.
    ```bash
    arcgentic v2-session-plan \
      --state .agentic-rounds/state.yaml \
-     --host claude-code-broker
+     --host claude-code-broker \
+     --user-request '<current user request>'
    ```
 
 2. If `orchestrator_status` is `sleeping`, stop immediately. The broker is

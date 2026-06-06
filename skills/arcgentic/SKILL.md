@@ -18,14 +18,26 @@ the user asks to use Arcgentic.
 4. Use the strongest available Codex model for real Planner / Developer /
    Auditor work. Do not default role threads to a lightweight or spark model
    unless the user explicitly asks for a low-cost smoke test.
-5. Initialize `.agentic-rounds/state.yaml` if it does not exist.
-6. Run:
+5. Before reading implementation files, running tests, checking git log, or
+   summarizing prior work, initialize/check `.agentic-rounds/state.yaml` and run
+   `v2-session-plan`.
+6. Initialize `.agentic-rounds/state.yaml` if it does not exist.
+   If state exists and `current_round.state` is `closed`, treat the new user
+   request as input for Planner to decide the next phase or next round. Do not
+   answer "already complete" unless the user explicitly asked only for status.
+7. Run:
 
    ```bash
-   arcgentic v2-session-plan --state .agentic-rounds/state.yaml --host codex
+   arcgentic v2-session-plan \
+     --state .agentic-rounds/state.yaml \
+     --host codex \
+     --user-request '<current user request>'
    ```
 
-7. Load `codex-thread-orchestration` and follow it.
+8. If the plan is active and contains an action, dispatch that one role before
+   any verification or implementation inspection, then call
+   `arcgentic v2-dispatch-role` and end the Orchestrator turn.
+9. Load `codex-thread-orchestration` and follow it.
 
 ## Bootstrap if state is missing
 
@@ -77,6 +89,8 @@ PY
 - If `arcgentic v2-return-signal` rejects the role output, stop and report the
   rejected signal. Do not repair it by hand in the Orchestrator.
 - Do not silently fall back to "Arcgentic-style" hand-written evidence.
+- Do not verify, summarize, or inspect a previous closed round as the response
+  to a new implementation request. Route the request to Planner first.
 - Do not run ordinary coding work before Planner has produced or approved the
   round plan.
 - Do not create source files, tests, handoff docs, self-audits, or external

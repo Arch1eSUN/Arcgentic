@@ -34,7 +34,11 @@ state["project"]["arcgentic_v2"] = {
 path.write_text(yaml.safe_dump(state, sort_keys=False), encoding="utf-8")
 PY
 
-"${CLI[@]}" v2-session-plan --state "$STATE" --host codex > "$TARGET/01-plan.json"
+"${CLI[@]}" v2-session-plan \
+  --state "$STATE" \
+  --host codex \
+  --user-request "我想做一个极简 todo CLI。请用 Arcgentic 来完成。" \
+  > "$TARGET/01-plan.json"
 
 python - "$TARGET/01-plan.json" <<'PY'
 from pathlib import Path
@@ -45,6 +49,7 @@ payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 assert payload["next_role"] == "planner"
 assert payload["orchestrator_status"] == "active"
 assert [action["title"] for action in payload["actions"]] == ["Planner"]
+assert "Current user request: 我想做一个极简 todo CLI" in payload["actions"][0]["prompt"]
 PY
 
 "${CLI[@]}" v2-record-session \
@@ -65,7 +70,11 @@ PY
   --role planner \
   --thread-id "codex-planner-thread" > "$TARGET/dispatch-planner.json"
 
-"${CLI[@]}" v2-session-plan --state "$STATE" --host codex > "$TARGET/01-sleeping-plan.json"
+"${CLI[@]}" v2-session-plan \
+  --state "$STATE" \
+  --host codex \
+  --user-request "我想做一个极简 todo CLI。请用 Arcgentic 来完成。" \
+  > "$TARGET/01-sleeping-plan.json"
 
 python - "$TARGET/01-sleeping-plan.json" <<'PY'
 from pathlib import Path
@@ -83,7 +92,11 @@ PY
   --signal-json '{"role":"planner","status":"planned","round_id":"R1","state":"awaiting_dev_start","artifacts":{"handoff":"docs/plans/R1.md"},"next_recommended_role":"developer"}' \
   > "$TARGET/02-planner-signal.json"
 
-"${CLI[@]}" v2-session-plan --state "$STATE" --host codex > "$TARGET/03-dev-plan.json"
+"${CLI[@]}" v2-session-plan \
+  --state "$STATE" \
+  --host codex \
+  --user-request "我想做一个极简 todo CLI。请用 Arcgentic 来完成。" \
+  > "$TARGET/03-dev-plan.json"
 
 "${CLI[@]}" v2-record-session \
   --state "$STATE" \
@@ -102,7 +115,11 @@ PY
   --signal-json '{"role":"developer","status":"completed","round_id":"R1","state":"awaiting_audit","artifacts":{"self_audit":"docs/audits/R1-self-audit.md"},"next_recommended_role":"auditor"}' \
   > "$TARGET/04-dev-signal.json"
 
-"${CLI[@]}" v2-session-plan --state "$STATE" --host codex > "$TARGET/05-audit-plan.json"
+"${CLI[@]}" v2-session-plan \
+  --state "$STATE" \
+  --host codex \
+  --user-request "我想做一个极简 todo CLI。请用 Arcgentic 来完成。" \
+  > "$TARGET/05-audit-plan.json"
 
 "${CLI[@]}" v2-record-session \
   --state "$STATE" \

@@ -614,7 +614,17 @@ current_round:
         encoding="utf-8",
     )
 
-    exit_code = main(["v2-session-plan", "--state", str(state), "--host", "codex"])
+    exit_code = main(
+        [
+            "v2-session-plan",
+            "--state",
+            str(state),
+            "--host",
+            "codex",
+            "--user-request",
+            "fix the todo CLI",
+        ]
+    )
 
     assert exit_code == 0
     payload = json.loads(capsys.readouterr().out)
@@ -625,6 +635,7 @@ current_round:
     assert [action["role"] for action in payload["actions"]] == ["developer"]
     assert payload["actions"][0]["kind"] == "reuse"
     assert payload["actions"][0]["thread_id"] == "dev-1"
+    assert "Current user request: fix the todo CLI" in payload["actions"][0]["prompt"]
 
 
 def test_v2_session_plan_rejects_unsupported_host(tmp_path: Path) -> None:
@@ -751,6 +762,50 @@ current_round:
     assert "next_role: developer" in saved
     assert "orchestrator_status: active" in saved
     assert "pending_role:" not in saved
+
+
+def test_v2_return_signal_prints_clean_failure_for_invalid_route(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    state = tmp_path / "state.yaml"
+    state.write_text(
+        """
+project:
+  arcgentic_v2:
+    orchestrator_status: sleeping
+    pending_role: planner
+    pending_thread_id: planner-1
+current_round:
+  id: R1
+  state: closed
+""",
+        encoding="utf-8",
+    )
+    signal = {
+        "role": "planner",
+        "status": "completed",
+        "round_id": "R1",
+        "state": "closed",
+        "artifacts": {"handoff": "docs/plans/R1.md"},
+        "next_recommended_role": None,
+    }
+
+    exit_code = main(
+        [
+            "v2-return-signal",
+            "--state",
+            str(state),
+            "--signal-json",
+            json.dumps(signal),
+        ]
+    )
+
+    assert exit_code == 1
+    assert (
+        "v2-return-signal failed: planner cannot route round to state 'closed'"
+        in capsys.readouterr().out
+    )
 
 
 def test_v2_session_plan_supports_claude_code_broker_host(tmp_path: Path) -> None:

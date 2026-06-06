@@ -269,7 +269,10 @@ arcgentic v1-release-readiness --repo-root .
 V2 session-orchestration commands:
 
 ```bash
-arcgentic v2-session-plan --state .agentic-rounds/state.yaml --host codex
+arcgentic v2-session-plan \
+  --state .agentic-rounds/state.yaml \
+  --host codex \
+  --user-request '<current user request>'
 arcgentic v2-record-session --state .agentic-rounds/state.yaml --host codex --role developer --thread-id <id>
 arcgentic v2-dispatch-role --state .agentic-rounds/state.yaml --host codex --role developer --thread-id <id>
 arcgentic v2-return-signal --state .agentic-rounds/state.yaml --signal-json '<RoleReturnSignal JSON>'
@@ -291,7 +294,10 @@ anchored PASS. It is not a fifth session role. Claude Code parity is planned as
 a broker-backed adapter over the same V2 core contract:
 
 ```bash
-arcgentic v2-session-plan --state .agentic-rounds/state.yaml --host claude-code-broker
+arcgentic v2-session-plan \
+  --state .agentic-rounds/state.yaml \
+  --host claude-code-broker \
+  --user-request '<current user request>'
 ```
 
 Use `arcgentic:codex-thread-orchestration` in Codex and

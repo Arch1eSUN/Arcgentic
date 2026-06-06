@@ -82,6 +82,51 @@ def test_passed_routes_to_planner_for_phase_decision_not_closeout() -> None:
     assert next_role_for_state("passed") == "planner"
 
 
+def test_closed_round_routes_new_requests_to_planner() -> None:
+    state = {
+        "project": {
+            "arcgentic_v2": {
+                "host": "codex",
+                "mode": "multi-session-subthread",
+                "role_sessions": {
+                    "planner": {"thread_id": "planner-1", "title": "Planner"}
+                },
+            }
+        },
+        "current_round": {"id": "R1", "state": "closed"},
+    }
+
+    plan = build_codex_role_session_plan(state)
+
+    assert plan.orchestrator_status == "active"
+    assert plan.next_role == "planner"
+    assert len(plan.actions) == 1
+    assert plan.actions[0].role == "planner"
+    assert plan.actions[0].kind == "reuse"
+    assert plan.actions[0].thread_id == "planner-1"
+
+
+def test_session_plan_injects_user_request_into_role_prompt() -> None:
+    state = {
+        "project": {
+            "arcgentic_v2": {
+                "host": "codex",
+                "mode": "multi-session-subthread",
+                "role_sessions": {},
+            }
+        },
+        "current_round": {"id": "R1", "state": "closed"},
+    }
+
+    plan = build_codex_role_session_plan(
+        state, user_request="我想做一个极简 todo CLI。请用 Arcgentic 来完成。"
+    )
+
+    assert len(plan.actions) == 1
+    assert "Current user request: 我想做一个极简 todo CLI" in plan.actions[0].prompt
+    assert "must decide the next phase or next round" in plan.actions[0].prompt
+
+
 def test_role_return_signal_round_trips_json() -> None:
     signal = RoleReturnSignal(
         role="developer",

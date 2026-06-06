@@ -28,8 +28,14 @@ thread role.
 1. Run:
 
    ```bash
-   arcgentic v2-session-plan --state .agentic-rounds/state.yaml --host codex
+   arcgentic v2-session-plan \
+     --state .agentic-rounds/state.yaml \
+     --host codex \
+     --user-request '<current user request>'
    ```
+
+   This must happen before source inspection, test runs, git-log verification,
+   or summaries of prior closed rounds.
 
 2. If `orchestrator_status` is `sleeping`, stop immediately. The
    Orchestrator is waiting for `pending_role` to return a `RoleReturnSignal`;
@@ -117,6 +123,11 @@ thread role.
 - `intake` / `planning` / `passed` / `closed` → `Planner`
 - `awaiting_dev_start` / `dev_in_progress` / `needs_fix` / `fix_in_progress` → `Developer`
 - `awaiting_audit` / `audit_in_progress` → `Auditor`
+
+When a new user request arrives while `current_round.state` is `closed`, route
+to Planner. Planner decides whether this is a new phase, a new round, or a
+status-only no-op. The Orchestrator must not treat `closed` as permission to
+answer from the previous round without Planner.
 
 The auditor decides PASS / NEEDS_FIX / AUDIT_INCOMPLETE. The planner decides
 whether the current phase is complete and what the next phase is. The developer
