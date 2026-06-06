@@ -21,6 +21,17 @@ evidence is good enough.
 It is for people who already use AI coding tools, but do not want every session
 to depend on memory, vibes, or a lucky prompt.
 
+## Where it came from
+
+Arcgentic started as the development discipline behind
+[Moirai](https://github.com/Arch1eSUN/Moirai), a real agent project where AI
+coding needed planned rounds, role boundaries, self-audit, external audit, and
+recoverable handoffs.
+
+This plugin packages that discipline so Codex and Claude Code users can apply it
+to their own complex projects. It is not a new coding agent. It is the workflow
+layer extracted from real agent development.
+
 ## 30-second version
 
 | Question | Answer |
