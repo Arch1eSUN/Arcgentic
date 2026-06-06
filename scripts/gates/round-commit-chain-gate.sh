@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/gates/round-commit-chain-gate.sh — dev_in_progress → awaiting_audit gate.
+# scripts/gates/round-commit-chain-gate.sh — dev_in_progress → awaiting_test gate.
 #
 # Passes iff:
 #   current_round.expected_dev_commits is set + > 0
@@ -19,6 +19,7 @@ done
 
 ARCGENTIC_ROOT="${ARCGENTIC_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
 source "$ARCGENTIC_ROOT/scripts/lib/yaml.sh"
+source "$ARCGENTIC_ROOT/scripts/lib/python.sh"
 
 PROJECT_ROOT=$(yaml_get "$STATE_FILE" "project.root")
 EXPECTED=$(yaml_get "$STATE_FILE" "current_round.expected_dev_commits")
@@ -30,14 +31,15 @@ if [ -z "$EXPECTED" ] || [ "$EXPECTED" -lt 1 ]; then
 fi
 
 # Parse commit list via Python
-ACTUAL_COUNT=$(python3 -c "import json,sys; d=json.loads(sys.argv[1] or '[]'); print(len(d))" "${COMMITS_JSON:-[]}")
+PYTHON_BIN="$(arcgentic_python)" || exit 1
+ACTUAL_COUNT=$("$PYTHON_BIN" -c "import json,sys; d=json.loads(sys.argv[1] or '[]'); print(len(d))" "${COMMITS_JSON:-[]}")
 if [ "$ACTUAL_COUNT" -lt "$EXPECTED" ]; then
   echo "Gate FAIL: dev_commits count $ACTUAL_COUNT < $EXPECTED expected" >&2
   exit 1
 fi
 
 # Verify each commit exists
-COMMITS=$(python3 -c "import json,sys; print(' '.join(json.loads(sys.argv[1])))" "$COMMITS_JSON")
+COMMITS=$("$PYTHON_BIN" -c "import json,sys; print(' '.join(json.loads(sys.argv[1])))" "$COMMITS_JSON")
 for sha in $COMMITS; do
   if ! ( cd "$PROJECT_ROOT" && git cat-file -e "$sha" 2>/dev/null ); then
     echo "Gate FAIL: commit not found in repo: $sha" >&2

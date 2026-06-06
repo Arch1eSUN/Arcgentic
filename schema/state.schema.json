@@ -60,9 +60,34 @@
           "properties": {
             "host": { "type": "string", "enum": ["codex", "claude-code-broker"] },
             "mode": { "type": "string", "enum": ["single-session-subagent", "multi-session-subthread"] },
-            "next_role": { "type": "string", "enum": ["orchestrator", "planner", "developer", "auditor"] },
-            "orchestrator_status": { "type": "string", "enum": ["active", "sleeping"] },
-            "pending_role": { "type": "string", "enum": ["planner", "developer", "auditor"] },
+            "next_role": { "type": "string", "enum": ["orchestrator", "planner", "developer", "test", "auditor"] },
+            "orchestrator_status": { "type": "string", "enum": ["active", "sleeping", "idle"] },
+            "active_user_request": {
+              "type": "string",
+              "description": "The user request currently being served. Closed V2 workflows use this to distinguish a repeated role-return request from a genuinely new user request."
+            },
+            "project_status": { "type": "string", "enum": ["active", "closed"] },
+            "round_status": { "type": "string", "enum": ["active", "closed"] },
+            "current_phase_index": { "type": "integer", "minimum": 0 },
+            "current_round_id": { "type": "string" },
+            "phase_boundary": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "project_plan": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "phases": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  }
+                }
+              }
+            },
+            "pending_role": { "type": "string", "enum": ["planner", "developer", "test", "auditor"] },
             "pending_thread_id": { "type": "string" },
             "pending_since": { "type": "string", "format": "date-time" },
             "role_sessions": {
@@ -72,6 +97,7 @@
                 "orchestrator": { "$ref": "#/$defs/v2_role_session" },
                 "planner": { "$ref": "#/$defs/v2_role_session" },
                 "developer": { "$ref": "#/$defs/v2_role_session" },
+                "test": { "$ref": "#/$defs/v2_role_session" },
                 "auditor": { "$ref": "#/$defs/v2_role_session" }
               }
             },
@@ -88,7 +114,7 @@
         "id": { "type": "string", "description": "Round identifier following project.round_naming convention. Empty string allowed in intake state before a round id is assigned." },
         "state": {
           "type": "string",
-          "enum": ["intake", "planning", "awaiting_dev_start", "dev_in_progress", "awaiting_audit", "audit_in_progress", "passed", "needs_fix", "fix_in_progress", "closed"]
+          "enum": ["intake", "planning", "awaiting_dev_start", "dev_in_progress", "awaiting_test", "test_in_progress", "awaiting_audit", "audit_in_progress", "passed", "needs_fix", "fix_in_progress", "closed"]
         },
         "state_history": {
           "type": "array",
@@ -239,8 +265,8 @@
       "additionalProperties": false,
       "required": ["role", "title", "thread_id", "host", "updated_at"],
       "properties": {
-        "role": { "type": "string", "enum": ["orchestrator", "planner", "developer", "auditor"] },
-        "title": { "type": "string", "enum": ["Orchestrator", "Planner", "Developer", "Auditor"] },
+        "role": { "type": "string", "enum": ["orchestrator", "planner", "developer", "test", "auditor"] },
+        "title": { "type": "string", "enum": ["Orchestrator", "Planner", "Developer", "Test", "Auditor"] },
         "thread_id": { "type": "string", "minLength": 1 },
         "host": { "type": "string", "enum": ["codex", "claude-code-broker"] },
         "updated_at": { "type": "string", "format": "date-time" }
@@ -251,14 +277,14 @@
       "additionalProperties": false,
       "required": ["role", "status", "round_id", "state", "artifacts", "next_recommended_role"],
       "properties": {
-        "role": { "type": "string", "enum": ["orchestrator", "planner", "developer", "auditor"] },
+        "role": { "type": "string", "enum": ["orchestrator", "planner", "developer", "test", "auditor"] },
         "status": { "type": "string", "minLength": 1 },
         "round_id": { "type": "string" },
         "state": { "type": "string", "minLength": 1 },
         "artifacts": { "type": "object" },
         "next_recommended_role": {
           "type": ["string", "null"],
-          "enum": ["orchestrator", "planner", "developer", "auditor", null]
+          "enum": ["orchestrator", "planner", "developer", "test", "auditor", null]
         }
       }
     }

@@ -17,8 +17,10 @@ state_allowed_next() {
   local sf="$1"
   local cur
   cur=$(state_current_value "$sf")
+  local py
+  py="$(arcgentic_python yaml)" || return 1
   # The `next` field is a list — yaml_get returns it as JSON. Parse with Python.
-  python3 - "$sf" "$cur" <<'PY'
+  "$py" - "$sf" "$cur" <<'PY'
 import sys, yaml
 sf, cur = sys.argv[1], sys.argv[2]
 with open(sf) as f:
@@ -49,7 +51,9 @@ state_is_transition_allowed() {
 # Usage: state_required_gate STATE_FILE TARGET
 state_required_gate() {
   local sf="$1" target="$2"
-  python3 - "$sf" "$target" <<'PY'
+  local py
+  py="$(arcgentic_python yaml)" || return 1
+  "$py" - "$sf" "$target" <<'PY'
 import sys, yaml
 sf, target = sys.argv[1], sys.argv[2]
 with open(sf) as f:

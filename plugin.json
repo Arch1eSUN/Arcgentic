@@ -53,5 +53,5 @@
   "scripts_dir": "scripts/",
   "schemas_dir": "schema/",
   "hooks_dir": "hooks/",
-  "status": "v1.0.0 stable plus V2 fixed-role orchestration on main. V2 adds Codex thread host planning, Claude Code broker host planning, durable role-session state, RoleReturnSignal routing, and schema-backed .agentic-rounds/state.yaml persistence."
+  "status": "v1.0.0 stable plus V2 fixed-role orchestration on main. Codex V2 is complete and real-machine verified. Claude Code V2 is complete as a hook-backed experimental broker, with real-machine verification still pending."
 }

@@ -28,6 +28,19 @@ bash "$TRANS" --state-file "$SF" --target "awaiting_dev_start" --by "test" --ski
 bash "$TRANS" --state-file "$SF" --target "dev_in_progress" --by "test"
 run bash "$PICKUP" --state-file "$SF"
 assert_contains "$__LAST_OUTPUT" "developer"
+assert_contains "$__LAST_OUTPUT" "awaiting_test"
+
+it "emits role hint for awaiting_test state"
+bash "$TRANS" --state-file "$SF" --target "awaiting_test" --by "test" --skip-gates
+run bash "$PICKUP" --state-file "$SF"
+assert_contains "$__LAST_OUTPUT" "orchestrator"
+assert_contains "$__LAST_OUTPUT" "Test"
+
+it "emits role hint for test_in_progress state"
+bash "$TRANS" --state-file "$SF" --target "test_in_progress" --by "test"
+run bash "$PICKUP" --state-file "$SF"
+assert_contains "$__LAST_OUTPUT" "test"
+assert_contains "$__LAST_OUTPUT" "user-test"
 
 it "emits role hint for audit_in_progress state"
 bash "$TRANS" --state-file "$SF" --target "awaiting_audit" --by "test" --skip-gates

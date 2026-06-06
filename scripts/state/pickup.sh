@@ -7,6 +7,8 @@
 # Default: human-readable text. --json: structured output for sub-agents.
 
 set -uo pipefail
+ARCGENTIC_ROOT="${ARCGENTIC_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
+source "$ARCGENTIC_ROOT/scripts/lib/python.sh"
 
 STATE_FILE=""
 JSON_OUT=0
@@ -25,16 +27,57 @@ if [ -z "$STATE_FILE" ] || [ ! -f "$STATE_FILE" ]; then
   exit 2
 fi
 
-python3 - "$STATE_FILE" "$JSON_OUT" <<'PY'
-import sys, yaml, json
+PYTHON_BIN="$(arcgentic_python)" || exit 1
+"$PYTHON_BIN" - "$STATE_FILE" "$JSON_OUT" <<'PY'
+import json
+import re
+import sys
+
 state_file, json_out = sys.argv[1], int(sys.argv[2])
 
-with open(state_file) as f:
-    data = yaml.safe_load(f) or {}
+_FIELD_RE = re.compile(r"^(\s*)([A-Za-z0-9_]+):(?:\s*(.*))?$")
 
-state = data.get("current_round", {}).get("state", "")
-project = data.get("project", {}).get("name", "<unnamed>")
-round_id = data.get("current_round", {}).get("id", "")
+
+def _clean(value):
+    value = (value or "").strip()
+    if value in {"", "null", "None"}:
+        return ""
+    if (
+        len(value) >= 2
+        and value[0] == value[-1]
+        and value[0] in {"'", '"'}
+    ):
+        return value[1:-1]
+    return value
+
+
+def _read_state_fields(path):
+    fields = {}
+    stack = []
+    with open(path, encoding="utf-8") as f:
+        for raw_line in f:
+            stripped = raw_line.strip()
+            if not stripped or stripped.startswith("#") or stripped.startswith("-"):
+                continue
+            match = _FIELD_RE.match(raw_line.rstrip("\n"))
+            if not match:
+                continue
+            indent = len(match.group(1))
+            key = match.group(2)
+            value = _clean(match.group(3))
+            while stack and indent <= stack[-1][0]:
+                stack.pop()
+            path_tuple = tuple([entry[1] for entry in stack] + [key])
+            if value:
+                fields[path_tuple] = value
+            else:
+                stack.append((indent, key))
+    return fields
+
+fields = _read_state_fields(state_file)
+state = fields.get(("current_round", "state"), "")
+project = fields.get(("project", "name"), "<unnamed>")
+round_id = fields.get(("current_round", "id"), "")
 
 # State → role + action mapping
 guidance = {
@@ -58,9 +101,21 @@ guidance = {
     },
     "dev_in_progress": {
         "role": "developer",
-        "action": "Execute the handoff doc task-by-task with inline self-finalization (BA + CR + SE).",
-        "next_state": "awaiting_audit",
+        "action": "Execute the handoff doc task-by-task, write self-audit, and create a local commit anchor.",
+        "next_state": "awaiting_test | awaiting_audit",
         "skill": "arcgentic:execute-round (future) — for MVP: dev session reads handoff manually",
+    },
+    "awaiting_test": {
+        "role": "orchestrator",
+        "action": "Dispatch Test for realistic simulated user/session testing.",
+        "next_state": "test_in_progress",
+        "skill": "arcgentic:orchestrate-round",
+    },
+    "test_in_progress": {
+        "role": "test",
+        "action": "Run realistic user/session flows, write a user-test report, and return pass/fix routing.",
+        "next_state": "awaiting_audit | needs_fix",
+        "skill": "arcgentic:test-round (V2 role prompt)",
     },
     "awaiting_audit": {
         "role": "orchestrator",
@@ -83,7 +138,7 @@ guidance = {
     "fix_in_progress": {
         "role": "developer",
         "action": "Fix ONLY the auditor's findings. No scope creep. Sibling-doc sweep applies.",
-        "next_state": "awaiting_audit",
+        "next_state": "awaiting_test | awaiting_audit",
         "skill": "arcgentic:execute-round (future) with fix-round-narrowness reference",
     },
     "passed": {

@@ -43,6 +43,13 @@ _FACT_TABLE_HEADER_RE = re.compile(
     r"\s*\|\s*#\s*\|\s*Command\s*\|\s*Expected\s*\|\s*Comment\s*\|\s*"
 )
 _VACUOUS_PATTERNS = ["≥", ">=", "<=", "≤"]
+_MUTABLE_STATE_PATTERNS = (
+    "last_signal",
+    'current_round"]["state"]',
+    "current_round']['state']",
+    'current_round\\"][\\"state',
+    "current_round.state",
+)
 
 
 # ── Data structures ────────────────────────────────────────────────────
@@ -79,6 +86,7 @@ class AuditCheckResult:
     skip_count: int
     ac1_violations: list[str] = field(default_factory=list)  # AC-1 issues (strict-extended only)
     ac3_violations: list[str] = field(default_factory=list)  # AC-3 issues (strict-extended only)
+    ac4_violations: list[str] = field(default_factory=list)  # AC-4 lifecycle-stability issues
     exit_code: int = 0
     summary_text: str = ""
 
@@ -312,6 +320,35 @@ def check_ac3(facts: list[Fact]) -> list[str]:
     return violations
 
 
+def check_ac4_lifecycle_stability(facts: list[Fact]) -> list[str]:
+    """AC-4: PASS facts must not depend on mutable live routing state.
+
+    Reading `.agentic-rounds/state.yaml` for state_history, commit anchors, or artifact
+    paths is legitimate. Reading live `current_round.state` or `last_signal` in a PASS
+    verdict is not stable because Orchestrator/Planner routing changes those values
+    after audit and closeout.
+    """
+    violations: list[str] = []
+    for fact in facts:
+        command = fact.command
+        normalized_command = command.replace("\\", "")
+        if ".agentic-rounds/state.yaml" not in command:
+            continue
+        if "git show" in command:
+            continue
+        if "state_history" in command:
+            continue
+        if any(pattern in command for pattern in _MUTABLE_STATE_PATTERNS) or any(
+            pattern in normalized_command for pattern in _MUTABLE_STATE_PATTERNS
+        ):
+            violations.append(
+                f"AC-4: fact #{fact.index} (line {fact.line_no}) reads mutable live "
+                "routing state from `.agentic-rounds/state.yaml`; use committed "
+                "artifacts, fixed git hashes, state_history, or an immutable snapshot"
+            )
+    return violations
+
+
 # ── Main orchestration ─────────────────────────────────────────────────
 
 
@@ -343,17 +380,19 @@ def run(
 
     ac1_violations: list[str] = []
     ac3_violations: list[str] = []
+    ac4_violations: list[str] = []
     if strict_extended:
         ac1_violations.extend(check_ac1_clause_a(audit_md, len(facts)))
         ac1_violations.extend(check_ac1_clause_b(audit_md))
         ac1_violations.extend(check_ac1_clause_c(audit_md, fact_results))
         ac3_violations.extend(check_ac3(facts))
+        ac4_violations.extend(check_ac4_lifecycle_stability(facts))
 
     # Compute exit_code
     exit_code = 0
     if strict and (fail_count > 0 or skip_count > 0):
         exit_code = 1
-    if strict_extended and (ac1_violations or ac3_violations):
+    if strict_extended and (ac1_violations or ac3_violations or ac4_violations):
         exit_code = 1
 
     # Compose summary text
@@ -361,6 +400,7 @@ def run(
     if strict_extended:
         parts.append(f"AC-1: {len(ac1_violations)} violation(s)")
         parts.append(f"AC-3: {len(ac3_violations)} violation(s)")
+        parts.append(f"AC-4: {len(ac4_violations)} violation(s)")
     summary_text = " | ".join(parts)
 
     return AuditCheckResult(
@@ -370,6 +410,7 @@ def run(
         skip_count=skip_count,
         ac1_violations=ac1_violations,
         ac3_violations=ac3_violations,
+        ac4_violations=ac4_violations,
         exit_code=exit_code,
         summary_text=summary_text,
     )
@@ -406,6 +447,10 @@ def main(argv: list[str] | None = None) -> int:
     if result.ac3_violations:
         print("\nAC-3 violations:")
         for v in result.ac3_violations:
+            print(f"  - {v}")
+    if result.ac4_violations:
+        print("\nAC-4 violations:")
+        for v in result.ac4_violations:
             print(f"  - {v}")
 
     # Print per-fact FAIL/SKIP details

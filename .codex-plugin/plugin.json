@@ -34,7 +34,7 @@
       "Project session mode",
       "Verdict completeness",
       "V2 Codex thread orchestration",
-      "Claude Code broker guidance",
+      "Claude Code hook-backed broker",
       "PASS-only close-round"
     ],
     "defaultPrompt": "Use arcgentic to plan, execute, audit, or hand off a development round."

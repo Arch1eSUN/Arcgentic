@@ -13,10 +13,13 @@
 # All functions exit nonzero on parse error.
 
 set -uo pipefail
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/python.sh"
 
 yaml_get() {
   local file="$1" path="$2"
-  python3 - "$file" "$path" <<'PY'
+  local py
+  py="$(arcgentic_python yaml)" || return 1
+  "$py" - "$file" "$path" <<'PY'
 import sys, yaml
 file, path = sys.argv[1], sys.argv[2]
 with open(file) as f:
@@ -45,7 +48,9 @@ PY
 
 yaml_set() {
   local file="$1" path="$2" value="$3"
-  python3 - "$file" "$path" "$value" <<'PY'
+  local py
+  py="$(arcgentic_python yaml)" || return 1
+  "$py" - "$file" "$path" "$value" <<'PY'
 import sys, yaml, json
 file, path, raw = sys.argv[1], sys.argv[2], sys.argv[3]
 with open(file) as f:
@@ -69,7 +74,9 @@ PY
 
 yaml_append_to_list() {
   local file="$1" path="$2" json_obj="$3"
-  python3 - "$file" "$path" "$json_obj" <<'PY'
+  local py
+  py="$(arcgentic_python yaml)" || return 1
+  "$py" - "$file" "$path" "$json_obj" <<'PY'
 import sys, yaml, json
 file, path, raw = sys.argv[1], sys.argv[2], sys.argv[3]
 with open(file) as f:
@@ -89,7 +96,9 @@ PY
 
 yaml_to_json() {
   local file="$1"
-  python3 - "$file" <<'PY'
+  local py
+  py="$(arcgentic_python yaml)" || return 1
+  "$py" - "$file" <<'PY'
 import sys, yaml, json
 with open(sys.argv[1]) as f:
     data = yaml.safe_load(f) or {}

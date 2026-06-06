@@ -9,6 +9,8 @@
 # --force is given.
 
 set -uo pipefail
+ARCGENTIC_ROOT="${ARCGENTIC_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
+source "$ARCGENTIC_ROOT/scripts/lib/python.sh"
 
 PROJECT_ROOT=""
 PROJECT_NAME=""
@@ -59,7 +61,8 @@ mkdir -p "$STATE_DIR"
 PROJECT_ROOT_ABS="$(cd "$PROJECT_ROOT" && pwd)"
 TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
-python3 -c '
+PYTHON_BIN="$(arcgentic_python yaml)" || exit 1
+"$PYTHON_BIN" -c '
 from pathlib import Path
 import sys
 import yaml
@@ -94,14 +97,16 @@ state = {
         "intake": {"next": ["planning"]},
         "planning": {"next": ["awaiting_dev_start"], "gate": "handoff-doc-gate.sh"},
         "awaiting_dev_start": {"next": ["dev_in_progress"]},
-        "dev_in_progress": {"next": ["awaiting_audit"], "gate": "round-commit-chain-gate.sh"},
+        "dev_in_progress": {"next": ["awaiting_test", "awaiting_audit"], "gate": "round-commit-chain-gate.sh"},
+        "awaiting_test": {"next": ["test_in_progress"]},
+        "test_in_progress": {"next": ["awaiting_audit"]},
         "awaiting_audit": {"next": ["audit_in_progress"]},
         "audit_in_progress": {
             "next": ["passed", "needs_fix"],
             "gate": "verdict-fact-table-gate.sh",
         },
         "needs_fix": {"next": ["fix_in_progress"]},
-        "fix_in_progress": {"next": ["awaiting_audit"], "gate": "round-commit-chain-gate.sh"},
+        "fix_in_progress": {"next": ["awaiting_test", "awaiting_audit"], "gate": "round-commit-chain-gate.sh"},
         "passed": {"next": ["closed"]},
         "closed": {"next": []},
     },

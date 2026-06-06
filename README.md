@@ -16,9 +16,9 @@
 **Arcgentic turns AI coding from ad-hoc prompting into a gated engineering workflow.**
 
 Use it when AI coding sessions keep drifting: vague scope, lost context, unverified
-claims, skipped tests, or no audit trail. Arcgentic gives Claude Code / Codex a
-round protocol: plan the round, implement with dev self-audit, run external audit,
-then close only when gates pass.
+claims, skipped tests, or no audit trail. Arcgentic gives Codex and Claude Code
+a V2 protocol: brainstorm/plan, implement with dev self-audit, optionally run a
+strict user-test role, run external audit, then close only when gates pass.
 
 ## 30-second version
 
@@ -26,8 +26,20 @@ then close only when gates pass.
 |---|---|
 | What problem does it solve? | AI coding sessions drift unless scope, audit, and tests are mechanically enforced. |
 | Who should use it? | Engineers using Claude Code or Codex for multi-step coding work where handoff quality, auditability, and test discipline matter. |
-| What does it add? | `phase -> round -> dev self-audit -> external audit -> gate -> close` as an enforceable workflow. |
+| What does it add? | `phase -> round -> dev self-audit -> optional user-test -> external audit -> gate -> close` as an enforceable workflow. |
 | What does it not do? | It does not call paid model APIs, run background agents, or replace your tests. |
+
+## V2 platform status
+
+| Platform | V2 mode | Status | Verification |
+|---|---|---|---|
+| **Codex** | Native fixed-role project threads | Complete V2 | Verified in a real Codex project workflow. |
+| **Claude Code** | Hook-backed session broker | Complete V2 experimental | Unit/smoke verified only; not yet verified in a real Claude Code session. |
+
+V2 uses fixed role identities only: `Orchestrator`, `Planner`, `Developer`,
+`Test`, and `Auditor`. It does not create `R1 Developer`, `R2 Auditor`, or
+other round-numbered sessions. Round and phase identity live in
+`.agentic-rounds/state.yaml` and in the role prompt.
 
 ## Fastest install
 
@@ -112,8 +124,9 @@ and dogfood artifacts under `tests/dogfood/` as the working demo trail.
 - [Quick install](#quick-install)
 - [Quickstart — first round in 5 minutes](#quickstart--first-round-in-5-minutes)
 - [How it works](#how-it-works)
-- [The four roles](#the-four-roles)
+- [The five roles](#the-five-roles)
 - [State machine](#state-machine)
+- [V2 host modes](#v2-host-modes)
 - [Single-session vs multi-session](#single-session-vs-multi-session)
 - [Cost discipline](#cost-discipline)
 - [Status & roadmap](#status--roadmap)
@@ -295,23 +308,36 @@ machine protocol lives only in a footer:
 ```
 
 Start Arcgentic from an existing project or saved project workspace. Planner /
-Developer / Auditor must be project-scoped threads, not projectless threads.
+Developer / Test / Auditor must be project-scoped threads, not projectless
+threads.
 
-V2 uses fixed Codex role threads: `Orchestrator`, `Planner`, `Developer`, and
-`Auditor`. Arcgentic does not create `R1 Developer`, `R2 Auditor`, or other
-round-numbered thread names. Round and phase identity live in
+V2 uses fixed Codex role threads: `Orchestrator`, `Planner`, `Developer`,
+`Test`, and `Auditor`. Arcgentic does not create `R1 Developer`, `R2 Auditor`,
+or other round-numbered thread names. Round and phase identity live in
 `.agentic-rounds/state.yaml` and in the injected role prompt.
 
-V2 keeps `close-round` as an orchestrator-owned mechanical command after an
-anchored PASS. It is not a fifth session role. Claude Code parity is planned as
-a broker-backed adapter over the same V2 core contract:
+V2 keeps closeout as Planner/Orchestrator-owned project closure after anchored
+PASS. `closeout fix` remains Developer-owned repair work; it is not an audit
+role.
+
+Claude Code V2 uses the same core contract through the hook-backed session
+broker:
 
 ```bash
 arcgentic v2-session-plan \
   --state .agentic-rounds/state.yaml \
   --host claude-code-broker \
   --user-request '<current user request>'
+
+arcgentic claude-code-broker install-hooks \
+  --settings .claude/settings.local.json \
+  --state .agentic-rounds/state.yaml
 ```
+
+The broker installs Stop/SubagentStop hooks that read Claude Code's
+`last_assistant_message`, extract the `arcgentic-role-return` footer, update
+`.agentic-rounds/state.yaml`, and write a broker inbox record under
+`.agentic-rounds/claude-code-broker/inbox/`.
 
 Use `arcgentic:codex-thread-orchestration` in Codex and
 `arcgentic:claude-code-session-broker` in Claude Code.
@@ -407,74 +433,99 @@ Four layers, top to bottom: skills tell Claude *how to think* in a given role; a
 
 ---
 
-## The four roles
+## The five roles
 
 | Role | Responsibilities | Current skill | Current agent |
 |------|------------------|--------------------|--------------------|
-| **Planner** | Read scope → write 16-section handoff doc → advance state to `awaiting_dev_start` | ✅ `plan-round` | ✅ `planner` |
-| **Developer** | Read handoff → execute task-by-task with inline self-finalization (BA + CR + SE) → produce N-commit chain | ✅ `execute-round` | ✅ `developer` |
-| **External auditor** | Read handoff + commit chain → write verdict with mechanically-verifiable fact table → apply lesson codification protocol → advance to `passed` or `needs_fix` | ✅ `audit-round` | ✅ `auditor` |
+| **Planner** | Brainstorm, discover references/tools, write full project plan, split phases/rounds, decide phase closeout | ✅ `plan-round` | ✅ `planner` |
+| **Developer** | Read handoff, implement, repair `needs_fix`, write dev self-audit, create local commit anchor | ✅ `execute-round` | ✅ `developer` |
+| **Test** | Run strict simulated user/session testing only when the plan requires it; verify reality beyond unit tests | ✅ V2 role prompt | Host role thread |
+| **External auditor** | Independently replay evidence, verify commit anchors and fact table, decide `PASS` / `NEEDS_FIX` / `AUDIT_INCOMPLETE` | ✅ `audit-round` | ✅ `auditor` |
 | **Reference tracker** | Daily git fetch over `references/` → categorize new clones → maintain `INDEX.md` | ✅ `track-refs` | ✅ `ref-tracker` |
 
 Plus a meta-role:
 - **Orchestrator** — drives the state machine end-to-end, dispatches sub-agents when role-switching is needed, and owns PASS-only closeout through the `close-round` seam. ✅ `orchestrate-round` skill + `orchestrator` agent.
 
-V2 Codex mode maps these responsibilities onto four reusable host threads only:
-`Orchestrator`, `Planner`, `Developer`, and `Auditor`.
+V2 Codex and Claude Code broker modes map project execution onto five reusable
+host roles only: `Orchestrator`, `Planner`, `Developer`, `Test`, and `Auditor`.
 
 ---
 
 ## State machine
 
-```
-       ┌─────────┐
-       │ intake  │
-       └────┬────┘
-            │ founder states scope
-            ▼
-       ┌──────────┐
-       │ planning │
-       └─────┬────┘
-             │ planner writes handoff
-             │ [GATE: handoff-doc-gate.sh]
-             ▼
-   ┌────────────────────┐
-   │ awaiting_dev_start │
-   └──────────┬─────────┘
-              │
-              ▼
-   ┌────────────────────┐
-   │  dev_in_progress   │ ←──────┐
-   └──────────┬─────────┘        │
-              │ [GATE: round-commit-chain-gate.sh]
-              ▼                  │
-   ┌────────────────────┐        │
-   │  awaiting_audit    │        │
-   └──────────┬─────────┘        │
-              │                  │
-              ▼                  │
-   ┌────────────────────┐        │
-   │ audit_in_progress  │        │
-   └──────────┬─────────┘        │
-              │ [GATE: verdict-fact-table-gate.sh]
-        ┌─────┴─────┐            │
-        ▼           ▼            │
-   ┌────────┐  ┌──────────┐      │
-   │ passed │  │needs_fix │      │
-   └───┬────┘  └─────┬────┘      │
-       │             │           │
-       ▼             ▼           │
-   ┌────────┐  ┌─────────────┐   │
-   │ closed │  │fix_in_progress│ ┘ (→ awaiting_audit again)
-   └────────┘  └─────────────┘
+```mermaid
+flowchart TD
+  intake["intake"] --> planning["planning"]
+  planning -->|"Planner writes handoff"| awaiting_dev_start["awaiting_dev_start"]
+  awaiting_dev_start --> dev_in_progress["dev_in_progress"]
+  dev_in_progress -->|"Test gate required"| awaiting_test["awaiting_test"]
+  dev_in_progress -->|"Test gate skipped"| awaiting_audit["awaiting_audit"]
+  awaiting_test --> test_in_progress["test_in_progress"]
+  test_in_progress -->|"User flow passes"| awaiting_audit
+  test_in_progress -->|"User flow fails"| needs_fix["needs_fix"]
+  awaiting_audit --> audit_in_progress["audit_in_progress"]
+  audit_in_progress -->|"Auditor PASS"| passed["passed"]
+  audit_in_progress -->|"Auditor NEEDS_FIX"| needs_fix
+  audit_in_progress -->|"Retryable audit work"| audit_in_progress
+  needs_fix --> fix_in_progress["fix_in_progress"]
+  fix_in_progress --> awaiting_audit
+  passed -->|"Planner phase/round decision"| planning
+  planning -->|"Project complete"| closed["closed"]
 ```
 
-Every transition is run by `scripts/state/transition.sh`:
+The V2 host orchestrator routes `awaiting_test` only when the Planner's
+`project_plan.test_gate.required` says a reality/user-session test is needed.
+Not every round needs the Test role.
+
+Every transition is run by `scripts/state/transition.sh` or the V2
+`RoleReturnSignal` router:
 1. Verifies the target state is in the current state's `next` list
 2. Runs the required gate script (refuses transition if gate fails)
 3. Updates `current_round.state` + appends to `state_history`
 
 Try to skip a state? Refused. Try to PASS with an unverified fact table? Refused. Try to close a round before PASS audit + strict audit-check? Refused. The state machine is the enforcement.
+
+---
+
+## V2 host modes
+
+### Codex native thread mode
+
+Codex V2 uses real project-scoped role threads when the host exposes thread
+tools. The current project thread is `Orchestrator`; it creates or reuses fixed
+role threads named exactly `Planner`, `Developer`, `Test`, and `Auditor`.
+
+The Orchestrator dispatches one role, records the pending role in
+`.agentic-rounds/state.yaml`, then sleeps. The role thread completes its
+role-owned work, sends a natural-language return plus one
+`arcgentic-role-return` footer back to Orchestrator, and Orchestrator records it
+with `v2-return-signal`.
+
+This mode has been verified in a real Codex project workflow.
+
+### Claude Code broker mode
+
+Claude Code V2 uses a hook-backed broker because Claude Code does not expose
+the same native thread-management API to Arcgentic. The broker preserves the
+same V2 state contract:
+
+- fixed role identities only;
+- one active/pending role at a time;
+- Stop/SubagentStop hook capture through `last_assistant_message`;
+- strict `RoleReturnSignal` parsing;
+- Auditor PASS still goes through strict audit-check;
+- broker inbox records under `.agentic-rounds/claude-code-broker/inbox/`.
+
+Install project-local hooks:
+
+```bash
+arcgentic claude-code-broker install-hooks \
+  --settings .claude/settings.local.json \
+  --state .agentic-rounds/state.yaml
+```
+
+This mode is complete as an experimental implementation, but has not yet been
+verified in a real Claude Code session.
 
 ---
 
@@ -551,10 +602,20 @@ This is non-negotiable, derived from the original Moirai project's `§ 4 cost-di
 - ✅ V1 dogfood R1: source-intake / capability-registry / spec-governance / agency-roster round closed PASS
 - ✅ V1 dogfood R2: project-level session mode / dispatch / close-round release-hardening round closed PASS
 - ✅ V1 dogfood R3: prepublish self-audit stability + codify-lesson precision fix round closed PASS
-- ✅ V2 fixed-role orchestration: Codex thread host plan, Claude Code broker host
-  plan, durable role-session state, `RoleReturnSignal` routing, and
+- ✅ V2 Codex complete: native fixed-role project-thread orchestration,
+  Orchestrator sleep/wake, Planner/Developer/Test/Auditor routing, local commit
+  anchors, strict Auditor PASS audit-check, closed-status no-op handling, and
   schema-backed `.agentic-rounds/state.yaml` persistence
-- ✅ V2 dogfood: `tests/dogfood/v2-complete/RESULT.md`
+- ✅ V2 Codex real-machine verification: completed in a live Codex project
+  workflow
+- ✅ V2 Claude Code experimental complete: hook-backed session broker,
+  Stop/SubagentStop footer capture, broker inbox records,
+  `claude-code-broker install-hooks`, shared `RoleReturnSignal` validation, and
+  strict Auditor PASS audit-check
+- ⚠️ V2 Claude Code real-machine verification pending: not yet dogfooded in a
+  real Claude Code session
+- ✅ V2 dogfood artifacts: `tests/dogfood/v2-complete/RESULT.md` and
+  `tests/dogfood/v2-user-workflow/`
 
 ### Next — `v1.0.x` / `v1.1.0`
 
@@ -562,8 +623,8 @@ This is non-negotiable, derived from the original Moirai project's `§ 4 cost-di
 - Rich execute-round fact generation from commit chain and changed files
 - ER-RETRY: retry-with-context loops for sub-agent dispatches
 - GitHub reference discovery/search feeding `track-refs`
-- V2 release packaging after one live Codex host-thread run and one live Claude
-  Code broker-backed run
+- Claude Code real-session dogfood and marketplace wording hardening
+- Cross-project portability hardening for both V2 host modes
 
 ### `v1.0.0` stable
 

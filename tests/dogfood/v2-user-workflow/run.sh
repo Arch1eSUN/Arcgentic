@@ -93,7 +93,7 @@ PY
   --signal-text 'Planner completed a natural-language plan for the AA split CLI.
 
 ```arcgentic-role-return
-{"role":"planner","status":"planned","round_id":"R1","state":"awaiting_dev_start","artifacts":{"handoff":"docs/plans/R1-expense-splitter.md"},"next_recommended_role":"developer"}
+{"role":"planner","status":"planned","round_id":"R1","state":"awaiting_dev_start","artifacts":{"handoff":"docs/plans/R1-expense-splitter.md","project_plan":{"phases":[{"id":"P1","rounds":[{"id":"R1","handoff":"docs/plans/R1-expense-splitter.md","test_gate":{"required":false,"reason":"This dogfood round exercises CLI orchestration semantics only; external audit can verify the route without a separate reality QA thread."}}]}]}},"next_recommended_role":"developer"}
 ```' \
   > "$TARGET/02-planner-signal.json"
 
@@ -120,7 +120,7 @@ PY
   --signal-text 'Developer completed implementation, tests, and self-audit.
 
 ARCGENTIC_ROLE_RETURN
-{"role":"developer","status":"completed","round_id":"R1","state":"awaiting_audit","artifacts":{"self_audit":"docs/audits/R1-self-audit.md"},"next_recommended_role":"auditor"}
+{"role":"developer","status":"completed","round_id":"R1","state":"awaiting_audit","artifacts":{"self_audit":"docs/audits/R1-self-audit.md","commit":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},"next_recommended_role":"auditor"}
 END_ARCGENTIC_ROLE_RETURN' \
   > "$TARGET/04-dev-signal.json"
 
@@ -142,14 +142,99 @@ END_ARCGENTIC_ROLE_RETURN' \
   --role auditor \
   --thread-id "codex-auditor-thread" > "$TARGET/dispatch-auditor.json"
 
+mkdir -p "$PROJECT/docs/audits"
+cat > "$PROJECT/docs/audits/R1.md" <<'MD'
+# R1 External Audit
+
+**Outcome:** PASS
+
+## 7. Fact table
+
+| # | Command | Expected | Comment |
+|---|---|---|---|
+| 1 | `bash -lc 'printf ok'` | `ok` | synthetic parser-compatible fact |
+
+Outcome: PASS. Fact table: 1/1 PASS.
+MD
+
 "${CLI[@]}" v2-return-signal \
   --state "$STATE" \
   --signal-text 'Auditor completed an external audit verdict and found PASS.
 
 ```arcgentic-role-return
-{"role":"auditor","status":"PASS","round_id":"R1","state":"passed","artifacts":{"verdict":"docs/audits/R1.md"},"next_recommended_role":"planner"}
+{"role":"auditor","status":"PASS","round_id":"R1","state":"passed","artifacts":{"verdict":"docs/audits/R1.md","commit":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},"next_recommended_role":"planner"}
 ```' \
   > "$TARGET/06-auditor-signal.json"
+
+"${CLI[@]}" v2-session-plan \
+  --state "$STATE" \
+  --host codex \
+  --user-request "我想做一个很小的命令行工具，用来计算几个人聚餐后的 AA 分账和最少转账方案。请用 Arcgentic 来完成。" \
+  > "$TARGET/07-phase-boundary-plan.json"
+
+python - "$TARGET/07-phase-boundary-plan.json" <<'PY'
+from pathlib import Path
+import json
+import sys
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["current_state"] == "planning"
+assert payload["next_role"] == "planner"
+assert [action["role"] for action in payload["actions"]] == ["planner"]
+assert payload["actions"][0]["kind"] == "reuse"
+assert "search GitHub or equivalent public sources" in payload["actions"][0]["prompt"]
+assert "skills, plugins, MCP servers, connectors, and CLI tools" in payload["actions"][0]["prompt"]
+assert "full Markdown engineering documents" in payload["actions"][0]["prompt"]
+PY
+
+"${CLI[@]}" v2-dispatch-role \
+  --state "$STATE" \
+  --host codex \
+  --role planner \
+  --thread-id "codex-planner-thread" > "$TARGET/dispatch-closeout-planner.json"
+
+"${CLI[@]}" v2-return-signal \
+  --state "$STATE" \
+  --signal-text 'Planner completed phase closeout and committed the closeout artifact.
+
+```arcgentic-role-return
+{"role":"planner","status":"completed","round_id":"R1","state":"closed","artifacts":{"handoff":"docs/plans/R1-expense-splitter.md","closeout":"docs/plans/P1-closeout.md","commit":"cccccccccccccccccccccccccccccccccccccccc"},"next_recommended_role":null}
+```' \
+  > "$TARGET/08-planner-close-signal.json"
+
+"${CLI[@]}" v2-session-plan \
+  --state "$STATE" \
+  --host codex \
+  --user-request "我想做一个很小的命令行工具，用来计算几个人聚餐后的 AA 分账和最少转账方案。请用 Arcgentic 来完成。" \
+  > "$TARGET/09-closed-same-request-plan.json"
+
+python - "$TARGET/09-closed-same-request-plan.json" <<'PY'
+from pathlib import Path
+import json
+import sys
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["current_state"] == "closed"
+assert payload["orchestrator_status"] == "idle"
+assert payload["actions"] == []
+PY
+
+"${CLI[@]}" v2-session-plan \
+  --state "$STATE" \
+  --host codex \
+  --user-request "Analyze whether this project is complete after the finished test project." \
+  > "$TARGET/09b-closed-status-query-plan.json"
+
+python - "$TARGET/09b-closed-status-query-plan.json" <<'PY'
+from pathlib import Path
+import json
+import sys
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["current_state"] == "closed"
+assert payload["orchestrator_status"] == "idle"
+assert payload["actions"] == []
+PY
 
 python - "$STATE" <<'PY'
 from pathlib import Path
@@ -157,12 +242,43 @@ import sys
 import yaml
 
 state = yaml.safe_load(Path(sys.argv[1]).read_text(encoding="utf-8"))
-assert state["current_round"]["state"] == "passed"
 v2 = state["project"]["arcgentic_v2"]
-assert v2["next_role"] == "planner"
+assert v2["active_user_request"] == "我想做一个很小的命令行工具，用来计算几个人聚餐后的 AA 分账和最少转账方案。请用 Arcgentic 来完成。"
+assert v2["orchestrator_status"] == "idle"
+PY
+
+"${CLI[@]}" v2-session-plan \
+  --state "$STATE" \
+  --host codex \
+  --user-request "请给这个 CLI 增加 CSV 输出。" \
+  > "$TARGET/10-closed-new-request-plan.json"
+
+python - "$TARGET/10-closed-new-request-plan.json" <<'PY'
+from pathlib import Path
+import json
+import sys
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["current_state"] == "closed"
+assert payload["orchestrator_status"] == "active"
+assert [action["role"] for action in payload["actions"]] == ["planner"]
+assert "Current user request: 请给这个 CLI 增加 CSV 输出。" in payload["actions"][0]["prompt"]
+PY
+
+python - "$STATE" <<'PY'
+from pathlib import Path
+import sys
+import yaml
+
+state = yaml.safe_load(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert state["current_round"]["state"] == "closed"
+v2 = state["project"]["arcgentic_v2"]
 assert v2["orchestrator_status"] == "active"
 assert "pending_role" not in v2
 assert "pending_thread_id" not in v2
+assert v2["active_user_request"] == "请给这个 CLI 增加 CSV 输出。"
+assert v2["last_signal"]["role"] == "planner"
+assert v2["last_signal"]["state"] == "closed"
 sessions = v2["role_sessions"]
 assert set(sessions) == {"orchestrator", "planner", "developer", "auditor"}
 assert all(session["title"] in {"Orchestrator", "Planner", "Developer", "Auditor"} for session in sessions.values())

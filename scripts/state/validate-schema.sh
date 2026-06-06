@@ -7,6 +7,8 @@
 # Exit 0 if valid, 1 if invalid (with error printed to stderr).
 
 set -uo pipefail
+ARCGENTIC_ROOT="${ARCGENTIC_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
+source "$ARCGENTIC_ROOT/scripts/lib/python.sh"
 
 if [ $# -lt 1 ]; then
   echo "Usage: $0 STATE_FILE [--schema PATH]" >&2
@@ -14,7 +16,7 @@ if [ $# -lt 1 ]; then
 fi
 
 STATE_FILE="$1"; shift
-SCHEMA_FILE="${ARCGENTIC_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}/schema/state.schema.json"
+SCHEMA_FILE="$ARCGENTIC_ROOT/schema/state.schema.json"
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -32,7 +34,8 @@ if [ ! -f "$SCHEMA_FILE" ]; then
   exit 1
 fi
 
-python3 - "$STATE_FILE" "$SCHEMA_FILE" <<'PY'
+PYTHON_BIN="$(arcgentic_python yaml jsonschema)" || exit 1
+"$PYTHON_BIN" - "$STATE_FILE" "$SCHEMA_FILE" <<'PY'
 import sys, json, yaml
 from jsonschema import Draft202012Validator
 state_file, schema_file = sys.argv[1], sys.argv[2]

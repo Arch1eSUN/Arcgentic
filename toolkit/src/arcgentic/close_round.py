@@ -84,6 +84,7 @@ def close_round(*, state_path: Path, verdict_path: Path, audit_commit: str) -> C
         "verdict_doc": str(verdict_path),
         "closed_at": datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
     }
+    _clear_v2_pending_dispatch(state)
     _write_state(state_path, state)
     return CloseRoundResult(
         closed=True,
@@ -107,6 +108,22 @@ def _load_state(path: Path) -> dict[str, object]:
 
 def _write_state(path: Path, state: dict[str, object]) -> None:
     path.write_text(yaml.safe_dump(state, sort_keys=False, allow_unicode=True), encoding="utf-8")
+
+
+def _clear_v2_pending_dispatch(state: dict[str, object]) -> None:
+    project = state.get("project")
+    if not isinstance(project, dict):
+        return
+    v2 = project.get("arcgentic_v2")
+    if not isinstance(v2, dict):
+        return
+    v2["orchestrator_status"] = "active"
+    v2["round_status"] = "closed"
+    v2["project_status"] = "closed"
+    v2.pop("next_role", None)
+    v2.pop("pending_role", None)
+    v2.pop("pending_thread_id", None)
+    v2.pop("pending_since", None)
 
 
 def _repo_root(*, state: dict[str, object], state_path: Path) -> Path:

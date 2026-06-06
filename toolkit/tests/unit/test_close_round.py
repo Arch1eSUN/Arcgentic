@@ -16,6 +16,13 @@ def _write_state(path: Path, *, state: str, commit: str | None = "a" * 40) -> No
             "round_naming": "v1",
             "paths": {"plans_dir": "docs/plans", "audits_dir": "docs/audits"},
             "session_mode": {"mode": "multi-session", "decided_at_round": "R1"},
+            "arcgentic_v2": {
+                "orchestrator_status": "sleeping",
+                "pending_role": "auditor",
+                "pending_thread_id": "auditor-1",
+                "pending_since": "2026-06-03T00:00:00Z",
+                "next_role": "planner",
+            },
         },
         "current_round": {
             "id": "R-synthetic",
@@ -85,6 +92,13 @@ def test_close_round_closes_passed_round_and_records_last_passed(tmp_path: Path)
     assert data["current_round"]["state"] == "closed"
     assert data["last_passed_round"]["id"] == "R-synthetic"
     assert data["last_passed_round"]["commit"] == "b" * 40
+    v2 = data["project"]["arcgentic_v2"]
+    assert v2["orchestrator_status"] == "active"
+    assert v2["round_status"] == "closed"
+    assert "pending_role" not in v2
+    assert "pending_thread_id" not in v2
+    assert "pending_since" not in v2
+    assert "next_role" not in v2
 
 
 def test_close_round_refuses_verdict_when_strict_audit_check_fails(tmp_path: Path) -> None:

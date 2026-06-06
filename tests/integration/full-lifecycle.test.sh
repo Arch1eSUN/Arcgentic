@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # tests/integration/full-lifecycle.test.sh — end-to-end state machine.
-# Walks intake → planning → awaiting_dev_start → dev_in_progress → awaiting_audit
-# → audit_in_progress → passed → closed, with all gates satisfied.
+# Walks intake → planning → awaiting_dev_start → dev_in_progress → awaiting_test
+# → test_in_progress → awaiting_audit → audit_in_progress → passed → closed,
+# with all gates satisfied.
 
 source "$(dirname "$0")/../../scripts/test-helpers.sh"
 
@@ -42,7 +43,7 @@ it "awaiting_dev_start → dev_in_progress (no gate)"
 run bash "$TRANS" --state-file "$SF" --target "dev_in_progress" --by "lifecycle-test"
 assert_eq "$__LAST_EXIT" 0
 
-it "dev_in_progress → awaiting_audit (round-commit-chain-gate)"
+it "dev_in_progress → awaiting_test (round-commit-chain-gate)"
 # Create 4 commits in the project repo
 for i in 1 2 3 4; do
   ( cd "$TMPDIR" && echo "$i" > "f$i" && git add . && git commit -q -m "round-1 commit $i" )
@@ -51,6 +52,14 @@ COMMITS=$(cd "$TMPDIR" && git log --format=%H | head -4)
 JSON_LIST=$(printf '"%s",' $COMMITS | sed 's/,$//')
 yaml_set "$SF" "current_round.expected_dev_commits" "4"
 yaml_set "$SF" "current_round.dev_commits" "[$JSON_LIST]"
+run bash "$TRANS" --state-file "$SF" --target "awaiting_test" --by "lifecycle-test"
+assert_eq "$__LAST_EXIT" 0
+
+it "awaiting_test → test_in_progress (no gate)"
+run bash "$TRANS" --state-file "$SF" --target "test_in_progress" --by "lifecycle-test"
+assert_eq "$__LAST_EXIT" 0
+
+it "test_in_progress → awaiting_audit (no gate)"
 run bash "$TRANS" --state-file "$SF" --target "awaiting_audit" --by "lifecycle-test"
 assert_eq "$__LAST_EXIT" 0
 
@@ -68,9 +77,9 @@ it "passed → closed (no gate)"
 run bash "$TRANS" --state-file "$SF" --target "closed" --by "lifecycle-test"
 assert_eq "$__LAST_EXIT" 0
 
-it "state history records all 8 transitions"
+it "state history records all transitions"
 HIST=$(yaml_get "$SF" "current_round.state_history")
-for s in planning awaiting_dev_start dev_in_progress awaiting_audit audit_in_progress passed closed; do
+for s in planning awaiting_dev_start dev_in_progress awaiting_test test_in_progress awaiting_audit audit_in_progress passed closed; do
   assert_contains "$HIST" "$s"
 done
 

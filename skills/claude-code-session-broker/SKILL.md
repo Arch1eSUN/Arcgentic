@@ -21,11 +21,12 @@ Relevant host capabilities:
 
 ## Contract
 
-V2 still has exactly four role identities:
+V2 still has exactly five role identities:
 
 - `Orchestrator`
 - `Planner`
 - `Developer`
+- `Test`
 - `Auditor`
 
 Do not create round-numbered role identities. Store round identity in state and
@@ -35,16 +36,37 @@ prompt payloads.
 
 Use the strongest available transport:
 
-1. **Agent Teams** when enabled and stable in the local Claude Code install.
-2. **Background subagents + hooks** when Agent Teams are unavailable.
-3. **Explicit copy-back** when automation is unavailable: role session returns
+1. **Hook-backed broker** for Stop/SubagentStop footer capture.
+2. **Agent Teams** when enabled and stable in the local Claude Code install.
+3. **Background subagents + hooks** when Agent Teams are unavailable.
+4. **Explicit copy-back** when automation is unavailable: role session returns
    `RoleReturnSignal` and the orchestrator records it manually.
 
 All three transports must write the same state shape.
 
 ## Procedure
 
-1. Initialize or read V2 host state:
+1. Install project-local Claude Code hooks once:
+
+   ```bash
+   arcgentic claude-code-broker install-hooks \
+     --settings .claude/settings.local.json \
+     --state .agentic-rounds/state.yaml
+   ```
+
+   The installed Stop/SubagentStop hook calls:
+
+   ```bash
+   arcgentic claude-code-broker handle-stop \
+     --state .agentic-rounds/state.yaml
+   ```
+
+   The hook reads Claude Code's `last_assistant_message`, extracts the
+   `arcgentic-role-return` footer, runs the same V2 return validation, updates
+   `.agentic-rounds/state.yaml`, and writes a broker inbox record under
+   `.agentic-rounds/claude-code-broker/inbox/`.
+
+2. Initialize or read V2 host state:
 
    ```bash
    arcgentic v2-session-plan \
@@ -63,7 +85,7 @@ All three transports must write the same state shape.
    arcgentic v2-record-session \
      --state .agentic-rounds/state.yaml \
      --host claude-code-broker \
-     --role <planner|developer|auditor> \
+     --role <planner|developer|test|auditor> \
      --thread-id <broker-session-id>
    ```
 
@@ -78,7 +100,7 @@ All three transports must write the same state shape.
    arcgentic v2-dispatch-role \
      --state .agentic-rounds/state.yaml \
      --host claude-code-broker \
-     --role <planner|developer|auditor> \
+     --role <planner|developer|test|auditor> \
      --thread-id <broker-session-id>
    ```
 
@@ -102,6 +124,12 @@ When hooks are available, configure stop hooks to extract the role's final
 response and pass it back to the orchestrator as context. The hook must not
 invent a PASS/NEEDS_FIX outcome. It only transports the role's own
 `RoleReturnSignal`.
+
+The bundled hook runtime uses official Claude Code Stop/SubagentStop input
+fields, especially `last_assistant_message` and `stop_hook_active`. If the
+Orchestrator is sleeping and the role output lacks a valid footer, the hook
+blocks once with a corrective reason. If `stop_hook_active` is already true, it
+does not block again, preventing hook recursion.
 
 ## Fail-closed rules
 

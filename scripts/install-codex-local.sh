@@ -108,7 +108,11 @@ done
 
 VALIDATOR="$INSTALL_HOME/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py"
 if [ "$SKIP_VALIDATE" -eq 0 ] && [ -f "$VALIDATOR" ]; then
-  python3 "$VALIDATOR" "$PLUGIN_LINK"
+  PYTHON_BIN="${ARCGENTIC_PYTHON:-/opt/anaconda3/bin/python3}"
+  if [ ! -x "$PYTHON_BIN" ]; then
+    PYTHON_BIN="$(command -v python3)"
+  fi
+  "$PYTHON_BIN" "$VALIDATOR" "$PLUGIN_LINK"
 fi
 
 echo "arcgentic Codex local plugin installed"

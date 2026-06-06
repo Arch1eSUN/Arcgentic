@@ -21,6 +21,7 @@ done
 
 ARCGENTIC_ROOT="${ARCGENTIC_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
 source "$ARCGENTIC_ROOT/scripts/lib/yaml.sh"
+source "$ARCGENTIC_ROOT/scripts/lib/python.sh"
 
 PROJECT_ROOT=$(yaml_get "$STATE_FILE" "project.root")
 VERDICT_JSON=$(yaml_get "$STATE_FILE" "current_round.audit_verdict")
@@ -30,7 +31,8 @@ if [ -z "$VERDICT_JSON" ] || [ "$VERDICT_JSON" = "null" ]; then
   exit 1
 fi
 
-python3 - "$VERDICT_JSON" "$PROJECT_ROOT" <<'PY'
+PYTHON_BIN="$(arcgentic_python)" || exit 1
+"$PYTHON_BIN" - "$VERDICT_JSON" "$PROJECT_ROOT" <<'PY'
 import sys, json
 verdict = json.loads(sys.argv[1])
 project_root = sys.argv[2]

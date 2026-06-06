@@ -20,6 +20,7 @@ from arcgentic.audit_check import (
     check_ac1_clause_b,
     check_ac1_clause_c,
     check_ac3,
+    check_ac4_lifecycle_stability,
     execute_fact,
     main,
     parse_facts,
@@ -434,6 +435,73 @@ def test_check_ac3_exact_text_no_violation() -> None:
     assert violations == []
 
 
+# ── check_ac4_lifecycle_stability ──────────────────────────────────────
+
+
+def test_check_ac4_flags_live_current_round_state_fact() -> None:
+    fact = _make_fact(
+        command=(
+            "bash -lc 'python3 -c \"import yaml; "
+            "s=yaml.safe_load(open(\\\".agentic-rounds/state.yaml\\\")); "
+            "print(s[\\\"current_round\\\"][\\\"state\\\"])\"'"
+        ),
+        expected="awaiting_audit",
+    )
+
+    violations = check_ac4_lifecycle_stability([fact])
+
+    assert len(violations) == 1
+    assert "AC-4" in violations[0]
+    assert "mutable live routing state" in violations[0]
+
+
+def test_check_ac4_flags_live_last_signal_fact() -> None:
+    fact = _make_fact(
+        command=(
+            "bash -lc 'python3 -c \"import yaml; "
+            "s=yaml.safe_load(open(\\\".agentic-rounds/state.yaml\\\")); "
+            "print(s[\\\"project\\\"][\\\"arcgentic_v2\\\"]"
+            "[\\\"last_signal\\\"][\\\"role\\\"])\"'"
+        ),
+        expected="test",
+    )
+
+    violations = check_ac4_lifecycle_stability([fact])
+
+    assert len(violations) == 1
+    assert "AC-4" in violations[0]
+
+
+def test_check_ac4_allows_state_history_fact() -> None:
+    fact = _make_fact(
+        command=(
+            "bash -lc 'python3 -c \"import yaml; "
+            "s=yaml.safe_load(open(\\\".agentic-rounds/state.yaml\\\")); "
+            "print(\\\"awaiting_audit\\\" in [x[\\\"state\\\"] for x in "
+            "s[\\\"current_round\\\"][\\\"state_history\\\"]])\"'"
+        ),
+        expected="True",
+    )
+
+    violations = check_ac4_lifecycle_stability([fact])
+
+    assert violations == []
+
+
+def test_check_ac4_allows_committed_state_snapshot_fact() -> None:
+    fact = _make_fact(
+        command=(
+            "git show 0123456789012345678901234567890123456789:"
+            ".agentic-rounds/state.yaml"
+        ),
+        expected="state snapshot",
+    )
+
+    violations = check_ac4_lifecycle_stability([fact])
+
+    assert violations == []
+
+
 # ── run() ──────────────────────────────────────────────────────────────
 
 
@@ -538,6 +606,31 @@ def test_run_strict_extended_ac3_violation_exit_1(tmp_path: Path) -> None:
         result = run(audit_path=audit_path, strict_extended=True)
     assert result.exit_code == 1
     assert len(result.ac3_violations) > 0
+
+
+def test_run_strict_extended_ac4_violation_exit_1(tmp_path: Path) -> None:
+    audit_path = tmp_path / "audit.md"
+    audit_path.write_text(
+        textwrap.dedent("""\
+        # Audit
+
+        ## § 7. Mechanical audit facts
+
+        | # | Command | Expected | Comment |
+        |---|---|---|---|
+        | 1 | `bash -lc 'python3 -c "import yaml; s=yaml.safe_load(open(\\".agentic-rounds/state.yaml\\")); print(s[\\"project\\"][\\"arcgentic_v2\\"][\\"last_signal\\"][\\"role\\"])"'` | `test` | transient last signal |
+
+        ## § 8. Verdict
+
+        1/1 PASS.
+        """),
+        encoding="utf-8",
+    )
+    with patch("arcgentic.audit_check.execute_fact") as mock_ef:
+        mock_ef.return_value = FactResult(fact=_make_fact(), status="PASS", actual="test")
+        result = run(audit_path=audit_path, strict_extended=True)
+    assert result.exit_code == 1
+    assert len(result.ac4_violations) == 1
 
 
 def test_run_default_mode_fail_still_exit_0(tmp_path: Path) -> None:

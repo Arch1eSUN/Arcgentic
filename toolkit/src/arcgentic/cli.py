@@ -26,6 +26,8 @@ Subcommands wired in this module:
 - `arcgentic v2-return-signal --state <state.yaml> --signal-json <json>`
   or `--signal-text <natural-language-return-with-footer>`
   → wakes the Orchestrator, records a role return signal, and prints next routing JSON
+- `arcgentic claude-code-broker install-hooks|handle-stop`
+  → installs and runs the Claude Code hook-backed V2 broker transport
 
 CLI is the bridge between markdown skills (which shell out via Claude Code's
 Bash tool) and the Python toolkit (which holds the actual algorithms).
@@ -344,11 +346,16 @@ def main(argv: list[str] | None = None) -> int:
     v2_record_parser.add_argument("--state", required=True)
     v2_record_parser.add_argument(
         "--role",
-        choices=["orchestrator", "planner", "developer", "auditor"],
+        choices=["orchestrator", "planner", "developer", "test", "auditor"],
         required=True,
     )
     v2_record_parser.add_argument("--thread-id", required=True)
     v2_record_parser.add_argument("--title", default=None)
+    v2_record_parser.add_argument(
+        "--repair-current-orchestrator",
+        action="store_true",
+        help="Repair only the current Orchestrator push-return target.",
+    )
     v2_record_parser.add_argument(
         "--host",
         choices=["codex", "claude-code-broker"],
@@ -362,7 +369,7 @@ def main(argv: list[str] | None = None) -> int:
     v2_dispatch_parser.add_argument("--state", required=True)
     v2_dispatch_parser.add_argument(
         "--role",
-        choices=["planner", "developer", "auditor"],
+        choices=["planner", "developer", "test", "auditor"],
         required=True,
     )
     v2_dispatch_parser.add_argument("--thread-id", required=True)
@@ -379,6 +386,12 @@ def main(argv: list[str] | None = None) -> int:
     v2_signal_parser.add_argument("--state", required=True)
     v2_signal_parser.add_argument("--signal-json", default=None)
     v2_signal_parser.add_argument("--signal-text", default=None)
+
+    claude_broker_parser = subparsers.add_parser(
+        "claude-code-broker",
+        help="Install or run the Claude Code hook-backed V2 broker.",
+    )
+    claude_broker_parser.add_argument("broker_args", nargs=argparse.REMAINDER)
 
     args = parser.parse_args(argv)
 
@@ -696,19 +709,43 @@ def main(argv: list[str] | None = None) -> int:
 
         from .v2_session_orchestration import (
             V2SessionOrchestrationError,
+            advance_passed_round_from_project_plan,
             build_role_session_plan,
             ensure_initial_round_id,
             load_state_file,
+            remember_active_user_request,
             write_state_file,
         )
 
         try:
             state_path = _Path(args.state)
             raw_state = ensure_initial_round_id(load_state_file(state_path))
-            write_state_file(state_path, raw_state)
+            raw_state = advance_passed_round_from_project_plan(raw_state)
             session_plan = build_role_session_plan(
                 raw_state, host=args.host, user_request=args.user_request
             )
+            current_round = raw_state.get("current_round")
+            current_state = (
+                str(current_round.get("state") or "")
+                if isinstance(current_round, dict)
+                else ""
+            )
+            if args.user_request.strip() and (
+                current_state != "closed" or session_plan.actions
+            ):
+                raw_state = remember_active_user_request(
+                    raw_state, args.user_request, host=args.host
+                )
+                if current_state == "closed" and session_plan.actions:
+                    project = raw_state.get("project")
+                    v2 = (
+                        project.get("arcgentic_v2")
+                        if isinstance(project, dict)
+                        else None
+                    )
+                    if isinstance(v2, dict):
+                        v2["orchestrator_status"] = "active"
+            write_state_file(state_path, raw_state)
         except V2SessionOrchestrationError as exc:
             print(f"v2-session-plan failed: {exc}")
             return 1
@@ -732,6 +769,7 @@ def main(argv: list[str] | None = None) -> int:
                 thread_id=args.thread_id,
                 title=args.title,
                 host=args.host,
+                repair_current_orchestrator=args.repair_current_orchestrator,
             )
         except ValueError as exc:
             print(f"v2-record-session failed: {exc}")
@@ -798,7 +836,43 @@ def main(argv: list[str] | None = None) -> int:
                 if args.signal_json
                 else RoleReturnSignal.from_text(args.signal_text)
             )
-            updated_state = apply_role_return_signal(load_state_file(state_path), signal)
+            raw_state = load_state_file(state_path)
+            if (
+                signal.role == "auditor"
+                and signal.state == "passed"
+                and signal.status.upper() == "PASS"
+            ):
+                from .audit_check import run as audit_check_run
+
+                verdict_raw = signal.artifacts.get("verdict")
+                if not isinstance(verdict_raw, str) or not verdict_raw.strip():
+                    raise V2SessionOrchestrationError(
+                        "auditor PASS return must include artifacts.verdict"
+                    )
+                project = raw_state.get("project")
+                project_root_raw = (
+                    project.get("root") if isinstance(project, dict) else None
+                )
+                project_root = (
+                    _Path(str(project_root_raw))
+                    if project_root_raw
+                    else state_path.parent.parent
+                )
+                verdict_path = _Path(verdict_raw)
+                if not verdict_path.is_absolute():
+                    verdict_path = project_root / verdict_path
+                audit_check = audit_check_run(
+                    verdict_path,
+                    strict=True,
+                    strict_extended=True,
+                    repo_root=project_root,
+                )
+                if audit_check.exit_code != 0:
+                    raise V2SessionOrchestrationError(
+                        "auditor PASS strict audit-check failed: "
+                        f"{audit_check.summary_text}"
+                    )
+            updated_state = apply_role_return_signal(raw_state, signal)
         except (json.JSONDecodeError, V2SessionOrchestrationError) as exc:
             print(f"v2-return-signal failed: {exc}")
             return 1
@@ -808,6 +882,11 @@ def main(argv: list[str] | None = None) -> int:
         next_role = v2.get("next_role") if isinstance(v2, dict) else None
         print(json.dumps({"recorded": True, "next_role": next_role}, indent=2, sort_keys=True))
         return 0
+
+    elif args.command == "claude-code-broker":
+        from .claude_code_broker import main as broker_main
+
+        return broker_main(args.broker_args)
 
     parser.print_help()
     return 1
