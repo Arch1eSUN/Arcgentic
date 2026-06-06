@@ -34,6 +34,8 @@
     "track-refs",
     "codify-lesson",
     "cross-session-handoff",
+    "codex-thread-orchestration",
+    "claude-code-session-broker",
     "verify-gates"
   ],
   "agents": [
@@ -50,5 +52,5 @@
   "scripts_dir": "scripts/",
   "schemas_dir": "schema/",
   "hooks_dir": "hooks/",
-  "status": "v1.0.0 — stable release. V1 source-intake, capability-registry, spec-governance, project-level session-mode, agency-roster, orchestrator dispatch, verdict-completeness, close-round, and v1-release-readiness seams passed live dogfood rounds R1-R3 with external audit."
+  "status": "v1.0.0 stable plus V2 fixed-role orchestration on main. V2 adds Codex thread host planning, Claude Code broker host planning, durable role-session state, RoleReturnSignal routing, and schema-backed .agentic-rounds/state.yaml persistence."
 }

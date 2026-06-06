@@ -53,6 +53,26 @@
             "decided_by": { "type": "string" },
             "decided_at": { "type": "string", "format": "date-time" }
           }
+        },
+        "arcgentic_v2": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "host": { "type": "string", "enum": ["codex", "claude-code-broker"] },
+            "mode": { "type": "string", "enum": ["single-session-subagent", "multi-session-subthread"] },
+            "next_role": { "type": "string", "enum": ["orchestrator", "planner", "developer", "auditor"] },
+            "role_sessions": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "orchestrator": { "$ref": "#/$defs/v2_role_session" },
+                "planner": { "$ref": "#/$defs/v2_role_session" },
+                "developer": { "$ref": "#/$defs/v2_role_session" },
+                "auditor": { "$ref": "#/$defs/v2_role_session" }
+              }
+            },
+            "last_signal": { "$ref": "#/$defs/v2_role_return_signal" }
+          }
         }
       }
     },
@@ -206,6 +226,36 @@
         "p1": { "type": "integer", "minimum": 0 },
         "p2": { "type": "integer", "minimum": 0 },
         "p3": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+  "$defs": {
+    "v2_role_session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "title", "thread_id", "host", "updated_at"],
+      "properties": {
+        "role": { "type": "string", "enum": ["orchestrator", "planner", "developer", "auditor"] },
+        "title": { "type": "string", "enum": ["Orchestrator", "Planner", "Developer", "Auditor"] },
+        "thread_id": { "type": "string", "minLength": 1 },
+        "host": { "type": "string", "enum": ["codex", "claude-code-broker"] },
+        "updated_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "v2_role_return_signal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "status", "round_id", "state", "artifacts", "next_recommended_role"],
+      "properties": {
+        "role": { "type": "string", "enum": ["orchestrator", "planner", "developer", "auditor"] },
+        "status": { "type": "string", "minLength": 1 },
+        "round_id": { "type": "string" },
+        "state": { "type": "string", "minLength": 1 },
+        "artifacts": { "type": "object" },
+        "next_recommended_role": {
+          "type": ["string", "null"],
+          "enum": ["orchestrator", "planner", "developer", "auditor", null]
+        }
       }
     }
   }

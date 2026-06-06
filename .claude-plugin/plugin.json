@@ -1,6 +1,6 @@
 {
   "name": "arcgentic",
-  "description": "Agentic harness for rigorous round-driven development with external audit and closeout gates.",
+  "description": "Agentic harness for rigorous round-driven development with external audit, closeout gates, and V2 fixed-role session orchestration.",
   "version": "1.0.0",
   "author": {
     "name": "Arc Studio"

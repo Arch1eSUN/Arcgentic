@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Final, Literal, cast
 
+import yaml  # type: ignore[import-untyped]
+
 Role = Literal["orchestrator", "planner", "developer", "auditor"]
-HostKind = Literal["codex"]
+HostKind = Literal["codex", "claude-code-broker"]
 V2Mode = Literal["single-session-subagent", "multi-session-subthread"]
 RoleActionKind = Literal["create", "reuse"]
 
@@ -23,6 +28,18 @@ ROLE_ORDER: tuple[Role, ...] = ("orchestrator", "planner", "developer", "auditor
 
 class V2SessionOrchestrationError(ValueError):
     """Raised when V2 session orchestration input is malformed."""
+
+
+@dataclass(frozen=True)
+class RoleSession:
+    role: Role
+    title: str
+    thread_id: str
+    host: HostKind
+    updated_at: str
+
+    def to_dict(self) -> dict[str, str]:
+        return asdict(self)
 
 
 @dataclass(frozen=True)
@@ -104,6 +121,18 @@ def fixed_role_title(role: Role) -> str:
     return FIXED_ROLE_TITLES[role]
 
 
+def load_state_file(path: Path) -> dict[str, object]:
+    raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    if not isinstance(raw, dict):
+        raise V2SessionOrchestrationError(f"state file must be a YAML object: {path}")
+    return dict(raw)
+
+
+def write_state_file(path: Path, state: dict[str, object]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(yaml.safe_dump(state, sort_keys=False, allow_unicode=True), encoding="utf-8")
+
+
 def _project_v2_block(state: dict[str, object]) -> dict[str, object]:
     project = state.get("project")
     if not isinstance(project, dict):
@@ -135,6 +164,23 @@ def _role_sessions(v2: dict[str, object]) -> dict[str, object]:
     return raw
 
 
+def _ensure_project_v2_block(state: dict[str, object], host: HostKind) -> dict[str, object]:
+    project = state.setdefault("project", {})
+    if not isinstance(project, dict):
+        raise V2SessionOrchestrationError("project must be an object")
+    v2 = project.setdefault("arcgentic_v2", {})
+    if not isinstance(v2, dict):
+        raise V2SessionOrchestrationError("project.arcgentic_v2 must be an object")
+    v2.setdefault("host", host)
+    v2.setdefault("mode", "multi-session-subthread")
+    v2.setdefault("role_sessions", {})
+    return v2
+
+
+def _utc_now() -> str:
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
 def next_role_for_state(state_name: str) -> Role:
     state = state_name.strip()
     if state in {"intake", "planning", "passed", "closed"}:
@@ -144,6 +190,49 @@ def next_role_for_state(state_name: str) -> Role:
     if state in {"awaiting_audit", "audit_in_progress"}:
         return "auditor"
     raise V2SessionOrchestrationError(f"unsupported round state for V2 routing: {state_name}")
+
+
+def record_role_session(
+    state: dict[str, object],
+    role: Role,
+    *,
+    thread_id: str,
+    title: str | None = None,
+    host: HostKind = "codex",
+) -> dict[str, object]:
+    if not thread_id:
+        raise V2SessionOrchestrationError("thread_id is required")
+    fixed_title = fixed_role_title(role)
+    if title is not None and title != fixed_title:
+        raise V2SessionOrchestrationError(
+            f"role {role} must use fixed title {fixed_title!r}, got {title!r}"
+        )
+
+    updated = deepcopy(state)
+    v2 = _ensure_project_v2_block(updated, host)
+    role_sessions = v2["role_sessions"]
+    if not isinstance(role_sessions, dict):
+        raise V2SessionOrchestrationError("project.arcgentic_v2.role_sessions must be an object")
+    role_sessions[role] = RoleSession(
+        role=role,
+        title=fixed_title,
+        thread_id=thread_id,
+        host=host,
+        updated_at=_utc_now(),
+    ).to_dict()
+    return updated
+
+
+def apply_role_return_signal(
+    state: dict[str, object],
+    signal: RoleReturnSignal,
+) -> dict[str, object]:
+    updated = deepcopy(state)
+    v2 = _ensure_project_v2_block(updated, "codex")
+    v2["last_signal"] = signal.to_dict()
+    next_role = signal.next_recommended_role or next_role_for_state(signal.state)
+    v2["next_role"] = next_role
+    return updated
 
 
 def role_prompt(role: Role, state: dict[str, object]) -> str:
@@ -163,11 +252,13 @@ def role_prompt(role: Role, state: dict[str, object]) -> str:
     )
 
 
-def build_codex_role_session_plan(state: dict[str, object]) -> SessionPlan:
+def build_role_session_plan(state: dict[str, object], *, host: HostKind = "codex") -> SessionPlan:
     v2 = _project_v2_block(state)
-    host = str(v2.get("host") or "codex")
-    if host != "codex":
-        raise V2SessionOrchestrationError(f"unsupported V2 host for Codex plan: {host}")
+    state_host = str(v2.get("host") or host)
+    if state_host != host:
+        raise V2SessionOrchestrationError(
+            f"state host {state_host!r} does not match requested host {host!r}"
+        )
     mode = str(v2.get("mode") or "multi-session-subthread")
     if mode not in {"single-session-subagent", "multi-session-subthread"}:
         raise V2SessionOrchestrationError(f"unsupported V2 mode: {mode}")
@@ -199,10 +290,14 @@ def build_codex_role_session_plan(state: dict[str, object]) -> SessionPlan:
                 )
             )
     return SessionPlan(
-        host="codex",
+        host=host,
         mode=typed_mode,
         current_round=round_id,
         current_state=current_state,
         next_role=next_role_for_state(current_state),
         actions=tuple(actions),
     )
+
+
+def build_codex_role_session_plan(state: dict[str, object]) -> SessionPlan:
+    return build_role_session_plan(state, host="codex")

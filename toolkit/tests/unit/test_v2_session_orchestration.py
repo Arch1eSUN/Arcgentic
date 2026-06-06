@@ -3,8 +3,10 @@ from __future__ import annotations
 from arcgentic.v2_session_orchestration import (
     FIXED_ROLE_TITLES,
     RoleReturnSignal,
+    apply_role_return_signal,
     build_codex_role_session_plan,
     next_role_for_state,
+    record_role_session,
     role_prompt,
 )
 
@@ -82,3 +84,57 @@ def test_role_prompt_mentions_fixed_role_and_current_round() -> None:
     assert "You are Auditor." in prompt
     assert "Current round: R3" in prompt
     assert "Return a RoleReturnSignal JSON object" in prompt
+
+
+def test_record_role_session_persists_fixed_title_and_thread_id() -> None:
+    state: dict[str, object] = {"project": {"name": "demo"}}
+
+    updated = record_role_session(state, "developer", thread_id="thread-dev-1")
+
+    project = updated["project"]
+    assert isinstance(project, dict)
+    v2 = project["arcgentic_v2"]
+    assert isinstance(v2, dict)
+    sessions = v2["role_sessions"]
+    assert isinstance(sessions, dict)
+    developer = sessions["developer"]
+    assert isinstance(developer, dict)
+    assert developer["thread_id"] == "thread-dev-1"
+    assert developer["title"] == "Developer"
+    assert developer["host"] == "codex"
+    assert isinstance(developer["updated_at"], str)
+
+
+def test_record_role_session_rejects_non_fixed_title() -> None:
+    state: dict[str, object] = {"project": {}}
+
+    try:
+        record_role_session(state, "auditor", thread_id="audit-1", title="R2 Auditor")
+    except ValueError as exc:
+        assert "fixed title" in str(exc)
+    else:
+        raise AssertionError("expected non-fixed title to be rejected")
+
+
+def test_apply_role_return_signal_stores_signal_and_next_role() -> None:
+    state: dict[str, object] = {
+        "project": {},
+        "current_round": {"id": "R4", "state": "awaiting_audit"},
+    }
+    signal = RoleReturnSignal(
+        role="auditor",
+        status="NEEDS_FIX",
+        round_id="R4",
+        state="needs_fix",
+        artifacts={"verdict": "docs/audits/R4.md"},
+        next_recommended_role="developer",
+    )
+
+    updated = apply_role_return_signal(state, signal)
+
+    project = updated["project"]
+    assert isinstance(project, dict)
+    v2 = project["arcgentic_v2"]
+    assert isinstance(v2, dict)
+    assert v2["last_signal"] == signal.to_dict()
+    assert v2["next_role"] == "developer"

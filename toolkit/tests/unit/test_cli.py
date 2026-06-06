@@ -640,3 +640,81 @@ def test_v2_session_plan_rejects_unsupported_host(tmp_path: Path) -> None:
         main(["v2-session-plan", "--state", str(state), "--host", "claude-code"])
 
     assert exc_info.value.code == 2
+
+
+def test_v2_record_session_persists_thread_id(tmp_path: Path) -> None:
+    state = tmp_path / "state.yaml"
+    state.write_text(
+        "project:\n  name: demo\ncurrent_round:\n  id: R1\n  state: planning\n",
+        encoding="utf-8",
+    )
+
+    exit_code = main(
+        [
+            "v2-record-session",
+            "--state",
+            str(state),
+            "--role",
+            "developer",
+            "--thread-id",
+            "thread-dev-1",
+        ]
+    )
+
+    assert exit_code == 0
+    saved = state.read_text(encoding="utf-8")
+    assert "thread_id: thread-dev-1" in saved
+    assert "title: Developer" in saved
+
+
+def test_v2_return_signal_records_signal_and_prints_next_role(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    state = tmp_path / "state.yaml"
+    state.write_text(
+        "project:\n  name: demo\ncurrent_round:\n  id: R1\n  state: awaiting_audit\n",
+        encoding="utf-8",
+    )
+    signal = {
+        "role": "auditor",
+        "status": "NEEDS_FIX",
+        "round_id": "R1",
+        "state": "needs_fix",
+        "artifacts": {"verdict": "docs/audits/R1.md"},
+        "next_recommended_role": "developer",
+    }
+
+    exit_code = main(
+        [
+            "v2-return-signal",
+            "--state",
+            str(state),
+            "--signal-json",
+            json.dumps(signal),
+        ]
+    )
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["next_role"] == "developer"
+    saved = state.read_text(encoding="utf-8")
+    assert "last_signal:" in saved
+    assert "next_role: developer" in saved
+
+
+def test_v2_session_plan_supports_claude_code_broker_host(tmp_path: Path) -> None:
+    state = tmp_path / "state.yaml"
+    state.write_text(
+        """
+project:
+  arcgentic_v2:
+    host: claude-code-broker
+current_round:
+  id: R1
+  state: planning
+""",
+        encoding="utf-8",
+    )
+
+    assert main(["v2-session-plan", "--state", str(state), "--host", "claude-code-broker"]) == 0

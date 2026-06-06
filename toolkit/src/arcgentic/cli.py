@@ -19,6 +19,10 @@ Subcommands wired in this module:
   → manages .arcgentic/state.yaml with TTL locks and atomic writes
 - `arcgentic v2-session-plan --state <state.yaml> --host codex`
   → emits fixed-role Codex session orchestration JSON
+- `arcgentic v2-record-session --state <state.yaml> --role developer --thread-id <id>`
+  → records a fixed-role host session in state.yaml
+- `arcgentic v2-return-signal --state <state.yaml> --signal-json <json>`
+  → records a role return signal and prints next routing JSON
 
 CLI is the bridge between markdown skills (which shell out via Claude Code's
 Bash tool) and the Python toolkit (which holds the actual algorithms).
@@ -327,7 +331,32 @@ def main(argv: list[str] | None = None) -> int:
         help="Emit a V2 fixed-role session plan for a host platform.",
     )
     v2_session_parser.add_argument("--state", required=True)
-    v2_session_parser.add_argument("--host", choices=["codex"], required=True)
+    v2_session_parser.add_argument("--host", choices=["codex", "claude-code-broker"], required=True)
+
+    v2_record_parser = subparsers.add_parser(
+        "v2-record-session",
+        help="Record a V2 fixed-role host session in state.yaml.",
+    )
+    v2_record_parser.add_argument("--state", required=True)
+    v2_record_parser.add_argument(
+        "--role",
+        choices=["orchestrator", "planner", "developer", "auditor"],
+        required=True,
+    )
+    v2_record_parser.add_argument("--thread-id", required=True)
+    v2_record_parser.add_argument("--title", default=None)
+    v2_record_parser.add_argument(
+        "--host",
+        choices=["codex", "claude-code-broker"],
+        default="codex",
+    )
+
+    v2_signal_parser = subparsers.add_parser(
+        "v2-return-signal",
+        help="Record a V2 role return signal and print next routing.",
+    )
+    v2_signal_parser.add_argument("--state", required=True)
+    v2_signal_parser.add_argument("--signal-json", required=True)
 
     args = parser.parse_args(argv)
 
@@ -643,18 +672,53 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "v2-session-plan":
         from pathlib import Path as _Path
 
-        import yaml as _yaml
+        from .v2_session_orchestration import build_role_session_plan, load_state_file
 
-        from .v2_session_orchestration import build_codex_role_session_plan
+        raw_state = load_state_file(_Path(args.state))
+        session_plan = build_role_session_plan(raw_state, host=args.host)
+        print(json.dumps(session_plan.to_dict(), indent=2, sort_keys=True))
+        return 0
 
-        raw_state = _yaml.safe_load(_Path(args.state).read_text(encoding="utf-8")) or {}
-        if not isinstance(raw_state, dict):
-            print("v2-session-plan failed: state must be a YAML object")
-            return 1
-        if args.host == "codex":
-            session_plan = build_codex_role_session_plan(raw_state)
-            print(json.dumps(session_plan.to_dict(), indent=2, sort_keys=True))
-            return 0
+    elif args.command == "v2-record-session":
+        from pathlib import Path as _Path
+
+        from .v2_session_orchestration import (
+            load_state_file,
+            record_role_session,
+            write_state_file,
+        )
+
+        state_path = _Path(args.state)
+        updated_state = record_role_session(
+            load_state_file(state_path),
+            args.role,
+            thread_id=args.thread_id,
+            title=args.title,
+            host=args.host,
+        )
+        write_state_file(state_path, updated_state)
+        print(json.dumps({"recorded": True, "role": args.role, "thread_id": args.thread_id}))
+        return 0
+
+    elif args.command == "v2-return-signal":
+        from pathlib import Path as _Path
+
+        from .v2_session_orchestration import (
+            RoleReturnSignal,
+            apply_role_return_signal,
+            load_state_file,
+            write_state_file,
+        )
+
+        state_path = _Path(args.state)
+        signal = RoleReturnSignal.from_json(args.signal_json)
+        updated_state = apply_role_return_signal(load_state_file(state_path), signal)
+        write_state_file(state_path, updated_state)
+        project = updated_state.get("project")
+        v2 = project.get("arcgentic_v2") if isinstance(project, dict) else {}
+        next_role = v2.get("next_role") if isinstance(v2, dict) else None
+        print(json.dumps({"recorded": True, "next_role": next_role}, indent=2, sort_keys=True))
+        return 0
 
     parser.print_help()
     return 1

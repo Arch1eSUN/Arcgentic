@@ -270,10 +270,12 @@ arcgentic close-round --state-file .agentic-rounds/state.yaml --verdict docs/aud
 arcgentic v1-release-readiness --repo-root .
 ```
 
-V2 Codex session-orchestration preview:
+V2 session-orchestration commands:
 
 ```bash
 arcgentic v2-session-plan --state .agentic-rounds/state.yaml --host codex
+arcgentic v2-record-session --state .agentic-rounds/state.yaml --host codex --role developer --thread-id <id>
+arcgentic v2-return-signal --state .agentic-rounds/state.yaml --signal-json '<RoleReturnSignal JSON>'
 ```
 
 This emits a machine-readable plan for fixed Codex role threads:
@@ -284,7 +286,14 @@ prompt.
 
 V2 keeps `close-round` as an orchestrator-owned mechanical command after an
 anchored PASS. It is not a fifth session role. Claude Code parity is planned as
-a broker-backed adapter over the same V2 core contract.
+a broker-backed adapter over the same V2 core contract:
+
+```bash
+arcgentic v2-session-plan --state .agentic-rounds/state.yaml --host claude-code-broker
+```
+
+Use `arcgentic:codex-thread-orchestration` in Codex and
+`arcgentic:claude-code-session-broker` in Claude Code.
 
 ---
 
@@ -492,7 +501,7 @@ This is non-negotiable, derived from the original Moirai project's `§ 4 cost-di
 
 ## Status & roadmap
 
-### Current — `v1.0.0`
+### Current — `v1.0.0` + V2 fixed-role orchestration
 
 - ✅ Plugin scaffold + JSON Schema (`schema/state.schema.json`)
 - ✅ Foundation: 4 state scripts + 3 gate scripts + lib helpers + tests (9 test files / 48 bash assertions, 100% passing per TDD discipline) — from v0.1.0
@@ -521,6 +530,10 @@ This is non-negotiable, derived from the original Moirai project's `§ 4 cost-di
 - ✅ V1 dogfood R1: source-intake / capability-registry / spec-governance / agency-roster round closed PASS
 - ✅ V1 dogfood R2: project-level session mode / dispatch / close-round release-hardening round closed PASS
 - ✅ V1 dogfood R3: prepublish self-audit stability + codify-lesson precision fix round closed PASS
+- ✅ V2 fixed-role orchestration: Codex thread host plan, Claude Code broker host
+  plan, durable role-session state, `RoleReturnSignal` routing, and
+  schema-backed `.agentic-rounds/state.yaml` persistence
+- ✅ V2 dogfood: `tests/dogfood/v2-complete/RESULT.md`
 
 ### Next — `v1.0.x` / `v1.1.0`
 
@@ -528,6 +541,8 @@ This is non-negotiable, derived from the original Moirai project's `§ 4 cost-di
 - Rich execute-round fact generation from commit chain and changed files
 - ER-RETRY: retry-with-context loops for sub-agent dispatches
 - GitHub reference discovery/search feeding `track-refs`
+- V2 release packaging after one live Codex host-thread run and one live Claude
+  Code broker-backed run
 
 ### `v1.0.0` stable
 

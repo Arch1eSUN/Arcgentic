@@ -33,6 +33,8 @@
       "Spec governance",
       "Project session mode",
       "Verdict completeness",
+      "V2 Codex thread orchestration",
+      "Claude Code broker guidance",
       "PASS-only close-round"
     ],
     "defaultPrompt": "Use arcgentic to plan, execute, audit, or hand off a development round."
