@@ -8,6 +8,7 @@ Usage: install-codex-local.sh [--plugin-root PATH] [--home PATH] [--skip-validat
 Install Arcgentic as a local Codex plugin source:
 - creates ~/plugins/arcgentic as a symlink to the repo
 - writes ~/plugins/.agents/plugins/marketplace.json
+- copies Arcgentic skills under ~/.codex/skills
 - validates the Codex plugin manifest when the validator is available
 EOF
 }
@@ -46,13 +47,14 @@ PLUGIN_ROOT="$(cd "$PLUGIN_ROOT" && pwd)"
 PLUGIN_LINK="$INSTALL_HOME/plugins/arcgentic"
 MARKETPLACE_DIR="$INSTALL_HOME/plugins/.agents/plugins"
 MARKETPLACE_FILE="$MARKETPLACE_DIR/marketplace.json"
+CODEX_SKILLS_DIR="$INSTALL_HOME/.codex/skills"
 
 if [ ! -f "$PLUGIN_ROOT/.codex-plugin/plugin.json" ]; then
   echo "Codex plugin manifest missing: $PLUGIN_ROOT/.codex-plugin/plugin.json" >&2
   exit 1
 fi
 
-mkdir -p "$INSTALL_HOME/plugins" "$MARKETPLACE_DIR"
+mkdir -p "$INSTALL_HOME/plugins" "$MARKETPLACE_DIR" "$CODEX_SKILLS_DIR"
 
 if [ -L "$PLUGIN_LINK" ]; then
   CURRENT_TARGET="$(readlink "$PLUGIN_LINK")"
@@ -90,6 +92,20 @@ cat > "$MARKETPLACE_FILE" <<'JSON'
 }
 JSON
 
+for skill_dir in "$PLUGIN_ROOT"/skills/*; do
+  [ -d "$skill_dir" ] || continue
+  [ -f "$skill_dir/SKILL.md" ] || continue
+  skill_name="$(basename "$skill_dir")"
+  if [ "$skill_name" = "arcgentic" ]; then
+    skill_link="$CODEX_SKILLS_DIR/arcgentic"
+  else
+    skill_link="$CODEX_SKILLS_DIR/arcgentic-$skill_name"
+  fi
+  rm -rf "$skill_link"
+  mkdir -p "$skill_link"
+  cp -R "$skill_dir"/. "$skill_link"/
+done
+
 VALIDATOR="$INSTALL_HOME/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py"
 if [ "$SKIP_VALIDATE" -eq 0 ] && [ -f "$VALIDATOR" ]; then
   python3 "$VALIDATOR" "$PLUGIN_LINK"
@@ -98,3 +114,4 @@ fi
 echo "arcgentic Codex local plugin installed"
 echo "plugin_link=$PLUGIN_LINK"
 echo "marketplace=$MARKETPLACE_FILE"
+echo "skills_dir=$CODEX_SKILLS_DIR"

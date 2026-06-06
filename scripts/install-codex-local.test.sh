@@ -17,6 +17,16 @@ else
 fi
 assert_file_exists "$TMPDIR/plugins/.agents/plugins/marketplace.json"
 assert_contains "$(cat "$TMPDIR/plugins/.agents/plugins/marketplace.json")" '"path": "./arcgentic"'
+if [ -f "$TMPDIR/.codex/skills/arcgentic/SKILL.md" ] && [ ! -L "$TMPDIR/.codex/skills/arcgentic" ]; then
+  __pass
+else
+  __fail "arcgentic entry skill copy missing"
+fi
+if [ -f "$TMPDIR/.codex/skills/arcgentic-codex-thread-orchestration/SKILL.md" ] && [ ! -L "$TMPDIR/.codex/skills/arcgentic-codex-thread-orchestration" ]; then
+  __pass
+else
+  __fail "codex-thread-orchestration skill copy missing"
+fi
 teardown_tmpdir
 
 it "refuses to replace a non-symlink install path"

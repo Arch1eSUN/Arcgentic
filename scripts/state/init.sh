@@ -59,51 +59,64 @@ mkdir -p "$STATE_DIR"
 PROJECT_ROOT_ABS="$(cd "$PROJECT_ROOT" && pwd)"
 TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
-cat > "$STATE_FILE" <<EOF
-# .agentic-rounds/state.yaml — single source of truth for arcgentic round state.
-# Validated against schema/state.schema.json. Read by every role skill on entry.
-schema_version: "0.1"
+python3 -c '
+from pathlib import Path
+import sys
+import yaml
 
-project:
-  name: "$PROJECT_NAME"
-  root: "$PROJECT_ROOT_ABS"
-  round_naming: "$ROUND_NAMING"
-  paths:
-    plans_dir: "docs/plans"
-    audits_dir: "docs/audits"
-  verification_command: ""
-  audit_check_command: ""
-  session_mode: null
-
-current_round:
-  id: ""
-  state: "intake"
-  state_history:
-    - state: "intake"
-      ts: "$TIMESTAMP"
-      by: "init.sh"
-
-states:
-  intake:               { next: ["planning"] }
-  planning:             { next: ["awaiting_dev_start"], gate: "handoff-doc-gate.sh" }
-  awaiting_dev_start:   { next: ["dev_in_progress"] }
-  dev_in_progress:      { next: ["awaiting_audit"], gate: "round-commit-chain-gate.sh" }
-  awaiting_audit:       { next: ["audit_in_progress"] }
-  audit_in_progress:    { next: ["passed", "needs_fix"], gate: "verdict-fact-table-gate.sh" }
-  needs_fix:            { next: ["fix_in_progress"] }
-  fix_in_progress:      { next: ["awaiting_audit"], gate: "round-commit-chain-gate.sh" }
-  passed:               { next: ["closed"] }
-  closed:               { next: [] }
-
-last_passed_round: null
-mandates: []
-lessons: []
-active_debts:
-  p0: 0
-  p1: 0
-  p2: 0
-  p3: 0
-EOF
+state_file, project_name, project_root, round_naming, timestamp = sys.argv[1:]
+state = {
+    "schema_version": "0.1",
+    "project": {
+        "name": project_name,
+        "root": project_root,
+        "round_naming": round_naming,
+        "paths": {
+            "plans_dir": "docs/plans",
+            "audits_dir": "docs/audits",
+        },
+        "verification_command": "",
+        "audit_check_command": "",
+        "session_mode": None,
+    },
+    "current_round": {
+        "id": "",
+        "state": "intake",
+        "state_history": [
+            {
+                "state": "intake",
+                "ts": timestamp,
+                "by": "init.sh",
+            }
+        ],
+    },
+    "states": {
+        "intake": {"next": ["planning"]},
+        "planning": {"next": ["awaiting_dev_start"], "gate": "handoff-doc-gate.sh"},
+        "awaiting_dev_start": {"next": ["dev_in_progress"]},
+        "dev_in_progress": {"next": ["awaiting_audit"], "gate": "round-commit-chain-gate.sh"},
+        "awaiting_audit": {"next": ["audit_in_progress"]},
+        "audit_in_progress": {
+            "next": ["passed", "needs_fix"],
+            "gate": "verdict-fact-table-gate.sh",
+        },
+        "needs_fix": {"next": ["fix_in_progress"]},
+        "fix_in_progress": {"next": ["awaiting_audit"], "gate": "round-commit-chain-gate.sh"},
+        "passed": {"next": ["closed"]},
+        "closed": {"next": []},
+    },
+    "last_passed_round": None,
+    "mandates": [],
+    "lessons": [],
+    "active_debts": {
+        "p0": 0,
+        "p1": 0,
+        "p2": 0,
+        "p3": 0,
+    },
+}
+Path(state_file).write_text(yaml.safe_dump(state, sort_keys=False), encoding="utf-8")
+' "$STATE_FILE" "$PROJECT_NAME" "$PROJECT_ROOT_ABS" "$ROUND_NAMING" "$TIMESTAMP"
 
 echo "Initialized $STATE_FILE"
 exit 0

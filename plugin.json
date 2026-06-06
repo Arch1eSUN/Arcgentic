@@ -20,6 +20,7 @@
     "plugin-dev": "^0.1.0"
   },
   "skills": [
+    "arcgentic",
     "using-arcgentic",
     "pre-round-scan",
     "orchestrate-round",

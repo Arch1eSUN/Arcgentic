@@ -49,6 +49,13 @@ thread role.
    thread does not show the current project `cwd`, archive it and recreate it
    under the current project.
 
+   Use the strongest available Codex model for real Planner / Developer /
+   Auditor work. Do not default role threads to a lightweight or spark model
+   unless the user explicitly asks for a low-cost smoke test. If the host tool
+   supports a model override, choose the best available model. If unsure, omit
+   the override so the current project/session default is preserved rather than
+   downgraded.
+
 3. Wait for the role thread to complete and read its latest result.
 
 4. Require the role thread to return a `RoleReturnSignal` JSON object:

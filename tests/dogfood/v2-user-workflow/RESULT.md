@@ -56,6 +56,51 @@ Workflow covered:
 - `arcgentic v2-return-signal` for Planner, Developer, Auditor
 - `scripts/state/validate-schema.sh`
 
+## Codex Skill Discovery Fix
+
+Failure observed in a real new-project attempt:
+
+- User prompt: `我想做一个极简 todo CLI。请用 Arcgentic来完成`
+- Codex selected `build-feature` instead of Arcgentic.
+- The agent saw only the `arcgentic` CLI and tried `arcgentic plan-round-impl`.
+- When that failed, it attempted to hand-write "Arcgentic-style" evidence.
+
+Fix:
+
+- Added `skills/arcgentic/SKILL.md` as a natural Codex trigger when the user
+  mentions Arcgentic.
+- Extended `scripts/install-codex-local.sh` to copy Arcgentic skills into
+  `~/.codex/skills`.
+- Installed local skill directories:
+  - `~/.codex/skills/arcgentic`
+  - `~/.codex/skills/arcgentic-using-arcgentic`
+  - `~/.codex/skills/arcgentic-codex-thread-orchestration`
+  - and the remaining Arcgentic role skills.
+
+The new entry skill explicitly forbids silent fallback to "Arcgentic-style"
+hand-written evidence.
+
+Additional fixes from the follow-up trigger test:
+
+- Skill directories are copied, not symlinked, because the Codex skill loader
+  may not follow symlinked skill directories during discovery.
+- Real Planner / Developer / Auditor threads must use the strongest available
+  Codex model. Lightweight/spark models are allowed only for explicit low-cost
+  smoke tests.
+
+Validated trigger smoke after reinstall:
+
+- Thread id: `019e9cbb-82db-7820-9a85-241938195a34`
+- Project cwd: `/Users/archiesun/Documents/ArcToDo`
+- Prompt: `我想做一个极简 todo CLI。请用 Arcgentic来完成。`
+- Observed response:
+
+```text
+先使用 `arcgentic` skill.
+必须创建当前 project 下的 `Planner` / `Developer` / `Auditor` role threads;
+Arcgentic skill 明确禁止创建 projectless role threads.
+```
+
 ## Codex Project-Scoped Host Smoke
 
 Invalid attempt:
