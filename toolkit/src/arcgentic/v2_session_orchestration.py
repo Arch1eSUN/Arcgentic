@@ -16,7 +16,19 @@ Role = Literal["orchestrator", "planner", "developer", "test", "auditor"]
 HostKind = Literal["codex", "claude-code-broker"]
 V2Mode = Literal["single-session-subagent", "multi-session-subthread"]
 RoleActionKind = Literal["create", "reuse"]
+RoleActionTarget = Literal["thread", "subagent"]
 OrchestratorStatus = Literal["active", "sleeping", "idle"]
+VALID_V2_MODES: Final[frozenset[str]] = frozenset(
+    {"single-session-subagent", "multi-session-subthread"}
+)
+
+V2_MODE_CHOICE_MESSAGE: Final[str] = (
+    "project.arcgentic_v2.mode is not set. Ask the user to choose one "
+    "project-level Arcgentic V2 mode before dispatching Planner: "
+    "single-session-subagent is faster and usually completes sooner, but has "
+    "weaker audit isolation; multi-session-subthread is slower, but gives "
+    "stronger role separation and external-audit evidence."
+)
 
 FIXED_ROLE_TITLES: Final[dict[str, str]] = {
     "orchestrator": "Orchestrator",
@@ -149,6 +161,7 @@ class RoleAction:
     kind: RoleActionKind
     prompt: str
     thread_id: str = ""
+    target: RoleActionTarget = "thread"
 
     def to_dict(self) -> dict[str, str]:
         return asdict(self)
@@ -241,6 +254,10 @@ def normalize_role(value: object) -> Role:
 
 def fixed_role_title(role: Role) -> str:
     return FIXED_ROLE_TITLES[role]
+
+
+def fixed_subagent_id(role: Role) -> str:
+    return f"subagent:{role}"
 
 
 def load_state_file(path: Path) -> dict[str, object]:
@@ -379,9 +396,24 @@ def _ensure_project_v2_block(state: dict[str, object], host: HostKind) -> dict[s
     if not isinstance(v2, dict):
         raise V2SessionOrchestrationError("project.arcgentic_v2 must be an object")
     v2.setdefault("host", host)
-    v2.setdefault("mode", "multi-session-subthread")
     v2.setdefault("role_sessions", {})
     return v2
+
+
+def set_v2_mode(state: dict[str, object], host: HostKind, mode: str) -> dict[str, object]:
+    """Persist the project-level V2 mode after the user chooses it."""
+    if mode not in VALID_V2_MODES:
+        raise V2SessionOrchestrationError(f"unsupported V2 mode: {mode}")
+    updated = deepcopy(state)
+    v2 = _ensure_project_v2_block(updated, host)
+    existing = str(v2.get("mode") or "").strip()
+    if existing and existing != mode:
+        raise V2SessionOrchestrationError(
+            f"project.arcgentic_v2.mode is already set to {existing!r}; "
+            "do not change project-level mode mid-workflow"
+        )
+    v2["mode"] = mode
+    return updated
 
 
 def _utc_now() -> str:
@@ -954,8 +986,10 @@ def build_role_session_plan(
         raise V2SessionOrchestrationError(
             f"state host {state_host!r} does not match requested host {host!r}"
         )
-    mode = str(v2.get("mode") or "multi-session-subthread")
-    if mode not in {"single-session-subagent", "multi-session-subthread"}:
+    mode = str(v2.get("mode") or "").strip()
+    if not mode:
+        raise V2SessionOrchestrationError(V2_MODE_CHOICE_MESSAGE)
+    if mode not in VALID_V2_MODES:
         raise V2SessionOrchestrationError(f"unsupported V2 mode: {mode}")
     typed_mode = cast(V2Mode, mode)
 
@@ -1055,7 +1089,24 @@ def build_role_session_plan(
 
     title = fixed_role_title(next_role)
     session = sessions.get(next_role)
-    if isinstance(session, dict) and session.get("thread_id"):
+    if typed_mode == "single-session-subagent":
+        if isinstance(session, dict) and session.get("thread_id"):
+            action_kind: RoleActionKind = "reuse"
+            thread_id = str(session["thread_id"])
+        else:
+            action_kind = "create"
+            thread_id = fixed_subagent_id(next_role)
+        actions = (
+            RoleAction(
+                role=next_role,
+                title=title,
+                kind=action_kind,
+                thread_id=thread_id,
+                target="subagent",
+                prompt=role_prompt(next_role, state, user_request=user_request),
+            ),
+        )
+    elif isinstance(session, dict) and session.get("thread_id"):
         actions = (
             RoleAction(
                 role=next_role,

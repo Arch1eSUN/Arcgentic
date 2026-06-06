@@ -429,6 +429,24 @@ def test_session_mode_recommend_dispatch(tmp_path: Path) -> None:
     assert exit_code == 0
 
 
+def test_session_mode_recommend_v2_from_user_idea(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(
+        [
+            "session-mode",
+            "recommend-v2",
+            "--idea",
+            "Build a production dashboard with auth, database, billing, and audit workflow",
+        ]
+    )
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["recommended_mode"] == "multi-session-subthread"
+    assert payload["requires_user_confirmation"] is True
+
+
 def test_capability_registry_build_dispatch(tmp_path: Path) -> None:
     catalog = tmp_path / "marketplace.json"
     catalog.write_text(
@@ -636,6 +654,78 @@ current_round:
     assert payload["actions"][0]["kind"] == "reuse"
     assert payload["actions"][0]["thread_id"] == "dev-1"
     assert "Current user request: fix the todo CLI" in payload["actions"][0]["prompt"]
+
+
+def test_v2_session_plan_requires_mode_before_first_dispatch(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    state = tmp_path / "state.yaml"
+    state.write_text(
+        """
+project:
+  arcgentic_v2:
+    host: codex
+    role_sessions:
+      orchestrator:
+        thread_id: orch-1
+        title: Orchestrator
+current_round:
+  id: R1
+  state: intake
+""",
+        encoding="utf-8",
+    )
+
+    exit_code = main(["v2-session-plan", "--state", str(state), "--host", "codex"])
+
+    assert exit_code == 1
+    output = capsys.readouterr().out
+    assert "mode is not set" in output
+    assert "single-session-subagent is faster" in output
+
+
+def test_v2_session_plan_persists_single_session_mode_choice(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    state = tmp_path / "state.yaml"
+    state.write_text(
+        """
+project:
+  arcgentic_v2:
+    host: codex
+    role_sessions:
+      orchestrator:
+        thread_id: orch-1
+        title: Orchestrator
+current_round:
+  id: R1
+  state: intake
+""",
+        encoding="utf-8",
+    )
+
+    exit_code = main(
+        [
+            "v2-session-plan",
+            "--state",
+            str(state),
+            "--host",
+            "codex",
+            "--mode",
+            "single-session-subagent",
+        ]
+    )
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["mode"] == "single-session-subagent"
+    assert payload["actions"][0]["kind"] == "create"
+    assert payload["actions"][0]["target"] == "subagent"
+    assert payload["actions"][0]["title"] == "Planner"
+    assert payload["actions"][0]["thread_id"] == "subagent:planner"
+    assert "mode: single-session-subagent" in state.read_text(encoding="utf-8")
 
 
 def test_v2_session_plan_advances_passed_round_to_next_planned_developer(
@@ -1355,7 +1445,20 @@ current_round:
         encoding="utf-8",
     )
 
-    assert main(["v2-session-plan", "--state", str(state), "--host", "claude-code-broker"]) == 0
+    assert (
+        main(
+            [
+                "v2-session-plan",
+                "--state",
+                str(state),
+                "--host",
+                "claude-code-broker",
+                "--mode",
+                "multi-session-subthread",
+            ]
+        )
+        == 0
+    )
 
 
 def test_claude_code_broker_install_hooks_cli(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -1396,7 +1499,17 @@ current_round:
         encoding="utf-8",
     )
 
-    exit_code = main(["v2-session-plan", "--state", str(state), "--host", "codex"])
+    exit_code = main(
+        [
+            "v2-session-plan",
+            "--state",
+            str(state),
+            "--host",
+            "codex",
+            "--mode",
+            "multi-session-subthread",
+        ]
+    )
 
     assert exit_code == 0
     payload = json.loads(capsys.readouterr().out)

@@ -26,6 +26,27 @@ Phase/project close is Orchestrator-owned after Planner declares that a phase
 or the full project is complete. It is not a per-round role and it must not run
 after every Auditor PASS.
 
+V2 has two project-level modes:
+
+- `single-session-subagent`: faster and usually completes sooner. The current
+  Orchestrator session runs named Planner / Developer / Test / Auditor subagents
+  without creating role threads. Role names must still be inherited exactly.
+  The first use of a role creates that named role identity; later rounds reuse
+  the same role identity.
+- `multi-session-subthread`: slower, with stronger role separation. The
+  Orchestrator creates or reuses fixed project threads titled Planner,
+  Developer, Test, and Auditor.
+
+If no mode is stored, judge the user's idea and recommend a mode before
+dispatching Planner:
+
+```bash
+arcgentic session-mode recommend-v2 --idea '<current user request>'
+```
+
+Show the recommendation, confidence, reasons, and tradeoff, then ask the user
+to confirm or override it. Do not default silently.
+
 ## Procedure
 
 1. Rename the current Codex thread to exactly `Orchestrator`, then ensure
@@ -60,23 +81,27 @@ after every Auditor PASS.
      --repair-current-orchestrator
    ```
 
-2. Run:
+2. If no project-level mode is stored, run the V2 mode recommendation command,
+   ask the user to confirm or override it, then continue with the chosen mode.
+
+3. Run:
 
    ```bash
    arcgentic v2-session-plan \
      --state .agentic-rounds/state.yaml \
      --host codex \
-     --user-request '<current user request>'
+     --user-request '<current user request>' \
+     --mode <single-session-subagent|multi-session-subthread>
    ```
 
    This must happen before source inspection, test runs, git-log verification,
    or summaries of prior closed rounds.
 
-3. If `orchestrator_status` is `sleeping`, stop immediately. The
+4. If `orchestrator_status` is `sleeping`, stop immediately. The
    Orchestrator is waiting for `pending_role` to return a `RoleReturnSignal`;
    do not dispatch another role and do not do the pending role's work inline.
 
-4. If `orchestrator_status` is `active` and `actions` is empty, branch by state:
+5. If `orchestrator_status` is `active` and `actions` is empty, branch by state:
    - `passed`: stop and report that the round PASS cannot advance because the
      state has no usable `project.arcgentic_v2.project_plan`. Do not close the
      round. A valid project plan lets `v2-session-plan` advance to the next
@@ -87,13 +112,20 @@ after every Auditor PASS.
      thread manually. This is how Arcgentic prevents loops such as a repeated
      `AUDIT_INCOMPLETE` for the same unresolved evidence gap.
 
-5. If `orchestrator_status` is `active`, dispatch the single action in
+6. If `orchestrator_status` is `active`, dispatch the single action in
    `actions`:
 
-   - `reuse`: send `prompt` to `thread_id`.
-   - `create`: create a Codex project thread using the current workspace root
-     path as the Codex `projectId`, set its title to `title`, send `prompt`,
-     then record the returned id:
+   - `target=thread`, `kind=reuse`: send `prompt` to `thread_id`.
+   - `target=thread`, `kind=create`: create a Codex project thread using the
+     current workspace root path as the Codex `projectId`, set its title to
+     `title`, send `prompt`, then record the returned id:
+   - `target=subagent`, `kind=create`: keep work inside the current
+     Orchestrator session and create the fixed named role agent, using `title`
+     exactly (`Planner`, `Developer`, `Test`, or `Auditor`). Record the role
+     with synthetic id `subagent:<role>` so later rounds reuse it.
+   - `target=subagent`, `kind=reuse`: keep work inside the current
+     Orchestrator session and reuse the fixed named role agent. Do not create a
+     second Developer / Planner / Test / Auditor identity.
 
      ```bash
      arcgentic v2-record-session \
@@ -101,6 +133,16 @@ after every Auditor PASS.
        --host codex \
        --role <role> \
        --thread-id <created-thread-id>
+     ```
+
+     For `target=subagent`, record the synthetic role id:
+
+     ```bash
+     arcgentic v2-record-session \
+       --state .agentic-rounds/state.yaml \
+       --host codex \
+       --role <role> \
+       --thread-id subagent:<role>
      ```
 
    In Codex, the saved project id is the current workspace root path exposed by
@@ -127,7 +169,8 @@ after every Auditor PASS.
    omit the override so the current project/session default is preserved rather
    than downgraded.
 
-6. After sending the role prompt, put the Orchestrator to sleep:
+7. In `multi-session-subthread`, after sending the role prompt, put the
+   Orchestrator to sleep:
 
    ```bash
    arcgentic v2-dispatch-role \
@@ -141,7 +184,13 @@ after every Auditor PASS.
    do not dispatch another role. The next Orchestrator turn starts only after
    the role thread returns information.
 
-7. When the role thread completes, it must actively send its return message to
+   In `single-session-subagent`, do not call `v2-dispatch-role` and do not put
+   the Orchestrator to sleep. The named subagent completes inside the current
+   Orchestrator session, then the Orchestrator immediately consumes the returned
+   `RoleReturnSignal` and routes the next action.
+
+8. When a multi-session role thread completes, it must actively send its return
+   message to
    the Orchestrator thread. The Orchestrator must not poll role threads to
    discover completion.
 

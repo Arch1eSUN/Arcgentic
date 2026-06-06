@@ -6,6 +6,7 @@ from dataclasses import asdict, dataclass
 from typing import Literal
 
 Mode = Literal["single-session", "multi-session"]
+V2Mode = Literal["single-session-subagent", "multi-session-subthread"]
 Role = Literal["developer", "auditor", "closeout"]
 
 
@@ -53,6 +54,20 @@ class SessionModeRecommendation:
         return asdict(self)
 
 
+@dataclass(frozen=True)
+class V2SessionModeRecommendation:
+    """Decision object shown by Orchestrator before the first V2 dispatch."""
+
+    recommended_mode: V2Mode
+    confidence: float
+    reasons: tuple[str, ...]
+    tradeoff: str
+    requires_user_confirmation: bool
+
+    def to_dict(self) -> dict[str, object]:
+        return asdict(self)
+
+
 _HIGH_RISK_KEYWORDS = (
     "workflow",
     "release",
@@ -62,6 +77,76 @@ _HIGH_RISK_KEYWORDS = (
     "manifest",
     "package",
     "schema",
+)
+
+_LARGE_PROJECT_KEYWORDS = (
+    "app",
+    "dashboard",
+    "platform",
+    "workflow",
+    "auth",
+    "database",
+    "api",
+    "payment",
+    "multi-user",
+    "release",
+    "production",
+    "agent",
+    "automation",
+    "全栈",
+    "系统",
+    "平台",
+    "工作流",
+    "权限",
+    "数据库",
+    "支付",
+    "上线",
+    "自动化",
+    "智能体",
+)
+
+_SMALL_PROJECT_KEYWORDS = (
+    "cli",
+    "script",
+    "landing",
+    "single page",
+    "small",
+    "minimal",
+    "prototype",
+    "toy",
+    "demo",
+    "calculator",
+    "converter",
+    "parser",
+    "脚本",
+    "小工具",
+    "单页",
+    "最小",
+    "原型",
+    "演示",
+    "计算器",
+)
+
+_AUDIT_RISK_KEYWORDS = (
+    "security",
+    "privacy",
+    "money",
+    "billing",
+    "auth",
+    "permission",
+    "migration",
+    "data loss",
+    "external audit",
+    "compliance",
+    "安全",
+    "隐私",
+    "钱",
+    "计费",
+    "权限",
+    "迁移",
+    "丢失",
+    "审计",
+    "合规",
 )
 
 
@@ -105,6 +190,54 @@ def recommend_session_mode(inputs: SessionModeInput) -> SessionModeRecommendatio
         candidate_roles=inputs.candidate_roles,
         requires_user_confirmation=True,
         identity_prompts=prompts,
+    )
+
+
+def recommend_v2_mode_from_idea(idea: str) -> V2SessionModeRecommendation:
+    """Recommend a V2 mode from the user's first project idea."""
+    normalized = idea.strip().lower()
+    reasons: list[str] = []
+    score = 0
+
+    large_hits = [keyword for keyword in _LARGE_PROJECT_KEYWORDS if keyword in normalized]
+    small_hits = [keyword for keyword in _SMALL_PROJECT_KEYWORDS if keyword in normalized]
+    risk_hits = [keyword for keyword in _AUDIT_RISK_KEYWORDS if keyword in normalized]
+
+    if large_hits:
+        score += 2
+        reasons.append("project idea looks larger: " + ", ".join(large_hits[:4]))
+    if risk_hits:
+        score += 2
+        reasons.append("audit risk appears higher: " + ", ".join(risk_hits[:4]))
+    if len(normalized.split()) >= 28:
+        score += 1
+        reasons.append("idea has enough detail to suggest multi-step work")
+    if small_hits:
+        score -= 2
+        reasons.append("project idea looks small or demo-sized: " + ", ".join(small_hits[:4]))
+    if len(normalized.split()) <= 12 and not large_hits and not risk_hits:
+        score -= 1
+        reasons.append("idea is short and likely suitable for a fast first pass")
+
+    if score >= 2:
+        return V2SessionModeRecommendation(
+            recommended_mode="multi-session-subthread",
+            confidence=0.82 if score >= 4 else 0.72,
+            reasons=tuple(reasons),
+            tradeoff=(
+                "Slower completion, stronger role separation and stricter external audit."
+            ),
+            requires_user_confirmation=True,
+        )
+
+    if not reasons:
+        reasons.append("no large-project or high-risk signal found in the idea")
+    return V2SessionModeRecommendation(
+        recommended_mode="single-session-subagent",
+        confidence=0.76 if score <= -2 else 0.66,
+        reasons=tuple(reasons),
+        tradeoff="Faster completion, weaker audit isolation.",
+        requires_user_confirmation=True,
     )
 
 

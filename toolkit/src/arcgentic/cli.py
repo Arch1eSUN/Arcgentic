@@ -243,6 +243,8 @@ def main(argv: list[str] | None = None) -> int:
     session_recommend.add_argument("--round", dest="round_name", required=True)
     session_recommend.add_argument("--handoff", required=True)
     session_recommend.add_argument("--dispatch-unavailable", action="store_true")
+    session_recommend_v2 = session_sub.add_parser("recommend-v2")
+    session_recommend_v2.add_argument("--idea", required=True)
     session_prompt = session_sub.add_parser("prompt")
     session_prompt.add_argument("--round", dest="round_name", required=True)
     session_prompt.add_argument("--handoff", required=True)
@@ -338,6 +340,12 @@ def main(argv: list[str] | None = None) -> int:
     v2_session_parser.add_argument("--state", required=True)
     v2_session_parser.add_argument("--host", choices=["codex", "claude-code-broker"], required=True)
     v2_session_parser.add_argument("--user-request", default="")
+    v2_session_parser.add_argument(
+        "--mode",
+        choices=["single-session-subagent", "multi-session-subthread"],
+        default=None,
+        help="Persist the project-level V2 mode after the user chooses it.",
+    )
 
     v2_record_parser = subparsers.add_parser(
         "v2-record-session",
@@ -567,10 +575,11 @@ def main(argv: list[str] | None = None) -> int:
             generate_identity_prompts,
             input_from_handoff,
             recommend_session_mode,
+            recommend_v2_mode_from_idea,
         )
 
-        handoff_path = _Path(args.handoff)
         if args.session_command == "recommend":
+            handoff_path = _Path(args.handoff)
             inputs = input_from_handoff(
                 round_id=args.round_name,
                 handoff_text=handoff_path.read_text(encoding="utf-8"),
@@ -579,6 +588,16 @@ def main(argv: list[str] | None = None) -> int:
             )
             print(json.dumps(recommend_session_mode(inputs).to_dict(), indent=2, sort_keys=True))
             return 0
+        if args.session_command == "recommend-v2":
+            print(
+                json.dumps(
+                    recommend_v2_mode_from_idea(args.idea).to_dict(),
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
+            return 0
+        handoff_path = _Path(args.handoff)
         prompts = generate_identity_prompts(
             round_id=args.round_name,
             handoff_path=str(handoff_path),
@@ -714,6 +733,7 @@ def main(argv: list[str] | None = None) -> int:
             ensure_initial_round_id,
             load_state_file,
             remember_active_user_request,
+            set_v2_mode,
             write_state_file,
         )
 
@@ -721,6 +741,8 @@ def main(argv: list[str] | None = None) -> int:
             state_path = _Path(args.state)
             raw_state = ensure_initial_round_id(load_state_file(state_path))
             raw_state = advance_passed_round_from_project_plan(raw_state)
+            if args.mode is not None:
+                raw_state = set_v2_mode(raw_state, args.host, args.mode)
             session_plan = build_role_session_plan(
                 raw_state, host=args.host, user_request=args.user_request
             )

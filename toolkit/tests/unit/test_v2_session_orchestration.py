@@ -12,6 +12,7 @@ from arcgentic.v2_session_orchestration import (
     record_role_dispatch,
     record_role_session,
     role_prompt,
+    set_v2_mode,
 )
 
 
@@ -150,6 +151,82 @@ def test_codex_plan_dispatches_only_the_next_role() -> None:
     assert plan.actions[0].role == "developer"
     assert plan.actions[0].kind == "reuse"
     assert plan.actions[0].thread_id == "dev-1"
+
+
+def test_v2_plan_requires_explicit_project_mode_choice() -> None:
+    state = {
+        "project": {
+            "arcgentic_v2": {
+                "host": "codex",
+                "role_sessions": {
+                    "orchestrator": {"thread_id": "orch-1", "title": "Orchestrator"},
+                },
+            }
+        },
+        "current_round": {"id": "R1", "state": "intake"},
+    }
+
+    try:
+        build_codex_role_session_plan(state)
+    except V2SessionOrchestrationError as exc:
+        message = str(exc)
+        assert "mode is not set" in message
+        assert "single-session-subagent is faster" in message
+        assert "multi-session-subthread is slower" in message
+    else:
+        raise AssertionError("expected missing V2 mode to stop before Planner dispatch")
+
+
+def test_set_v2_mode_persists_user_choice_before_dispatch() -> None:
+    state = {
+        "project": {
+            "arcgentic_v2": {
+                "host": "codex",
+                "role_sessions": {
+                    "orchestrator": {"thread_id": "orch-1", "title": "Orchestrator"},
+                },
+            }
+        },
+        "current_round": {"id": "R1", "state": "intake"},
+    }
+
+    updated = set_v2_mode(state, "codex", "single-session-subagent")
+    plan = build_codex_role_session_plan(updated)
+
+    assert plan.mode == "single-session-subagent"
+    assert plan.next_role == "planner"
+    assert len(plan.actions) == 1
+    assert plan.actions[0].kind == "create"
+    assert plan.actions[0].target == "subagent"
+    assert plan.actions[0].thread_id == "subagent:planner"
+
+
+def test_single_session_reuses_existing_named_subagent_identity() -> None:
+    state = {
+        "project": {
+            "arcgentic_v2": {
+                "host": "codex",
+                "mode": "single-session-subagent",
+                "role_sessions": {
+                    "developer": {
+                        "thread_id": "subagent:developer",
+                        "title": "Developer",
+                    }
+                },
+            }
+        },
+        "current_round": {"id": "R2", "state": "awaiting_dev_start"},
+    }
+
+    plan = build_codex_role_session_plan(state)
+
+    assert plan.mode == "single-session-subagent"
+    assert plan.next_role == "developer"
+    assert len(plan.actions) == 1
+    assert plan.actions[0].kind == "reuse"
+    assert plan.actions[0].target == "subagent"
+    assert plan.actions[0].title == "Developer"
+    assert plan.actions[0].thread_id == "subagent:developer"
 
 
 def test_sleeping_codex_plan_does_not_dispatch_more_actions() -> None:

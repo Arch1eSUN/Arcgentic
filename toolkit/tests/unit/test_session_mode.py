@@ -5,6 +5,7 @@ from arcgentic.session_mode import (
     SessionModeInput,
     generate_identity_prompts,
     recommend_session_mode,
+    recommend_v2_mode_from_idea,
     validate_mode_choice,
 )
 
@@ -43,6 +44,24 @@ def test_recommends_single_session_for_small_local_change() -> None:
 
     assert result.recommended_mode == "single-session"
     assert result.confidence >= 0.7
+
+
+def test_v2_recommends_single_session_subagent_for_small_demo_idea() -> None:
+    result = recommend_v2_mode_from_idea("Build a small CLI converter demo")
+
+    assert result.recommended_mode == "single-session-subagent"
+    assert result.requires_user_confirmation is True
+    assert "Faster completion" in result.tradeoff
+
+
+def test_v2_recommends_multi_session_subthread_for_large_risky_idea() -> None:
+    result = recommend_v2_mode_from_idea(
+        "Build a production multi-user dashboard with auth, database, billing, and audit workflow"
+    )
+
+    assert result.recommended_mode == "multi-session-subthread"
+    assert result.requires_user_confirmation is True
+    assert "stronger role separation" in result.tradeoff
 
 
 def test_refuses_single_session_auto_audit_without_dispatch() -> None:

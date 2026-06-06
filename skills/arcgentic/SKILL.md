@@ -21,43 +21,69 @@ dispatching Planner.
 2. Determine whether the current thread has a real project/workspace root.
    - If yes, continue with project-scoped orchestration.
    - If no, stop and ask the user to open or create a saved project workspace.
-3. Use the current project/workspace as the only valid target for role threads
-   after initialization.
-4. Do not create projectless Planner / Developer / Test / Auditor threads.
-5. Use the strongest available Codex model for real Planner / Developer /
+3. If this is the first Arcgentic V2 run in the project and no mode is already
+   stored, judge the user's idea before dispatching Planner:
+   - Run:
+
+     ```bash
+     arcgentic session-mode recommend-v2 --idea '<current user request>'
+     ```
+
+   - Present the recommended mode, confidence, reasons, and tradeoff in natural
+     language.
+   - Ask the user to confirm the recommendation or override it.
+   - Do not dispatch Planner until the user has chosen one project-level mode.
+4. The two V2 modes are:
+   - `single-session-subagent`: faster and usually finishes sooner. Planner,
+     Developer, Test, and Auditor run as named subagents inside the current
+     Orchestrator session, so audit isolation is weaker. The first use of a
+     role creates that fixed named role identity; later rounds reuse it.
+   - `multi-session-subthread`: slower. Planner, Developer, Test, and Auditor
+     run in fixed project threads, so role separation and external-audit
+     evidence are stronger.
+5. Use the chosen mode for the whole project. Do not ask again per round unless
+   the user explicitly starts a new project or requests a reset.
+6. In `multi-session-subthread`, use the current project/workspace as the only
+   valid target for role threads after initialization.
+7. Do not create projectless Planner / Developer / Test / Auditor threads.
+8. Use the strongest available Codex model for real Planner / Developer /
    Test / Auditor work. Do not default role threads to a lightweight or spark
    model unless the user explicitly asks for a low-cost smoke test.
-6. Record the current thread as fixed role `Orchestrator` in
+9. Record the current thread as fixed role `Orchestrator` in
    `.agentic-rounds/state.yaml` before dispatching Planner. If the host cannot
    provide the current Orchestrator thread id, stop because push-return cannot
    work.
    In Codex delegation-created threads, do not treat the delegation
    `source_thread_id` as the current Orchestrator id. It identifies the upstream
    supervising thread, not the project-scoped Orchestrator.
-7. Before reading implementation files, running tests, checking git log, or
+10. Before reading implementation files, running tests, checking git log, or
    summarizing prior work, initialize/check `.agentic-rounds/state.yaml` and run
    `v2-session-plan`.
-8. Initialize `.agentic-rounds/state.yaml` if it does not exist.
+11. Initialize `.agentic-rounds/state.yaml` if it does not exist.
    If state exists and `current_round.state` is `closed`, treat the new user
    request as input for Planner only when it asks for new work. Status,
    inspection, review, or "is this complete?" requests are terminal idle and
    must not rewrite `active_user_request` or dispatch Planner.
-9. Run:
+12. Run `v2-session-plan` with the user-selected mode on first use, or without
+    `--mode` after the mode is already stored:
 
    ```bash
    arcgentic v2-session-plan \
      --state .agentic-rounds/state.yaml \
      --host codex \
-     --user-request '<current user request>'
+     --user-request '<current user request>' \
+     --mode <single-session-subagent|multi-session-subthread>
    ```
 
-10. If the plan is active and contains an action, dispatch that one role before
+13. If the plan is active and contains an action, dispatch that one role before
    any verification or implementation inspection, then call
-   `arcgentic v2-dispatch-role` and end the Orchestrator turn.
+   `arcgentic v2-dispatch-role` and end the Orchestrator turn in
+   `multi-session-subthread`, or create/reuse the named role agent directly in
+   `single-session-subagent`.
    If state is `closed` and the plan has no actions, stop: the round is
    terminal at the project level, all role threads are idle, and Orchestrator
    should wait for a new user request.
-11. Load `codex-thread-orchestration` and follow it.
+14. Load `codex-thread-orchestration` and follow it.
 
 ## Bootstrap if state is missing
 
@@ -87,7 +113,6 @@ path = Path(".agentic-rounds/state.yaml")
 state = yaml.safe_load(path.read_text(encoding="utf-8"))
 state.setdefault("project", {})["arcgentic_v2"] = {
     "host": "codex",
-    "mode": "multi-session-subthread",
     "role_sessions": {},
 }
 path.write_text(yaml.safe_dump(state, sort_keys=False), encoding="utf-8")
