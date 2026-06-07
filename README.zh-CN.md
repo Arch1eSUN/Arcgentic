@@ -4,7 +4,8 @@
   <img src="./assets/arcgentic-logo.png" alt="Arcgentic logo" width="168">
 </p>
 
-> **Arcgentic 把随意的 AI coding 变成有阶段、有自审、有外审、有测试门禁的工程流程。**
+> **Arcgentic 是 AI coding agent 的工程 harness，把随意 prompting 变成有阶段、
+> 有自审、有外审、有测试门禁的工程流程。**
 
 **English -> [README.md](./README.md)**
 
@@ -31,10 +32,26 @@ Arcgentic 把这些“存活下来的模式”封装成插件，让 Codex 和 Cl
 它不是新的 coding agent，也不是 Moirai 的复制品；它不包含 Moirai 特定的 phase 编号、
 fact shape、runtime 内部结构。它提取的是真实 agent 开发中的工程流程。
 
+## Harness engineering
+
+Arcgentic 位于 coding agent 外面的 harness 层。
+
+Codex 和 Claude Code 是负责写代码的 agent。Arcgentic 是套在它们外面的工程
+harness：给 agent 加角色、handoff、stop state、审计 gate 和证据记录。
+这和 Karpathy 说的从 vibe coding 走向 agentic engineering 是同一条方向：
+重点不只是怎么 prompt 模型，而是怎么设计模型外面的工作流，让输出可以被检查、
+被路由、被追责。
+
+相关参考：
+
+- [Martin Fowler / Thoughtworks: Harness engineering for coding agent users](https://martinfowler.com/articles/exploring-gen-ai/harness-engineering.html)
+- Andrej Karpathy 关于 “vibe coding -> agentic engineering” 的讨论
+
 ## 30 秒版本
 
 | 问题 | 回答 |
 |---|---|
+| 它是什么？ | 一层给 Codex / Claude Code 用的工程 harness：在 coding agent 外面加角色、handoff、审计、stop state 和 pass/fix gate。 |
 | 它解决什么问题？ | AI coding session 容易漂移：范围被悄悄改变、上下文丢失、测试被跳过，“完成”经常只是 assistant 自己说完成。 |
 | 谁应该用？ | 高频使用 Codex / Claude Code 的 senior engineer、agent builder、小型 AI-native 工程团队，以及做复杂 repo、多轮开发、重构、agent 产品的人。 |
 | 它增加什么？ | 一套可重复的门禁流程，并自动派发角色：计划、开发者自审、可选真实用户测试、外部审计、closeout。 |

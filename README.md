@@ -4,7 +4,8 @@
   <img src="./assets/arcgentic-logo.png" alt="Arcgentic logo" width="168">
 </p>
 
-> **Arcgentic turns AI coding from ad-hoc prompting into a gated engineering workflow.**
+> **Arcgentic is a harness engineering layer for AI coding agents. It turns
+> ad-hoc prompting into a gated engineering workflow.**
 
 **中文文档 -> [README.zh-CN.md](./README.zh-CN.md)**
 
@@ -36,10 +37,27 @@ agent, and it does not copy Moirai-specific phase numbers, fact shapes, or
 runtime internals. It is the workflow layer extracted from real agent
 development.
 
+## Harness engineering
+
+Arcgentic sits in the harness layer around a coding agent.
+
+Codex and Claude Code are the agents. Arcgentic is the engineering harness that
+gives those agents roles, handoffs, stop states, audit gates, and evidence.
+This is the same direction people describe as moving from vibe coding toward
+agentic engineering: the important work is not only prompting the model, but
+building the workflow around the model so its output can be checked, routed,
+and trusted.
+
+Related reading:
+
+- [Martin Fowler / Thoughtworks: Harness engineering for coding agent users](https://martinfowler.com/articles/exploring-gen-ai/harness-engineering.html)
+- Andrej Karpathy's broader "vibe coding -> agentic engineering" framing
+
 ## 30-second version
 
 | Question | Answer |
 |---|---|
+| What is it? | A harness engineering layer for Codex / Claude Code: roles, handoffs, audits, stop states, and pass/fix gates around the coding agent. |
 | What problem does it solve? | AI coding sessions drift: scope changes silently, context gets lost, tests are skipped, and "done" often means "the assistant said it is done." |
 | Who should use it? | Heavy Codex / Claude Code users, agent builders, AI-native teams, and people doing complex multi-round engineering work. |
 | What does it add? | A repeatable gated workflow with automated role dispatch: planning, dev self-audit, optional user testing, external audit, and closeout. |
