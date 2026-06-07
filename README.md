@@ -12,6 +12,7 @@
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![version](https://img.shields.io/badge/version-v2.0.0-blueviolet.svg)](#status)
 [![PyPI](https://img.shields.io/pypi/v/arcgentic.svg)](https://pypi.org/project/arcgentic/)
+[![npm](https://img.shields.io/npm/v/arcgentic.svg)](https://www.npmjs.com/package/arcgentic)
 
 Arcgentic helps Codex and Claude Code run software work as a disciplined
 sequence: clarify the idea, plan the work, build it, self-audit it, optionally
@@ -58,6 +59,15 @@ return signal, and dispatches the next role without manual thread switching.
 
 Claude Code support is available as an experimental version and should be
 treated as a real workflow candidate, not as proven production behavior yet.
+
+## Distribution status
+
+| Channel | Status | Use it for |
+|---|---|---|
+| [GitHub Release](https://github.com/Arch1eSUN/Arcgentic/releases/tag/v2.0.0) | Published `v2.0.0` | Release notes, source archive, and verification context. |
+| [PyPI](https://pypi.org/project/arcgentic/) | Published `arcgentic==2.0.0` | Python CLI: gates, V2 state helpers, Claude Code broker, and audit tooling. |
+| [npm](https://www.npmjs.com/package/arcgentic) | Published `arcgentic@2.0.0` | Plugin asset bundle and Codex local install helper. |
+| Claude Code plugin marketplace | Manifest ready | Main Claude Code install path; V2 remains experimental until real-session verification. |
 
 ## Install
 

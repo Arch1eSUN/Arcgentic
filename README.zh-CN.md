@@ -12,6 +12,7 @@
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![version](https://img.shields.io/badge/version-v2.0.0-blueviolet.svg)](#状态)
 [![PyPI](https://img.shields.io/pypi/v/arcgentic.svg)](https://pypi.org/project/arcgentic/)
+[![npm](https://img.shields.io/npm/v/arcgentic.svg)](https://www.npmjs.com/package/arcgentic)
 
 Arcgentic 帮助 Codex 和 Claude Code 把软件开发变成一套有纪律的流程：
 先澄清想法，再规划，再开发，再开发者自审，必要时做真实用户测试，
@@ -51,6 +52,15 @@ Codex 是目前最完整的体验。在已验证的 Codex 路径里，当前项�
 等待角色回传，再自动派发下一步。中间不需要用户手动创建 thread 或搬运 prompt。
 
 Claude Code 版本应视为可用的实验工作流候选，不是已经证明过的生产级行为。
+
+## 分发状态
+
+| 渠道 | 状态 | 用途 |
+|---|---|---|
+| [GitHub Release](https://github.com/Arch1eSUN/Arcgentic/releases/tag/v2.0.0) | 已发布 `v2.0.0` | Release notes、源码归档、验证背景。 |
+| [PyPI](https://pypi.org/project/arcgentic/) | 已发布 `arcgentic==2.0.0` | Python CLI：gate、V2 state helper、Claude Code broker、audit 工具。 |
+| [npm](https://www.npmjs.com/package/arcgentic) | 已发布 `arcgentic@2.0.0` | 插件资产包和 Codex 本地安装 helper。 |
+| Claude Code plugin marketplace | Manifest 已就绪 | Claude Code 主安装路径；V2 在真实 session 验证前仍是实验版。 |
 
 ## 安装
 
