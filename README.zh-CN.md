@@ -354,7 +354,7 @@ Test 不是每轮必跑。它只在需要真实用户行为、UI 使用、模拟
 - Codex 本地插件 manifest
 - Claude Code 插件 manifest
 - V2 workflow prompts and state helpers
-- npm bundle / Codex local install helper
+- npm bundle 已发布：`arcgentic@2.0.0`
 - Codex V2 实机验证完成
 - Claude Code V2 实验适配完成，等待真实 session 验证
 

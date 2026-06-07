@@ -395,7 +395,7 @@ Developer self-audit to Auditor.
 | External audit | Complete. |
 | Closed-project status no-op | Complete. |
 | README onboarding | Updated for adoption-first use. |
-| npm bundle | Prepared as a zero-dependency plugin asset bundle for v2.0.0. |
+| npm bundle | Published as `arcgentic@2.0.0`. |
 
 ## Roadmap
 

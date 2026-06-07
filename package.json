@@ -7,7 +7,7 @@
   "homepage": "https://github.com/Arch1eSUN/Arcgentic",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Arch1eSUN/Arcgentic"
+    "url": "git+https://github.com/Arch1eSUN/Arcgentic.git"
   },
   "bugs": {
     "url": "https://github.com/Arch1eSUN/Arcgentic/issues"
