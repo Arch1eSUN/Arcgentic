@@ -630,7 +630,8 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 
 **Files:**
 - Create: `.mcp.json` (repo root)
-- Modify: none (verification-only for the rest)
+- Create: `toolkit/tests/integration/test_mcp_protocol.py`
+- Modify: none else (verification-only for the rest)
 
 **Interfaces:** none — this task declares the server to hosts and runs final checks.
 
@@ -664,7 +665,94 @@ Expected: all tests pass, including the new `test_mcp_panel.py` and `test_mcp_se
 Run: `cd toolkit && python -m mypy src/ && python -m ruff check src/ tests/`
 Expected: no errors.
 
-- [ ] **Step 5: Manual end-to-end verification (cannot be automated — record the outcome in your task report)**
+- [ ] **Step 5: Automated in-memory MCP protocol test (real client-server round trip, no live host needed)**
+
+The design doc scoped real-host verification as manual-only, on the assumption that the MCP wire protocol itself couldn't be exercised without a live graphical host. That's wrong for the protocol layer (only the visual iframe rendering genuinely can't be automated) — the `mcp` SDK ships `mcp.client._memory.InMemoryTransport`, which runs a real `MCPServer` in-process and connects a real `ClientSession` to it over in-memory streams, no network/stdio/browser needed. Add this test to close that gap; it does not replace Step 6's manual check, which is still the only way to verify actual iframe rendering.
+
+`anyio` is already an installed transitive dependency of `mcp` (confirmed during Task 2) — do not add `pytest-asyncio` or any new dev dependency; wrap the async flow in `anyio.run()` inside an ordinary synchronous `def test_...():` function.
+
+Create `toolkit/tests/integration/test_mcp_protocol.py`:
+
+```python
+"""Real client<->server round trip over mcp.client._memory.InMemoryTransport.
+
+No stdio, no network, no live MCP-UI host — but a genuine MCP protocol
+exchange against the actual server built by arcgentic.mcp.server.build_apps(),
+not a hand-mocked stub. Visual iframe rendering is out of scope here (see
+docs/plans/2026-08-12-arcgentic-mcp-ui-status-panel-plan.md Task 4 Step 6
+for the manual-only check that covers that).
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import anyio
+import pytest
+import yaml
+from mcp.client._memory import InMemoryTransport
+from mcp.client.session import ClientSession
+from mcp.server import MCPServer
+
+from arcgentic.mcp import server as server_module
+
+
+def test_round_status_panel_over_real_mcp_protocol(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    state_path = tmp_path / "state.yaml"
+    state_path.write_text(
+        yaml.safe_dump(
+            {
+                "current_round": {"id": "R12", "state": "awaiting_audit"},
+                "project": {"arcgentic_v2": {"next_role": "auditor", "role_sessions": {}}},
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(server_module, "STATE_PATH", state_path)
+
+    async def _run() -> tuple[str, str, str]:
+        apps = server_module.build_apps()
+        mcp_server = MCPServer("arcgentic", extensions=[apps])
+        async with InMemoryTransport(mcp_server) as (read, write):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+
+                tools = await session.list_tools()
+                tool_names = [t.name for t in tools.tools]
+
+                call_result = await session.call_tool("round_status_panel", {})
+                text_parts = [
+                    block.text for block in call_result.content if hasattr(block, "text")
+                ]
+                tool_text = "\n".join(text_parts)
+
+                resource = await session.read_resource(server_module.RESOURCE_URI)
+                resource_text = ""
+                for content in resource.contents:
+                    if hasattr(content, "text"):
+                        resource_text = content.text
+                        break
+
+                return ",".join(tool_names), tool_text, resource_text
+
+    tool_names_csv, tool_text, resource_html = anyio.run(_run)
+
+    assert tool_names_csv == "round_status_panel"
+    assert "R12" in tool_text
+    assert "Auditor: active" in tool_text
+    assert "R12" in resource_html
+    assert "<button id=\"dispatch-btn\">" in resource_html
+```
+
+Run: `cd toolkit && python -m pytest tests/integration/test_mcp_protocol.py -v`
+Expected: PASS (1 test). If it fails with an import error naming `mcp.client._memory` or `mcp.client.session`, do not guess a substitute API — these were confirmed present in the installed `mcp==2.0.0` package during planning; report the exact error instead of working around it, since a wrong workaround here would validate nothing.
+
+Run: `cd toolkit && python -m mypy tests/integration/test_mcp_protocol.py && python -m ruff check tests/integration/test_mcp_protocol.py`
+Expected: no errors.
+
+- [ ] **Step 6: Manual end-to-end verification (visual rendering cannot be automated — record the outcome in your task report)**
 
 In an MCP-UI-capable host (this session's environment, or Claude Desktop with the plugin's `.mcp.json` picked up):
 
@@ -675,14 +763,14 @@ In an MCP-UI-capable host (this session's environment, or Claude Desktop with th
 5. If a round is `closed`, confirm the "派发下一角色" button is absent.
 6. If a round is active, click "派发下一角色" — confirm a new message ("请派发下一个角色") appears in the conversation (sent via the `prompt` action) rather than any direct state mutation.
 
-Record which of 1-6 passed, and for anything that didn't, whether it's a host-support gap (e.g. `resources/read` not re-triggered by a `tool` re-invocation on that particular host) versus a bug in this implementation — this distinction matters because host-side MCP Apps support is still young (see design doc §1's Claude Desktop rendering bug reference) and a host limitation is not something this plan can fix.
+Record which of 1-6 passed, and for anything that didn't, whether it's a host-support gap (e.g. `resources/read` not re-triggered by a `tool` re-invocation on that particular host) versus a bug in this implementation — this distinction matters because host-side MCP Apps support is still young (see design doc §1's Claude Desktop rendering bug reference) and a host limitation is not something this plan can fix. Step 5's automated test already gives strong confidence in the protocol/data-shape layer, so this manual pass can focus entirely on the visual/interactive layer it cannot cover.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 cd "/Users/archiesun/Desktop/Arc Studio/arcgentic"
-git add .mcp.json
-git commit -m "feat(mcp): declare arcgentic MCP server in .mcp.json
+git add .mcp.json toolkit/tests/integration/test_mcp_protocol.py
+git commit -m "feat(mcp): declare arcgentic MCP server in .mcp.json, add protocol test
 
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 ```
