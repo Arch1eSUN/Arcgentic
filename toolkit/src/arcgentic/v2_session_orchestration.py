@@ -13,6 +13,8 @@ from typing import Final, Literal, cast
 
 import yaml  # type: ignore[import-untyped]
 
+from arcgentic.topology import Topology, TopologyError
+
 Role = Literal["orchestrator", "planner", "developer", "test", "auditor"]
 HostKind = Literal["codex", "claude-code-broker"]
 V2Mode = Literal["single-session-subagent", "multi-session-subthread"]
@@ -758,7 +760,11 @@ def apply_role_return_signal(
             f"unsupported orchestrator_status: {orchestrator_status}"
         )
 
-    allowed_current_states = ROLE_ALLOWED_CURRENT_STATES[signal.role]
+    topology = Topology.from_state(state)
+    try:
+        allowed_current_states = topology.allowed_current_states(signal.role)
+    except TopologyError as exc:
+        raise V2SessionOrchestrationError(str(exc)) from exc
     is_pending_idempotent_return = (
         orchestrator_status == "sleeping"
         and pending_role == signal.role
@@ -768,13 +774,21 @@ def apply_role_return_signal(
         raise V2SessionOrchestrationError(
             f"stale {signal.role} signal cannot apply from current state {current_state!r}"
         )
-    route_options = ROLE_ALLOWED_SIGNAL_ROUTES[signal.role]
+    try:
+        route_options = topology.routes_for_role(signal.role)
+    except TopologyError as exc:
+        raise V2SessionOrchestrationError(str(exc)) from exc
     allowed_next_roles = route_options.get(signal.state)
     if allowed_next_roles is None:
         raise V2SessionOrchestrationError(
             f"{signal.role} cannot route round to state {signal.state!r}"
         )
-    next_role = signal.next_recommended_role or next_role_for_state(signal.state)
+    try:
+        next_role = signal.next_recommended_role or topology.default_next_role(
+            signal.state, signal.artifacts
+        )
+    except TopologyError as exc:
+        raise V2SessionOrchestrationError(str(exc)) from exc
     if next_role not in allowed_next_roles:
         allowed = ", ".join(sorted(allowed_next_roles))
         raise V2SessionOrchestrationError(
