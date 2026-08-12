@@ -78,22 +78,43 @@ procedure. If no, skip to "Procedure — hook fallback" below.
 3. If `orchestrator_status` is `active`, read `actions[0]`. Its `prompt`
    field is the complete, ready-to-send role prompt (it already contains
    the `arcgentic-role-return` footer instructions — do not edit it, do
-   not add or remove content).
+   not add or remove content). Its `kind` field is either `"create"` (no
+   thread is recorded for this role yet) or `"reuse"` (this role already
+   has a recorded thread from an earlier dispatch — e.g. Developer's
+   `needs_fix` loop back to Developer, Auditor's `audit_in_progress`
+   retry, or a new round's Planner dispatch after the previous round
+   closed). `reuse` is normal, common V2 routing, not an edge case —
+   branch on `kind` in step 4 below.
 
-4. Dispatch:
-   - `single-session-subagent` mode: call the `Agent` tool with
-     `prompt` = `actions[0].prompt`, `run_in_background: false`
-     (foreground — you get the result directly in this same turn), and
-     `subagent_type` matched to the role (`developer`/`auditor`/etc. if a
-     matching type exists in your environment, otherwise
-     `general-purpose`).
-   - `multi-session-subthread` mode: call `Agent` with the same `prompt`
-     but `run_in_background: true`. Then immediately record the dispatch
-     and end your turn (steps 5-6 below) — do not wait inline for a
-     background call.
+4. Dispatch, branching on `actions[0].kind`:
 
-5. Record the session, using the `agentId` `Agent` returned as the
-   broker `thread-id`:
+   - `kind: "create"`:
+     - `single-session-subagent` mode: call the `Agent` tool with
+       `prompt` = `actions[0].prompt`, `run_in_background: false`
+       (foreground — you get the result directly in this same turn), and
+       `subagent_type` matched to the role (`developer`/`auditor`/etc. if a
+       matching type exists in your environment, otherwise
+       `general-purpose`).
+     - `multi-session-subthread` mode: call `Agent` with the same
+       `prompt` but `run_in_background: true`.
+     - Either way, `Agent`'s return carries a real, resumable `agentId`
+       — that is what you record as the broker `thread-id` in step 5,
+       not `actions[0].thread_id` (for a `create` action that field is
+       only a placeholder, not a real agent id).
+
+   - `kind: "reuse"`:
+     - Do NOT call `Agent` — that would create a brand-new agent and
+       orphan this role's existing context. `actions[0].thread_id` is
+       already the real, previously-recorded `agentId` for this role.
+     - Call `SendMessage` with `to` = `actions[0].thread_id` and
+       `message` = `actions[0].prompt`.
+     - `SendMessage` delivers asynchronously — it does not hand you the
+       reply inline the way a foreground `Agent` call does. Treat this
+       like a background dispatch: end your turn after step 6 and wait
+       for the reply to arrive as a message from that agent.
+
+5. Record the session — `kind: "create"` only, using the `agentId`
+   `Agent` returned as the broker `thread-id`:
 
    ```bash
    arcgentic v2-record-session \
@@ -103,15 +124,32 @@ procedure. If no, skip to "Procedure — hook fallback" below.
      --thread-id <agentId>
    ```
 
-6. Put the Orchestrator to sleep and end your turn:
+   `kind: "reuse"`: skip this step. The role is already recorded from its
+   earlier dispatch — that recorded thread is exactly why this action was
+   `reuse` instead of `create`. Re-running `v2-record-session` with the
+   same `thread-id` would be harmless/idempotent, but it records nothing
+   new, so there is no reason to run it.
+
+6. Record the dispatch, using the `thread-id` from step 4 (the new
+   `agentId` for `create`, or `actions[0].thread_id` for `reuse`):
 
    ```bash
    arcgentic v2-dispatch-role \
      --state .agentic-rounds/state.yaml \
      --host claude-code-broker \
      --role <planner|developer|test|auditor> \
-     --thread-id <agentId>
+     --thread-id <thread-id-from-step-4>
    ```
+
+   This puts the Orchestrator to sleep waiting for this role's reply. In
+   background mode (a `multi-session-subthread` `create` dispatch, or any
+   `reuse` dispatch — those go through `SendMessage`, which is always
+   asynchronous), end your turn here: you'll resume via the
+   task-notification (background `Agent`) or the peer's reply message
+   (`SendMessage`). In foreground mode (a `single-session-subagent`
+   `create` dispatch via a foreground `Agent` call), continue directly to
+   the next step in this same turn — you already have the role's output
+   from step 4.
 
 7. Collect the role's output:
    - Foreground `Agent` call: its return value IS the role's output —
@@ -119,6 +157,10 @@ procedure. If no, skip to "Procedure — hook fallback" below.
    - Background `Agent` call: wait for the task-notification. When it
      arrives, its content is the role's output. Do not poll `ListAgents`
      for completion — the notification is the completion signal.
+   - `SendMessage` (`reuse` dispatch): wait for the agent's reply
+     message. When it arrives, its content is the role's output —
+     validate it for the footer exactly like a fresh `Agent` call's
+     return value (step 8, next).
 
 8. Validate the output contains exactly one
    ` ```arcgentic-role-return ... ``` ` fenced JSON footer (or the
