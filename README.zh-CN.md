@@ -62,13 +62,15 @@ harness：给 agent 加角色、handoff、stop state、审计 gate 和证据记�
 | 平台 | V2 状态 | 验证情况 |
 |---|---|---|
 | **Codex** | 完整 V2 | 已在真实 Codex 项目工作流中实机验证，包括自动标记 Orchestrator、创建/复用角色 thread、派发 prompt 和等待回传。 |
-| **Claude Code** | 完整 V2 实验版 | 已适配，但还没有经过真实 Claude Code session 实机验证。 |
+| **Claude Code** | 完整 V2 | 已在真实 Claude Code session 中验证 `single-session-subagent` 模式：通过原生工具（`Agent`/`SendMessage`/`ListAgents`）的 tier-0 broker 路径完成派发，详见 `tests/dogfood/gate-3-claude-code-native-broker/RESULT.md`。`multi-session-subthread` 模式和 hook 兜底路径尚未经过这次 gate 验证。 |
 
 Codex 是目前最完整的体验。在已验证的 Codex 路径里，当前项目对话会成为
 `Orchestrator`；Arcgentic 会创建或复用角色 thread、命名它们、发送对应角色 prompt、
 等待角色回传，再自动派发下一步。中间不需要用户手动创建 thread 或搬运 prompt。
 
-Claude Code 版本应视为可用的实验工作流候选，不是已经证明过的生产级行为。
+Claude Code 版本的 `single-session-subagent` 模式现在已经有实机 dogfood 验证，
+可以视为已验证的真实工作流。但 `multi-session-subthread` 模式和 hook 兜底路径
+还没有经过真实 Claude Code session 的验证，仍应视为未经证明。
 
 ## 分发状态
 

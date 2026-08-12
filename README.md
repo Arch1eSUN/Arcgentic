@@ -68,15 +68,18 @@ Related reading:
 | Platform | V2 status | Verification |
 |---|---|---|
 | **Codex** | Complete V2 | Verified in a real Codex project workflow, including automatic Orchestrator thread setup and role-thread dispatch. |
-| **Claude Code** | Complete V2 experimental | Not yet verified in a real Claude Code session. |
+| **Claude Code** | Complete V2 | Verified in a real Claude Code session for `single-session-subagent` mode via the native-tooling (`Agent`/`SendMessage`/`ListAgents`) tier-0 broker path — see `tests/dogfood/gate-3-claude-code-native-broker/RESULT.md`. `multi-session-subthread` mode and the hook-backed fallback path remain unverified by this gate. |
 
 Codex is the best current experience. In the verified Codex path, the current
 project conversation becomes `Orchestrator`; Arcgentic then creates or reuses
 the role threads, names them, sends the right role prompt, waits for their
 return signal, and dispatches the next role without manual thread switching.
 
-Claude Code support is available as an experimental version and should be
-treated as a real workflow candidate, not as proven production behavior yet.
+Claude Code support now has dogfood evidence for `single-session-subagent`
+mode via the tier-0 native-tooling broker path, so treat that mode as a
+verified real workflow. `multi-session-subthread` mode and the hook-backed
+fallback path have not yet been verified in a real Claude Code session and
+should still be treated as unproven.
 
 ## Distribution status
 
