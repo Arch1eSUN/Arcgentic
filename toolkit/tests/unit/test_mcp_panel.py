@@ -89,3 +89,22 @@ def test_render_status_panel_html_dispatch_button_sends_prompt_action() -> None:
 def test_render_error_panel_html_shows_message() -> None:
     html = render_error_panel_html("state.yaml is not valid YAML")
     assert "state.yaml is not valid YAML" in html
+
+
+def test_render_status_panel_html_escapes_malicious_round_id_and_state() -> None:
+    state = _state_with_progress()
+    current_round = state["current_round"]
+    assert isinstance(current_round, dict)
+    current_round["id"] = "</h2><script>alert(1)</script>"
+    current_round["state"] = "<img src=x onerror=alert(2)>"
+    html = render_status_panel_html(state)
+    assert "<script>alert(1)</script>" not in html
+    assert "<img src=x onerror=alert(2)>" not in html
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html
+    assert "&lt;img src=x onerror=alert(2)&gt;" in html
+
+
+def test_render_error_panel_html_escapes_malicious_message() -> None:
+    html = render_error_panel_html("boom <script>alert(1)</script>")
+    assert "<script>alert(1)</script>" not in html
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html

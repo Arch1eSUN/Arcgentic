@@ -3,9 +3,16 @@
 No file IO, no network — every function here takes an already-parsed
 state.yaml dict (or an error message) and returns a string. See
 docs/plans/2026-08-12-arcgentic-mcp-ui-status-panel-design.md.
+
+All values sourced from state.yaml (round_id, round_state, verdict summary)
+or from the caller (the error `message`) are HTML-escaped before
+interpolation — state.yaml is untrusted input and this panel's script has a
+privileged postMessage(prompt) channel into the live conversation.
 """
 
 from __future__ import annotations
+
+import html
 
 _ROLE_ORDER: tuple[str, ...] = ("orchestrator", "planner", "developer", "test", "auditor")
 _ROLE_TITLES: dict[str, str] = {
@@ -83,7 +90,7 @@ def render_error_panel_html(message: str) -> str:
     return f"""<!doctype html>
 <html><head><meta charset="utf-8">
 <style>body {{ font-family: system-ui, sans-serif; margin: 12px; color: #b91c1c; }}</style>
-</head><body><p>{message}</p></body></html>"""
+</head><body><p>{html.escape(message)}</p></body></html>"""
 
 
 def render_status_panel_html(state: dict[str, object]) -> str:
@@ -100,7 +107,13 @@ def render_status_panel_html(state: dict[str, object]) -> str:
         f'{row["title"]}: {row["status"]}</li>'
         for row in _role_progress(state)
     )
-    verdict = _audit_verdict_summary(state)
+    # Role titles/statuses above come from _ROLE_TITLES / the fixed
+    # active|recorded|pending vocabulary — internal, not external input — so
+    # they don't need escaping. round_id/round_state/verdict below come from
+    # state.yaml and DO need it.
+    safe_round_id = html.escape(round_id)
+    safe_round_state = html.escape(round_state)
+    verdict = html.escape(_audit_verdict_summary(state))
     dispatch_button = "" if is_closed else '<button id="dispatch-btn">派发下一角色</button>'
     dispatch_script = "" if is_closed else """
       var dispatchBtn = document.getElementById("dispatch-btn");
@@ -123,7 +136,7 @@ def render_status_panel_html(state: dict[str, object]) -> str:
   button {{ margin-top: 8px; padding: 6px 12px; cursor: pointer; }}
 </style></head>
 <body>
-  <h2>Round {round_id} — {round_state}</h2>
+  <h2>Round {safe_round_id} — {safe_round_state}</h2>
   <ul>{rows_html}</ul>
   <p>Audit: {verdict}</p>
   {dispatch_button}
