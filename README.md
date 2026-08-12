@@ -136,6 +136,13 @@ Use Arcgentic to build this idea: <your idea>
 
 For Claude Code V2 experimental workflow setup:
 
+If your Claude Code session's own tool list already includes `Agent`,
+`SendMessage`, and `ListAgents` (native tooling / "tier 0"), no setup step
+is needed — the session broker uses those tools directly and this is the
+preferred, dogfood-verified path (see "Platform status" above). Only run
+`install-hooks` below as a fallback, for sessions that lack those three
+tools:
+
 ```bash
 arcgentic claude-code-broker install-hooks \
   --settings .claude/settings.local.json \

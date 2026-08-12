@@ -123,7 +123,13 @@ scripts、schemas、templates 和平台 manifest。Python CLI 仍然单独通过
 Use Arcgentic to build this idea: <your idea>
 ```
 
-Claude Code V2 实验工作流需要安装 session broker hooks：
+Claude Code V2 实验工作流设置：
+
+如果当前 Claude Code session 自己的工具列表里已经包含 `Agent`、
+`SendMessage` 和 `ListAgents`（原生工具，即 "tier 0"），不需要任何安装
+步骤——session broker 会直接使用这些工具，这也是首选的、已有 dogfood
+验证的路径（见上面的“平台状态”）。下面的 `install-hooks` 只在缺少这三
+个工具时作为兜底方案使用：
 
 ```bash
 arcgentic claude-code-broker install-hooks \
