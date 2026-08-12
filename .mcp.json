@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "arcgentic": {
+      "command": "arcgentic",
+      "args": ["mcp-serve"]
+    }
+  }
+}
