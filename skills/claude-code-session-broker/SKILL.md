@@ -44,12 +44,18 @@ Use the strongest available transport, checked in this order:
 
 1. **Native tooling (tier 0)** — if this session's own tool list includes
    `Agent`, `SendMessage`, and `ListAgents`, use them directly (see
-   "Procedure — tier 0" below). Dispatch is synchronous for a foreground
-   `Agent` call (you get the role's output the moment the call returns —
-   no external event to wait for) or notification-driven for a background
+   "Procedure — tier 0" below). For a first-time dispatch to a role
+   (`kind: "create"`), dispatch is synchronous for a foreground `Agent`
+   call (you get the role's output the moment the call returns — no
+   external event to wait for) or notification-driven for a background
    `Agent` call (a task-notification arrives with the role's output when
-   it finishes). Either way, `Agent`'s result always carries a resumable
-   `agentId` — record it as the broker `thread-id` in both cases.
+   it finishes); either way, `Agent`'s result carries a resumable
+   `agentId` you record as the broker `thread-id`. For a repeat dispatch
+   to a role that already has a recorded thread (`kind: "reuse"` — e.g. a
+   `needs_fix` loop back to Developer), skip `Agent` entirely and use
+   `SendMessage` against that already-recorded `agentId` instead; its
+   reply arrives asynchronously, like a background `Agent` call's
+   notification.
 2. **Hook-backed broker (fallback)** — use when tier 0's three tools are
    not present in this session (see "Procedure — hook fallback" below).
 3. **Explicit copy-back (last resort)** — when neither of the above is
