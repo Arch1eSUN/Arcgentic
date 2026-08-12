@@ -236,6 +236,17 @@ idea
 Arcgentic 不会每轮创建新的角色身份。角色名始终固定：
 `Orchestrator`、`Planner`、`Developer`、`Test`、`Auditor`。
 
+## 自定义角色/状态拓扑
+
+决定"下一步该谁来做"的角色/状态路由，不再是写死的表。它现在是一个
+`Topology`（`toolkit/src/arcgentic/topology.py`），项目可以通过 `state.yaml`
+里的 `project.arcgentic_v2.topology` 覆盖——包括路由规则、每个角色允许在
+哪些状态下行动，以及基于返回角色 `artifacts` 内容的条件路由（比如根据审计
+结果字段走不同分支）。零配置项目拿到的行为和之前逐位相同；自定义拓扑在
+解析阶段就会被校验（未知的角色名、没有对应目标状态的路由，都会在项目卡在
+半轮之前被拒绝）。这是给需要和默认 plan/dev/audit 循环不一样的角色图的
+项目用的——大多数项目不需要碰它。
+
 ## Codex V2
 
 Codex V2 使用 Codex 的 project thread 能力完成多 session / 多 thread 编排。
@@ -312,6 +323,40 @@ current session = Orchestrator
 Claude Code experimental mode 会通过 session broker 尽量达到同样的无手动路由行为。
 这套完整自动化还没有经过真实 Claude Code session 验证。如果 push-return 在你的环境里不可用，
 先使用显式 copy-back：把角色输出的自然语言总结和 `arcgentic-role-return` footer 粘回 Orchestrator。
+
+## MCP-UI 状态面板
+
+arcgentic 现在自带一个可选的 MCP server，通过
+[MCP Apps](https://modelcontextprotocol.io/specification/draft/extensions/apps)
+（2026 年 1 月成为 MCP 官方扩展，用于在对话里渲染可交互 UI）暴露一个实时的
+round 状态面板。安装：
+
+```bash
+pip install 'arcgentic[mcp]'
+```
+
+在项目的 `.mcp.json` 里声明：
+
+```json
+{
+  "mcpServers": {
+    "arcgentic": {
+      "command": "arcgentic",
+      "args": ["mcp-serve"]
+    }
+  }
+}
+```
+
+调用 `round_status_panel` 这个 tool，会把 round id、各角色派发进度、最近一次
+audit verdict 渲染成内嵌面板，带客户端自动轮询（有上限，面板不在前台时暂停）和
+一个"派发下一角色"按钮——按钮发的是一条对话消息，不是直接改状态，面板本身
+没有任何写权限，状态机始终只能由 Orchestrator 推进。在不支持 MCP Apps 的
+host 上（包括纯终端的 Codex/Claude Code 会话），同一个 tool 调用会退化成纯
+文本摘要，而不是报错。
+
+MCP Apps 的 host 生态还比较新——这个功能是给支持 MCP-UI 的图形化客户端用的，
+不是给纯终端会话用的。
 
 ## 什么时候适合用 Arcgentic
 
@@ -396,8 +441,12 @@ Test 不是每轮必跑。它只在需要真实用户行为、UI 使用、模拟
 - V2 workflow prompts and state helpers
 - npm bundle 已发布：`arcgentic@2.2.0`
 - Codex V2 实机验证完成
-- Claude Code V2 实验适配完成；`single-session-subagent` 模式已有真实 session dogfood
-  验证，`multi-session-subthread` 模式和 hook 兜底路径仍在等待验证
+- Claude Code V2 实验适配完成；`single-session-subagent` 模式的首次派发
+  （`create`）路径已有真实 session dogfood 验证，`multi-session-subthread`
+  模式、`SendMessage` 重复派发（`reuse`）路径和 hook 兜底路径仍在等待验证
+- 自定义角色/状态拓扑完成；零配置行为不变，自定义拓扑解析阶段即校验
+- MCP-UI 状态面板完成，可选安装（`pip install arcgentic[mcp]`），依赖 host
+  的 MCP Apps 支持
 
 ## 路线图
 
@@ -408,8 +457,9 @@ Test 不是每轮必跑。它只在需要真实用户行为、UI 使用、模拟
 - example project；
 - Before / After 对比；
 - issue template / feedback loop；
-- Claude Code V2 `multi-session-subthread` 模式和 hook 兜底路径的实机验证记录
-  （`single-session-subagent` 模式已有验证记录）。
+- Claude Code V2 `multi-session-subthread` 模式、`SendMessage` 重复派发路径
+  和 hook 兜底路径的实机验证记录（`single-session-subagent` 模式的首次派发
+  路径已有验证记录）。
 
 ## 反馈
 

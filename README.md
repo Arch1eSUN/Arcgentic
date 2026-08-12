@@ -251,6 +251,20 @@ The roles are fixed:
 Arcgentic does not create a new role identity every round. The role names stay
 fixed: `Orchestrator`, `Planner`, `Developer`, `Test`, and `Auditor`.
 
+## Custom role/state topology
+
+The role/state routing that decides "who acts next" is no longer a hardcoded
+table. It is a `Topology` (`toolkit/src/arcgentic/topology.py`) that a project
+can override via `project.arcgentic_v2.topology` in `state.yaml` — routes,
+which states each role may act from, and conditional next-role selection based
+on the returning role's `artifacts` (for example, routing differently depending
+on an audit outcome field). Zero-config projects get the exact same 5-role
+sequence as before, byte for byte; custom topologies are validated at parse
+time (unknown role keys and routes with no matching next state are rejected
+before they can leave a project stuck mid-round). This is for projects that
+need a different role graph than the default plan/dev/audit loop — most
+projects should never need to touch it.
+
 ## Codex V2
 
 Codex V2 is the verified path.
@@ -335,6 +349,42 @@ workflow can continue.
 
 Use Claude Code V2 when you want to try the same discipline in Claude Code and
 are comfortable with experimental workflow behavior.
+
+## MCP-UI status panel
+
+Arcgentic ships an optional MCP server exposing a live round-status panel via
+[MCP Apps](https://modelcontextprotocol.io/specification/draft/extensions/apps)
+(the January 2026 official MCP extension for rendering interactive UI inside a
+conversation). Install it with:
+
+```bash
+pip install 'arcgentic[mcp]'
+```
+
+and declare it in your project's `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "arcgentic": {
+      "command": "arcgentic",
+      "args": ["mcp-serve"]
+    }
+  }
+}
+```
+
+Calling the `round_status_panel` tool renders round id, per-role dispatch
+progress, and the latest audit verdict as an inline panel, with client-side
+auto-refresh (capped, pauses when the panel isn't visible) and a "dispatch
+next role" button that sends a chat message rather than mutating state
+directly — the panel has no write path of its own; the Orchestrator still
+drives every state change. On hosts without MCP Apps support (including plain
+terminal Codex/Claude Code sessions), the same tool call falls back to a plain
+text summary instead of failing.
+
+MCP Apps host support is still young — this feature is for MCP-UI-capable
+hosts (a graphical Claude/Codex client, not a bare terminal session).
 
 ## When to use Arcgentic
 
@@ -442,14 +492,18 @@ Developer self-audit to Auditor.
 | Closed-project status no-op | Complete. |
 | README onboarding | Updated for adoption-first use. |
 | npm bundle | Published as `arcgentic@2.2.0`. |
+| Custom role/state topology | Complete. Zero-config behavior unchanged; custom topologies validated at parse time. |
+| MCP-UI status panel | Complete, optional (`pip install arcgentic[mcp]`). Depends on host MCP Apps support. |
 
 ## Roadmap
 
 Near-term:
 
-- verify Claude Code V2's `multi-session-subthread` mode and hook-backed
-  fallback path in a real Claude Code session (`single-session-subagent`
-  mode is verified);
+- verify Claude Code V2's `multi-session-subthread` mode, the
+  `SendMessage`-based reuse-dispatch path, and the hook-backed fallback path
+  in a real Claude Code session (`single-session-subagent` mode's
+  first-dispatch/`create` path is verified; repeat dispatch via `SendMessage`
+  is implemented but not yet dogfooded);
 - publish a small example project;
 - add a short demo walkthrough;
 - collect issue-template feedback from first users.
