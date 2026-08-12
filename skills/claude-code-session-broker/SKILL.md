@@ -7,17 +7,23 @@ description: Use when running Arcgentic V2 in Claude Code and fixed Planner, Dev
 
 Use this skill for Claude Code V2 parity. Claude Code does not expose the same
 Codex thread tools to Arcgentic, so V2 parity is broker-backed: the broker keeps
-the same four-role state contract and uses Claude Code subagents, Agent Teams,
-hooks, or explicit copy-back depending on what the host supports.
+the same four-role state contract and uses native Claude Code tooling
+(subagents via `Agent`/`SendMessage`/`ListAgents`), hooks, or explicit
+copy-back, depending on what the host supports — see "Broker priority"
+below for the exact three transports and their order.
 
 Relevant host capabilities:
 
-- Subagents provide isolated role contexts within a session:
+- Subagents provide isolated role contexts within a session, and back
+  tier 0's `Agent`/`SendMessage`/`ListAgents` dispatch:
   <https://code.claude.com/docs/en/sub-agents>
-- Agent Teams coordinate across separate sessions when enabled:
-  <https://code.claude.com/docs/en/agent-teams>
-- Hooks can observe stop events and final assistant output:
-  <https://code.claude.com/docs/en/hooks>
+- Hooks can observe stop events and final assistant output, and back the
+  hook-backed broker fallback: <https://code.claude.com/docs/en/hooks>
+- Agent Teams (<https://code.claude.com/docs/en/agent-teams>) coordinate
+  across separate sessions when enabled, but they are a different host
+  feature from this skill's three transports below. Tier 0 supersedes
+  Agent Teams for V2 dispatch — do not treat Agent Teams as a live,
+  separate transport option here.
 
 ## Contract
 
