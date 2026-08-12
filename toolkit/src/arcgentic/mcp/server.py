@@ -36,7 +36,7 @@ def round_status_panel() -> str:
     """
     try:
         state = _load_current_state()
-    except (V2SessionOrchestrationError, yaml.YAMLError) as exc:
+    except (V2SessionOrchestrationError, yaml.YAMLError, OSError) as exc:
         return f"arcgentic: failed to read {STATE_PATH}: {exc}"
     if state is None:
         return "arcgentic: no active round (.agentic-rounds/state.yaml not found)."
@@ -47,7 +47,7 @@ def _round_status_panel_html() -> str:
     """FunctionResource callback for RESOURCE_URI — re-invoked on every resources/read."""
     try:
         state = _load_current_state()
-    except (V2SessionOrchestrationError, yaml.YAMLError) as exc:
+    except (V2SessionOrchestrationError, yaml.YAMLError, OSError) as exc:
         return render_error_panel_html(f"Failed to read {STATE_PATH}: {exc}")
     return render_status_panel_html(state or {})
 
@@ -66,6 +66,7 @@ def build_apps() -> Apps:
             _round_status_panel_html,
             uri=RESOURCE_URI,
             mime_type=APP_MIME_TYPE,
+            name="round-status-panel",
         )
     )
     return apps
