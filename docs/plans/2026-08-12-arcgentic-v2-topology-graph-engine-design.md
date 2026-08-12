@@ -6,18 +6,13 @@
 
 ## 1. 背景
 
-Arcgentic V2 的角色调度（orchestrator → planner → developer → test → auditor）目前是 Python 里两张写死的表：
-
-- `next_role_for_state()` (`v2_session_orchestration.py:426-436`) — `current_round.state` 字符串 → 固定 `Role`
-- `ROLE_ALLOWED_SIGNAL_ROUTES` (`v2_session_orchestration.py:72-96`) — 每个角色允许交接给谁的白名单
-
-条件路由（比如 auditor 的 PASS/NEEDS_FIX 决定走向 planner 还是 developer）已经存在，但被硬编码在这个封闭的 5 角色枚举里；`current_round.state` 的 JSON Schema 是一个锁死的 12 值 enum；`role_sessions`/`pending_role` 是标量，一次只能有一个角色在跑；`project_plan.phases` 是纯线性列表，没有条件跳转或循环。
+Arcgentic V2 的角色调度（orchestrator → planner → developer → test → auditor）目前是 Python 里三张写死的表（见第 3 节的修正说明，最初误记成两张）：`ROLE_ALLOWED_CURRENT_STATES`、`ROLE_ALLOWED_SIGNAL_ROUTES`、`next_role_for_state`。auditor 的 PASS/NEEDS_FIX 分支不是引擎做条件判断的结果，而是 auditor 角色自己决定把 `signal.state` 报成哪个值，引擎只做合法性校验（详见第 3 节修正）。`current_round.state` 的 JSON Schema 是一个锁死的 12 值 enum；`role_sessions`/`pending_role` 是标量，一次只能有一个角色在跑；`project_plan.phases` 是纯线性列表，没有条件跳转或循环。
 
 结论：项目既不能自定义状态拓扑，也没有并行分支/汇合，也没有真正的循环原语——"循环"目前只是硬编码在枚举里的一条特例路径（needs_fix → fix_in_progress → 回到 audit）。
 
 ## 2. 目标（本次落地）
 
-用**一个**数据驱动的图解析器替换上面两张写死的表，保持 Codex 已验证的调度行为在默认配置下逐位不变。
+用**一份**数据驱动的拓扑配置替换上面三张写死的表，保持 Codex 已验证的调度行为在默认配置下逐位不变。
 
 不做（本次明确推迟，但 schema 形状要留出扩展空间，不产生破坏性迁移）：
 - 并行 fan-out/join（给 ba-designer / cr-reviewer / se-contract 一个真正的并发图节点身份）
@@ -25,46 +20,63 @@ Arcgentic V2 的角色调度（orchestrator → planner → developer → test �
 
 ## 3. 设计
 
+**修正（写计划阶段发现，设计稿原文有误）**：实际读代码后确认，写死的不是两张表，是**三张**独立的表，且互相不是同一份数据的不同视角，必须分别搬到 topology 里，否则自定义拓扑没法完整替代默认行为：
+
+1. `ROLE_ALLOWED_CURRENT_STATES: Role -> frozenset[state]` (`v2_session_orchestration.py:62-70`) — 前置条件：某角色允许在哪些 `current_round.state` 值下发出信号。**注意 orchestrator 和 planner 的允许集合完全相同**（都是 `{intake, planning, passed, closed}`），这不是巧合可以简化掉的重复，是两个角色共享同一组入口状态，topology 必须原样保留这个重叠，不能假设"一个 state 只属于一个角色"。
+2. `ROLE_ALLOWED_SIGNAL_ROUTES: Role -> {state: frozenset[Role]}` (`72-96`) — 校验用：角色 R 上报新状态 S 时，允许的下一角色集合。
+3. `next_role_for_state: state -> Role` (`426-436`) — 当信号没给 `next_recommended_role` 时的兜底下一角色。
+
+也更正一点：今天**没有基于 `artifacts` 的条件路由**。auditor 是不是 PASS，是 auditor 这个角色自己判断后把 `signal.state` 设成 `"passed"` 或 `"needs_fix"`——引擎只做上面第 2 张表的合法性校验，不读 `signal.artifacts` 做分支决策。所以"条件路由"是全新能力，不是把已有逻辑数据化。为了不改变"谁来决定分支"这个协议契约（agent 自报 state，引擎只校验），本次不做引擎读 `artifacts` 自动选路——那是更大的协议变更，应该单独对齐。`condition` 字段仍然设计进 schema（给未来自定义拓扑用），但默认拓扑的所有边都不使用它。
+
 ### 3.1 新增：`project.arcgentic_v2.topology`（可选字段）
 
-邻接表形状，和 `schema/state.schema.json` 里已声明但从未被 V2 使用的 `states` 字段同构：
+不是"节点独占一个角色"的干净图（3.1 修正说明了为什么不能这样简化），而是三张表的字面转录，保留原有的角色重叠语义：
 
 ```yaml
 topology:
-  nodes:
-    dev_in_progress:
-      role: developer
-      next:
-        - to: awaiting_test
-        - to: awaiting_audit
-          when_signal: skip_test
-    audit_in_progress:
-      role: auditor
-      next:
-        - to: passed
-          condition: "artifacts.audit_verdict.outcome == 'PASS'"
-        - to: needs_fix
-          condition: "artifacts.audit_verdict.outcome == 'NEEDS_FIX'"
-    needs_fix:
-      role: developer
-      next:
-        - to: awaiting_audit
-    # ... 其余节点是今天 5 角色图的逐一转录
+  roles:
+    orchestrator: {allowed_current_states: [intake, planning, passed, closed]}
+    planner:      {allowed_current_states: [intake, planning, passed, closed]}
+    developer:    {allowed_current_states: [awaiting_dev_start, dev_in_progress, needs_fix, fix_in_progress]}
+    test:         {allowed_current_states: [awaiting_test, test_in_progress]}
+    auditor:      {allowed_current_states: [awaiting_audit, audit_in_progress]}
+  routes:
+    orchestrator: {planning: [planner], closed: [planner]}
+    planner:      {awaiting_dev_start: [developer], planning: [planner], closed: [planner]}
+    developer:    {awaiting_test: [test], awaiting_audit: [auditor], needs_fix: [developer]}
+    test:         {awaiting_audit: [auditor], needs_fix: [developer]}
+    auditor:      {passed: [planner], needs_fix: [developer], audit_in_progress: [auditor]}
+  default_next_role:
+    intake: planner
+    planning: planner
+    passed: planner
+    closed: planner
+    awaiting_dev_start: developer
+    dev_in_progress: developer
+    needs_fix: developer
+    fix_in_progress: developer
+    awaiting_test: test
+    test_in_progress: test
+    awaiting_audit: auditor
+    audit_in_progress: auditor
+    # default_next_role 的值也可以是一个候选列表而不是裸角色名，按声明顺序对每个
+    # candidate 求值 condition，第一个 condition 满足（或没有 condition）的命中：
+    # audit_in_progress:
+    #   - {role: auditor, condition: {path: "artifacts.foo", equals: "bar"}}
+    #   - {role: auditor}   # 无 condition 的兜底边，必须放最后
 ```
 
-不配置 `topology` 时，引擎使用内置默认拓扑——今天硬编码表的字面转录，行为完全不变。
+不配置 `topology` 时，引擎使用内置默认拓扑——上面这份就是默认值本身（不是"举例"，是真实的默认拓扑数据），行为完全不变。默认拓扑里所有 `default_next_role` 的值都是裸角色名，不使用候选列表形式。
 
-### 3.2 解析器替换写死的表
+### 3.2 三处调用点分别替换，不是单点合并
 
-`apply_role_return_signal()` 里 `next_role = signal.next_recommended_role or next_role_for_state(signal.state)` (`v2_session_orchestration.py:777`) 是唯一的落点。改为：
+`apply_role_return_signal()` 里有三处独立查表，分别替换成 `Topology` 对象上的三个方法，控制流原样保留（不引入新的黑盒 `resolve_next`，降低和现有校验逻辑分叉的风险）：
 
-```python
-next_role = topology.resolve_next(current_node=signal.state, signal=signal) \
-    or signal.next_recommended_role \
-    or next_role_for_state(signal.state)  # 兼容兜底，未配置 topology 时原样生效
-```
+- `allowed_current_states = ROLE_ALLOWED_CURRENT_STATES[signal.role]` (`:761`) → `topology.allowed_current_states(signal.role)`
+- `route_options = ROLE_ALLOWED_SIGNAL_ROUTES[signal.role]` (`:771`) → `topology.routes_for_role(signal.role)`
+- `next_role = signal.next_recommended_role or next_role_for_state(signal.state)` (`:777`) → `signal.next_recommended_role or topology.default_next_role(signal.state, signal.artifacts)`
 
-`resolve_next` 遍历当前节点的 `next` 边，按声明顺序求值 `condition`（对 `signal.artifacts` 做简单属性访问 + 相等/布尔比较，不引入通用表达式引擎/eval），第一个满足的边命中；没有 `condition` 的边视为默认边。
+`condition` 的求值（属性路径 + 相等比较，不引入 eval/通用表达式引擎）只发生在 `default_next_role` 内部，且只在 `next_recommended_role` 为空时才会被调用到；本次默认拓扑的 `default_next_role` 全部是裸角色名，不会走到候选列表分支。
 
 ### 3.3 Schema 变更
 
@@ -74,7 +86,7 @@ next_role = topology.resolve_next(current_node=signal.state, signal=signal) \
 ### 3.4 兼容性与测试
 
 - `toolkit/tests/unit/test_v2_session_orchestration.py` 新增等价性测试：默认拓扑在所有既有测试用例下必须产出与旧硬编码表完全相同的调度决策（逐用例对比，不是抽样）。
-- 新增自定义拓扑 fixture 测试：至少一条带 `condition` 的边、一条无 `condition` 的默认边，验证 `resolve_next` 的求值顺序与兜底行为。
+- 新增自定义拓扑 fixture 测试：`default_next_role` 用候选列表形式声明至少一条带 `condition` 的边 + 一条无 `condition` 的兜底边，验证按声明顺序求值、命中即停止的行为。
 - `claude_code_broker.py` / `orchestrator_dispatch.py` 不需要改动——它们只消费 `apply_role_return_signal()` 的返回值，不直接碰 `next_role_for_state`/`ROLE_ALLOWED_SIGNAL_ROUTES`。
 
 ## 4. 明确排除的范围（供下一轮参考,不在本次实现)
