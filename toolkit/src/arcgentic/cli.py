@@ -28,6 +28,8 @@ Subcommands wired in this module:
   → wakes the Orchestrator, records a role return signal, and prints next routing JSON
 - `arcgentic claude-code-broker install-hooks|handle-stop`
   → installs and runs the Claude Code hook-backed V2 broker transport
+- `arcgentic mcp-serve`
+  → runs the MCP server (stdio) exposing the round-status panel via MCP Apps
 
 CLI is the bridge between markdown skills (which shell out via Claude Code's
 Bash tool) and the Python toolkit (which holds the actual algorithms).
@@ -400,6 +402,11 @@ def main(argv: list[str] | None = None) -> int:
         help="Install or run the Claude Code hook-backed V2 broker.",
     )
     claude_broker_parser.add_argument("broker_args", nargs=argparse.REMAINDER)
+
+    subparsers.add_parser(
+        "mcp-serve",
+        help="Run the arcgentic MCP server (stdio) exposing the round-status panel.",
+    )
 
     args = parser.parse_args(argv)
 
@@ -909,6 +916,12 @@ def main(argv: list[str] | None = None) -> int:
         from .claude_code_broker import main as broker_main
 
         return broker_main(args.broker_args)
+
+    elif args.command == "mcp-serve":
+        from .mcp.server import run_server
+
+        run_server()
+        return 0
 
     parser.print_help()
     return 1
