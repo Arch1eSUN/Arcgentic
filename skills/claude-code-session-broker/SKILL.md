@@ -88,7 +88,17 @@ procedure. If no, skip to "Procedure — hook fallback" below.
 
 4. Dispatch, branching on `actions[0].kind`:
 
-   - `kind: "create"`:
+   - `kind: "create"`: before calling `Agent`, your own working
+     directory must already be the target project root. `Agent` has no
+     working-directory parameter of its own — a dispatched agent
+     inherits your shell's cwd and has no other way to learn where the
+     project is, so if the orchestrator's shell has not already `cd`'d
+     into the project root, the role prompt's relative file paths (e.g.
+     `.agentic-rounds/state.yaml`, `docs/plans/...`) will resolve
+     against the wrong directory. (This does not apply to `kind:
+     "reuse"` below — that dispatches via `SendMessage` to an
+     already-running agent, which already has its own working directory
+     from when it was first created.)
      - `single-session-subagent` mode: call the `Agent` tool with
        `prompt` = `actions[0].prompt`, `run_in_background: false`
        (foreground — you get the result directly in this same turn), and
