@@ -108,3 +108,12 @@ def test_render_error_panel_html_escapes_malicious_message() -> None:
     html = render_error_panel_html("boom <script>alert(1)</script>")
     assert "<script>alert(1)</script>" not in html
     assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html
+
+
+def test_render_status_panel_html_polling_script_has_a_poll_count_cap() -> None:
+    html = render_status_panel_html(_state_with_progress())
+    assert "MAX_POLL_CYCLES = 60" in html
+    assert 'id="poll-resume-btn"' in html
+    assert 'id="poll-paused-note"' in html
+    # The existing 5s-interval polling assertion must still hold.
+    assert "setInterval(callTool, 5000)" in html

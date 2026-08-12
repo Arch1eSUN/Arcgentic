@@ -8,6 +8,12 @@ All values sourced from state.yaml (round_id, round_state, verdict summary)
 or from the caller (the error `message`) are HTML-escaped before
 interpolation — state.yaml is untrusted input and this panel's script has a
 privileged postMessage(prompt) channel into the live conversation.
+
+The embedded polling script caps itself at 60 poll cycles (5 minutes at the
+5-second interval) and then pauses with a manual "resume" control; whether a
+host actually re-renders the panel on each poll (and thus whether pausing has
+any visible effect) is host behavior this server cannot observe or control —
+it can only control how many times it asks.
 """
 
 from __future__ import annotations
@@ -140,12 +146,25 @@ def render_status_panel_html(state: dict[str, object]) -> str:
   <ul>{rows_html}</ul>
   <p>Audit: {verdict}</p>
   {dispatch_button}
+  <p id="poll-paused-note" style="display:none; color:#9ca3af; font-size:12px;">
+    Auto-refresh paused — <button id="poll-resume-btn">click refresh to resume</button>
+  </p>
   <script>
     (function () {{
+      var MAX_POLL_CYCLES = 60; // 5 min at the 5s interval — independent cap, see stopPolling()
       var pollTimer = null;
+      var pollCount = 0;
       var isClosed = {str(is_closed).lower()};
+      var pausedNote = document.getElementById("poll-paused-note");
+      var resumeBtn = document.getElementById("poll-resume-btn");
 
       function callTool() {{
+        pollCount += 1;
+        if (pollCount > MAX_POLL_CYCLES) {{
+          stopPolling();
+          if (pausedNote) {{ pausedNote.style.display = "block"; }}
+          return;
+        }}
         window.parent.postMessage(
           {{ "type": "tool", "payload": {{ "toolName": "round_status_panel", "params": {{}} }} }},
           "*"
@@ -159,6 +178,14 @@ def render_status_panel_html(state: dict[str, object]) -> str:
 
       function stopPolling() {{
         if (pollTimer) {{ clearInterval(pollTimer); pollTimer = null; }}
+      }}
+
+      if (resumeBtn) {{
+        resumeBtn.addEventListener("click", function () {{
+          pollCount = 0;
+          if (pausedNote) {{ pausedNote.style.display = "none"; }}
+          startPolling();
+        }});
       }}
 
       document.addEventListener("visibilitychange", function () {{
