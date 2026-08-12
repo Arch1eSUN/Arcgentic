@@ -69,7 +69,10 @@ class Topology:
         return self.allowed_current_states_by_role[role]
 
     def routes_for_role(self, role: Role) -> dict[str, frozenset[Role]]:
-        return self.routes[role]
+        # Shallow copy: the inner values are frozensets (already immutable), so
+        # copying the outer dict is enough to stop a caller from mutating the
+        # module-level DEFAULT_TOPOLOGY singleton's data through this reference.
+        return dict(self.routes[role])
 
     def default_next_role(
         self, state_name: str, artifacts: dict[str, object] | None = None

@@ -167,3 +167,10 @@ def test_default_next_role_candidate_list_requires_unconditioned_fallback_last()
 
 def test_default_next_role_strips_state_name() -> None:
     assert DEFAULT_TOPOLOGY.default_next_role(" passed ") == "planner"
+
+
+def test_routes_for_role_returns_copy_not_internal_reference() -> None:
+    first = DEFAULT_TOPOLOGY.routes_for_role("auditor")
+    second = DEFAULT_TOPOLOGY.routes_for_role("auditor")
+    assert first is not second
+    assert first == second
