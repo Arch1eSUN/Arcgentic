@@ -92,9 +92,15 @@ procedure. If no, skip to "Procedure — hook fallback" below.
      - `single-session-subagent` mode: call the `Agent` tool with
        `prompt` = `actions[0].prompt`, `run_in_background: false`
        (foreground — you get the result directly in this same turn), and
-       `subagent_type` matched to the role (`developer`/`auditor`/etc. if a
-       matching type exists in your environment, otherwise
-       `general-purpose`).
+       `subagent_type: "general-purpose"`. Do NOT use arcgentic's own
+       `planner`/`developer`/`auditor`/etc. agent types for this — an
+       arcgentic-installed project ships those agent types (see
+       `agents/planner.md`, `agents/developer.md`, `agents/auditor.md` at
+       the repo root) and their names match the V2 role names, but they
+       implement a different, incompatible V1/v0.2 contract (V1's
+       `planner` agent produces "18/12/10-section handoff docs", not a
+       V2 role-prompt/return-signal exchange). Dispatching a role through
+       one of those types would run the wrong contract.
      - `multi-session-subthread` mode: call `Agent` with the same
        `prompt` but `run_in_background: true`.
      - Either way, `Agent`'s return carries a real, resumable `agentId`
