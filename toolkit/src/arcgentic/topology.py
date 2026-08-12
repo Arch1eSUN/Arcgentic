@@ -106,6 +106,10 @@ def _parse_topology(raw: dict[str, object]) -> Topology:
     roles_raw = raw.get("roles")
     if not isinstance(roles_raw, dict):
         raise TopologyError("topology.roles must be an object")
+    unknown_role_keys = sorted(set(roles_raw.keys()) - set(KNOWN_ROLES))
+    if unknown_role_keys:
+        joined = ", ".join(repr(k) for k in unknown_role_keys)
+        raise TopologyError(f"topology.roles has unexpected role key(s): {joined}")
     allowed_current_states_by_role: dict[Role, frozenset[str]] = {}
     for role_name in KNOWN_ROLES:
         role = _normalize_role(role_name)
@@ -122,6 +126,11 @@ def _parse_topology(raw: dict[str, object]) -> Topology:
     routes_raw = raw.get("routes")
     if not isinstance(routes_raw, dict):
         raise TopologyError("topology.routes must be an object")
+    if routes_raw:
+        unknown_route_keys = sorted(set(routes_raw.keys()) - set(KNOWN_ROLES))
+        if unknown_route_keys:
+            joined = ", ".join(repr(k) for k in unknown_route_keys)
+            raise TopologyError(f"topology.routes has unexpected role key(s): {joined}")
     routes: dict[Role, dict[str, frozenset[Role]]] = {}
     for role_name in KNOWN_ROLES:
         role = _normalize_role(role_name)

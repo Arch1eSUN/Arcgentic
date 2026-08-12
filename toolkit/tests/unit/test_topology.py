@@ -174,3 +174,49 @@ def test_routes_for_role_returns_copy_not_internal_reference() -> None:
     second = DEFAULT_TOPOLOGY.routes_for_role("auditor")
     assert first is not second
     assert first == second
+
+
+def _full_roles_block() -> dict[str, object]:
+    return {
+        "orchestrator": {"allowed_current_states": ["intake"]},
+        "planner": {"allowed_current_states": ["intake"]},
+        "developer": {"allowed_current_states": ["intake"]},
+        "test": {"allowed_current_states": ["intake"]},
+        "auditor": {
+            "allowed_current_states": ["awaiting_audit", "audit_in_progress"]
+        },
+    }
+
+
+def test_from_state_rejects_unknown_role_key_in_roles() -> None:
+    roles = _full_roles_block()
+    roles["auditr"] = {"allowed_current_states": ["awaiting_audit"]}
+    state = {
+        "project": {
+            "arcgentic_v2": {
+                "topology": {
+                    "roles": roles,
+                    "routes": {},
+                    "default_next_role": {"intake": "planner"},
+                }
+            }
+        }
+    }
+    with pytest.raises(TopologyError, match="auditr"):
+        Topology.from_state(state)
+
+
+def test_from_state_rejects_unknown_role_key_in_routes() -> None:
+    state = {
+        "project": {
+            "arcgentic_v2": {
+                "topology": {
+                    "roles": _full_roles_block(),
+                    "routes": {"auditr": {"passed": ["planner"]}},
+                    "default_next_role": {"intake": "planner"},
+                }
+            }
+        }
+    }
+    with pytest.raises(TopologyError, match="auditr"):
+        Topology.from_state(state)
