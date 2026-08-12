@@ -2,7 +2,7 @@
   "mcpServers": {
     "arcgentic": {
       "command": "arcgentic",
-      "args": ["mcp-serve"]
+      "args": ["python", "--", "mcp-serve"]
     }
   }
 }

@@ -34,6 +34,7 @@
     "templates/",
     ".claude-plugin/",
     ".codex-plugin/",
+    ".mcp.json",
     "plugin.json",
     "openclaw.plugin.json",
     "README.md",
