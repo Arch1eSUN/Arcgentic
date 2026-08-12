@@ -2,7 +2,7 @@
 
 **日期**: 2026-08-12
 **范围**: `toolkit/src/arcgentic/v2_session_orchestration.py` 及其消费者（`claude_code_broker.py`、`orchestrator_dispatch.py`）
-**明确不涉及**: `scripts/state/*.sh` + `schema/state.schema.json` 里的 `states` 字段（V1 遗留，V2 从不读写，属于死代码，本次不清理，另行标记）
+**明确不涉及**: `scripts/state/*.sh` + `schema/state.schema.json` 里的 `states` 字段（V2 Python 引擎——`toolkit/src/arcgentic/v2_session_orchestration.py` 及其消费者——从不读写这些，本次改动不涉及。**更正（2026-08-12 后续调查）**：这不等于"死代码"——`skills/using-arcgentic`、`skills/orchestrate-round`、`skills/audit-round`、`skills/verify-gates` 这些当前仍在 `plugin.json` 里正式声明、未被标记废弃的 skill，会直接调用 `scripts/state/{init,pickup,transition,validate-schema}.sh` 和 `scripts/gates/*.sh`——这是一条独立于 V2 自动化派发、仍然存活且被文档化的"手动/单会话"操作路径（`orchestrate-round` 的 description 明确写着"Use when in single-session mode... or when manually advancing the state machine"），不是被 V2 取代的历史遗留。只有 `init.sh` 是两条路径共用的启动脚本（`skills/arcgentic/SKILL.md` 的 V2 入口本身也调用它来引导 `.agentic-rounds/state.yaml`）。详见调查记录：本文件不再是该判断的权威来源，实际结论以调查时的对话/commit 为准。）
 
 ## 1. 背景
 
@@ -95,7 +95,7 @@ topology:
 |---|---|---|
 | 并行 fan-out/join | `role_sessions`/`pending_role` 是标量 | 需要把两处调用点都从标量改成集合,是独立的、更大的改动,应该单开一轮 |
 | `project_plan.phases` 图化 | 纯线性 list-walk (`advance_passed_round_from_project_plan`, `547-632`) | 依赖 3.1/3.2 先跑稳,而且跨 round 循环的语义(重试整个 phase？回退到更早的 phase？)需要单独和你对齐,不该在这次顺带决定 |
-| V1 bash `scripts/state/*.sh` + schema `states` 字段清理 | 死代码,V2 从不读写 | 超出本次范围,后续用 spawn_task 单独标记 |
+| ~~V1 bash `scripts/state/*.sh` + schema `states` 字段清理~~ | ~~死代码,V2 从不读写~~ **更正**：只对 V2 Python 引擎而言"从不读写"；插件层面这些脚本被 `using-arcgentic`/`orchestrate-round`/`audit-round`/`verify-gates` 等仍存活的 skill 实际调用,是独立于 V2 的手动操作路径,不是死代码。已在后续调查中核实,无需清理。 | 超出本次范围,后续用 spawn_task 单独标记(该 spawn_task 调查后已澄清,见更正) |
 
 ## 5. 验收标准
 
