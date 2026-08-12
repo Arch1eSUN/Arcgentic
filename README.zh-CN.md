@@ -11,7 +11,7 @@
 
 [![status](https://img.shields.io/badge/status-stable-brightgreen.svg)](#状态)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-[![version](https://img.shields.io/badge/version-v2.0.0-blueviolet.svg)](#状态)
+[![version](https://img.shields.io/badge/version-v2.2.0-blueviolet.svg)](#状态)
 [![PyPI](https://img.shields.io/pypi/v/arcgentic.svg)](https://pypi.org/project/arcgentic/)
 [![npm](https://img.shields.io/npm/v/arcgentic.svg)](https://www.npmjs.com/package/arcgentic)
 
@@ -77,9 +77,9 @@ footer 纠错重试路径和 `ListAgents` 都没有被这次 gate 实际触发�
 
 | 渠道 | 状态 | 用途 |
 |---|---|---|
-| [GitHub Release](https://github.com/Arch1eSUN/Arcgentic/releases/tag/v2.0.0) | 已发布 `v2.0.0` | Release notes、源码归档、验证背景。 |
-| [PyPI](https://pypi.org/project/arcgentic/) | 已发布 `arcgentic==2.0.0` | Python CLI：gate、V2 state helper、Claude Code broker、audit 工具。 |
-| [npm](https://www.npmjs.com/package/arcgentic) | 已发布 `arcgentic@2.0.0` | 插件资产包和 Codex 本地安装 helper。 |
+| [GitHub Release](https://github.com/Arch1eSUN/Arcgentic/releases/tag/v2.2.0) | 已发布 `v2.2.0` | Release notes、源码归档、验证背景。 |
+| [PyPI](https://pypi.org/project/arcgentic/) | 已发布 `arcgentic==2.2.0` | Python CLI：gate、V2 state helper、Claude Code broker、audit 工具。 |
+| [npm](https://www.npmjs.com/package/arcgentic) | 已发布 `arcgentic@2.2.0` | 插件资产包和 Codex 本地安装 helper。 |
 | Claude Code plugin marketplace | Manifest 已就绪 | Claude Code 主安装路径；`single-session-subagent` 模式已通过前台 `Agent` 的 tier-0 broker 派发获得实机 dogfood 验证，但 `multi-session-subthread` 模式和 hook 兜底路径仍未验证。 |
 
 ## 安装
@@ -394,7 +394,7 @@ Test 不是每轮必跑。它只在需要真实用户行为、UI 使用、模拟
 - Codex 本地插件 manifest
 - Claude Code 插件 manifest
 - V2 workflow prompts and state helpers
-- npm bundle 已发布：`arcgentic@2.0.0`
+- npm bundle 已发布：`arcgentic@2.2.0`
 - Codex V2 实机验证完成
 - Claude Code V2 实验适配完成；`single-session-subagent` 模式已有真实 session dogfood
   验证，`multi-session-subthread` 模式和 hook 兜底路径仍在等待验证

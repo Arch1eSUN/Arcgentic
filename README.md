@@ -11,7 +11,7 @@
 
 [![status](https://img.shields.io/badge/status-stable-brightgreen.svg)](#status)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-[![version](https://img.shields.io/badge/version-v2.0.0-blueviolet.svg)](#status)
+[![version](https://img.shields.io/badge/version-v2.2.0-blueviolet.svg)](#status)
 [![PyPI](https://img.shields.io/pypi/v/arcgentic.svg)](https://pypi.org/project/arcgentic/)
 [![npm](https://img.shields.io/npm/v/arcgentic.svg)](https://www.npmjs.com/package/arcgentic)
 
@@ -87,9 +87,9 @@ treated as unproven.
 
 | Channel | Status | Use it for |
 |---|---|---|
-| [GitHub Release](https://github.com/Arch1eSUN/Arcgentic/releases/tag/v2.0.0) | Published `v2.0.0` | Release notes, source archive, and verification context. |
-| [PyPI](https://pypi.org/project/arcgentic/) | Published `arcgentic==2.0.0` | Python CLI: gates, V2 state helpers, Claude Code broker, and audit tooling. |
-| [npm](https://www.npmjs.com/package/arcgentic) | Published `arcgentic@2.0.0` | Plugin asset bundle and Codex local install helper. |
+| [GitHub Release](https://github.com/Arch1eSUN/Arcgentic/releases/tag/v2.2.0) | Published `v2.2.0` | Release notes, source archive, and verification context. |
+| [PyPI](https://pypi.org/project/arcgentic/) | Published `arcgentic==2.2.0` | Python CLI: gates, V2 state helpers, Claude Code broker, and audit tooling. |
+| [npm](https://www.npmjs.com/package/arcgentic) | Published `arcgentic@2.2.0` | Plugin asset bundle and Codex local install helper. |
 | Claude Code plugin marketplace | Manifest ready | Main Claude Code install path; `single-session-subagent` mode now has dogfood evidence via a foreground `Agent` tier-0 broker dispatch, but `multi-session-subthread` mode and the hook-backed fallback path remain unverified. |
 
 ## Install
@@ -441,7 +441,7 @@ Developer self-audit to Auditor.
 | External audit | Complete. |
 | Closed-project status no-op | Complete. |
 | README onboarding | Updated for adoption-first use. |
-| npm bundle | Published as `arcgentic@2.0.0`. |
+| npm bundle | Published as `arcgentic@2.2.0`. |
 
 ## Roadmap
 
