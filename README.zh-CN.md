@@ -62,15 +62,16 @@ harness：给 agent 加角色、handoff、stop state、审计 gate 和证据记�
 | 平台 | V2 状态 | 验证情况 |
 |---|---|---|
 | **Codex** | 完整 V2 | 已在真实 Codex 项目工作流中实机验证，包括自动标记 Orchestrator、创建/复用角色 thread、派发 prompt 和等待回传。 |
-| **Claude Code** | 完整 V2 | 已在真实 Claude Code session 中验证 `single-session-subagent` 模式：通过原生工具（`Agent`/`SendMessage`/`ListAgents`）的 tier-0 broker 路径完成派发，详见 `tests/dogfood/gate-3-claude-code-native-broker/RESULT.md`。`multi-session-subthread` 模式和 hook 兜底路径尚未经过这次 gate 验证。 |
+| **Claude Code** | 完整 V2 | 已在真实 Claude Code session 中验证 `single-session-subagent` 模式：通过前台 `Agent` 调用完成的 tier-0 broker 派发，详见 `tests/dogfood/gate-3-claude-code-native-broker/RESULT.md`。这次 gate 没有触发 `SendMessage` 的 footer 纠错重试路径（第一次返回的 footer 就是合法的），也没有用到 `ListAgents`；`multi-session-subthread` 模式和 hook 兜底路径同样尚未验证。 |
 
 Codex 是目前最完整的体验。在已验证的 Codex 路径里，当前项目对话会成为
 `Orchestrator`；Arcgentic 会创建或复用角色 thread、命名它们、发送对应角色 prompt、
 等待角色回传，再自动派发下一步。中间不需要用户手动创建 thread 或搬运 prompt。
 
-Claude Code 版本的 `single-session-subagent` 模式现在已经有实机 dogfood 验证，
-可以视为已验证的真实工作流。但 `multi-session-subthread` 模式和 hook 兜底路径
-还没有经过真实 Claude Code session 的验证，仍应视为未经证明。
+Claude Code 版本的 `single-session-subagent` 模式现在已经有实机 dogfood 验证——具体是通过
+前台 `Agent` 调用完成的 tier-0 broker 派发，可以视为这条路径已验证。但 `SendMessage` 的
+footer 纠错重试路径和 `ListAgents` 都没有被这次 gate 实际触发过，`multi-session-subthread`
+模式和 hook 兜底路径也还没有经过真实 Claude Code session 的验证，这些都仍应视为未经证明。
 
 ## 分发状态
 
@@ -79,7 +80,7 @@ Claude Code 版本的 `single-session-subagent` 模式现在已经有实机 dogf
 | [GitHub Release](https://github.com/Arch1eSUN/Arcgentic/releases/tag/v2.0.0) | 已发布 `v2.0.0` | Release notes、源码归档、验证背景。 |
 | [PyPI](https://pypi.org/project/arcgentic/) | 已发布 `arcgentic==2.0.0` | Python CLI：gate、V2 state helper、Claude Code broker、audit 工具。 |
 | [npm](https://www.npmjs.com/package/arcgentic) | 已发布 `arcgentic@2.0.0` | 插件资产包和 Codex 本地安装 helper。 |
-| Claude Code plugin marketplace | Manifest 已就绪 | Claude Code 主安装路径；V2 在真实 session 验证前仍是实验版。 |
+| Claude Code plugin marketplace | Manifest 已就绪 | Claude Code 主安装路径；`single-session-subagent` 模式已通过前台 `Agent` 的 tier-0 broker 派发获得实机 dogfood 验证，但 `multi-session-subthread` 模式和 hook 兜底路径仍未验证。 |
 
 ## 安装
 
@@ -285,7 +286,9 @@ Claude Code 版本的目标是和 Codex V2 使用同一套 workflow contract。
 - V2 workflow contract 已完成。
 - Claude Code session broker 已提供 hooks 安装路径。
 - role identity、return signal、mode 选择、fixed role reuse 都已按 V2 设计适配。
-- 但还没有完成真实 Claude Code session 的端到端实机验证。
+- `single-session-subagent` 模式已经通过前台 `Agent` 的 tier-0 broker 派发完成真实 Claude
+  Code session 验证（详见 `tests/dogfood/gate-3-claude-code-native-broker/RESULT.md`）；
+  `multi-session-subthread` 模式和 hook 兜底路径还没有完成端到端实机验证。
 
 目标行为是和 Codex 一样自动化：
 
@@ -341,7 +344,9 @@ Arcgentic 比普通 prompting 更重。如果你的任务不复杂、不需要�
 
 - 一个短 demo GIF 或 demo video，展示 Orchestrator -> Planner -> Developer -> Auditor。
 - 一个小型 example project，展示不用 Arcgentic 和使用 Arcgentic 的差异。
-- Claude Code 实验版真实 session 验证记录。
+- Claude Code `multi-session-subthread` 模式和 hook 兜底路径的真实 session 验证记录
+  （`single-session-subagent` 模式的验证记录已经在
+  `tests/dogfood/gate-3-claude-code-native-broker/RESULT.md`）。
 
 ## 常见问题
 
@@ -385,7 +390,8 @@ Test 不是每轮必跑。它只在需要真实用户行为、UI 使用、模拟
 - V2 workflow prompts and state helpers
 - npm bundle 已发布：`arcgentic@2.0.0`
 - Codex V2 实机验证完成
-- Claude Code V2 实验适配完成，等待真实 session 验证
+- Claude Code V2 实验适配完成；`single-session-subagent` 模式已有真实 session dogfood
+  验证，`multi-session-subthread` 模式和 hook 兜底路径仍在等待验证
 
 ## 路线图
 
@@ -396,7 +402,8 @@ Test 不是每轮必跑。它只在需要真实用户行为、UI 使用、模拟
 - example project；
 - Before / After 对比；
 - issue template / feedback loop；
-- Claude Code V2 实机验证记录。
+- Claude Code V2 `multi-session-subthread` 模式和 hook 兜底路径的实机验证记录
+  （`single-session-subagent` 模式已有验证记录）。
 
 ## 反馈
 

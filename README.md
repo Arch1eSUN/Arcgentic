@@ -68,7 +68,7 @@ Related reading:
 | Platform | V2 status | Verification |
 |---|---|---|
 | **Codex** | Complete V2 | Verified in a real Codex project workflow, including automatic Orchestrator thread setup and role-thread dispatch. |
-| **Claude Code** | Complete V2 | Verified in a real Claude Code session for `single-session-subagent` mode via the native-tooling (`Agent`/`SendMessage`/`ListAgents`) tier-0 broker path — see `tests/dogfood/gate-3-claude-code-native-broker/RESULT.md`. `multi-session-subthread` mode and the hook-backed fallback path remain unverified by this gate. |
+| **Claude Code** | Complete V2 | Verified in a real Claude Code session for `single-session-subagent` mode via a foreground `Agent` tier-0 broker dispatch — see `tests/dogfood/gate-3-claude-code-native-broker/RESULT.md`. The `SendMessage`-based footer-correction retry path and `ListAgents` were not exercised by this gate (the footer was valid on the first attempt), and `multi-session-subthread` mode and the hook-backed fallback path remain unverified. |
 
 Codex is the best current experience. In the verified Codex path, the current
 project conversation becomes `Orchestrator`; Arcgentic then creates or reuses
@@ -76,10 +76,12 @@ the role threads, names them, sends the right role prompt, waits for their
 return signal, and dispatches the next role without manual thread switching.
 
 Claude Code support now has dogfood evidence for `single-session-subagent`
-mode via the tier-0 native-tooling broker path, so treat that mode as a
-verified real workflow. `multi-session-subthread` mode and the hook-backed
-fallback path have not yet been verified in a real Claude Code session and
-should still be treated as unproven.
+mode via a foreground `Agent` tier-0 broker dispatch, so treat that specific
+path as a verified real workflow. The `SendMessage`-based footer-correction
+retry path and `ListAgents` were not exercised by that gate, and
+`multi-session-subthread` mode and the hook-backed fallback path have not yet
+been verified in a real Claude Code session — all of these should still be
+treated as unproven.
 
 ## Distribution status
 
@@ -88,7 +90,7 @@ should still be treated as unproven.
 | [GitHub Release](https://github.com/Arch1eSUN/Arcgentic/releases/tag/v2.0.0) | Published `v2.0.0` | Release notes, source archive, and verification context. |
 | [PyPI](https://pypi.org/project/arcgentic/) | Published `arcgentic==2.0.0` | Python CLI: gates, V2 state helpers, Claude Code broker, and audit tooling. |
 | [npm](https://www.npmjs.com/package/arcgentic) | Published `arcgentic@2.0.0` | Plugin asset bundle and Codex local install helper. |
-| Claude Code plugin marketplace | Manifest ready | Main Claude Code install path; V2 remains experimental until real-session verification. |
+| Claude Code plugin marketplace | Manifest ready | Main Claude Code install path; `single-session-subagent` mode now has dogfood evidence via a foreground `Agent` tier-0 broker dispatch, but `multi-session-subthread` mode and the hook-backed fallback path remain unverified. |
 
 ## Install
 
@@ -299,8 +301,11 @@ Use Codex V2 when you want the strongest current Arcgentic experience.
 
 ## Claude Code V2 experimental
 
-Claude Code V2 is complete as an experimental version, but it has not yet been
-verified in a real Claude Code session.
+Claude Code V2 is complete as an experimental version. `single-session-subagent`
+mode now has real-session dogfood evidence via a foreground `Agent` tier-0
+broker dispatch (see `tests/dogfood/gate-3-claude-code-native-broker/RESULT.md`);
+`multi-session-subthread` mode and the hook-backed fallback path have not yet
+been verified in a real Claude Code session.
 
 The intended behavior is the same:
 
@@ -376,7 +381,10 @@ Planned adoption assets:
 
 - short Codex demo;
 - example project with before/after comparison;
-- Claude Code experimental run notes after real-session verification.
+- Claude Code experimental run notes for `multi-session-subthread` mode and
+  the hook-backed fallback path, after those are verified in a real session
+  (`single-session-subagent` mode's run notes already exist at
+  `tests/dogfood/gate-3-claude-code-native-broker/RESULT.md`).
 
 ## Troubleshooting
 
@@ -419,7 +427,7 @@ Developer self-audit to Auditor.
 | Area | Status |
 |---|---|
 | Codex V2 | Complete and real-workflow verified. |
-| Claude Code V2 | Complete experimental version; real-session verification pending. |
+| Claude Code V2 | Complete experimental version; `single-session-subagent` mode has real-session dogfood evidence via a foreground `Agent` tier-0 broker dispatch, `multi-session-subthread` mode and the hook-backed fallback path are still pending. |
 | Fixed roles | Complete. |
 | Optional Test role | Complete. |
 | Developer self-audit | Complete. |
@@ -432,7 +440,9 @@ Developer self-audit to Auditor.
 
 Near-term:
 
-- verify Claude Code V2 in a real Claude Code session;
+- verify Claude Code V2's `multi-session-subthread` mode and hook-backed
+  fallback path in a real Claude Code session (`single-session-subagent`
+  mode is verified);
 - publish a small example project;
 - add a short demo walkthrough;
 - collect issue-template feedback from first users.
