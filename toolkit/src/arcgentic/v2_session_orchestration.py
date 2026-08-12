@@ -61,42 +61,6 @@ ROLE_RETURN_SIGNAL_BLOCK_RE: Final[re.Pattern[str]] = re.compile(
 
 GIT_COMMIT_RE: Final[re.Pattern[str]] = re.compile(r"^[0-9a-f]{40}$")
 
-ROLE_ALLOWED_CURRENT_STATES: Final[dict[Role, frozenset[str]]] = {
-    "orchestrator": frozenset({"intake", "planning", "passed", "closed"}),
-    "planner": frozenset({"intake", "planning", "passed", "closed"}),
-    "developer": frozenset(
-        {"awaiting_dev_start", "dev_in_progress", "needs_fix", "fix_in_progress"}
-    ),
-    "test": frozenset({"awaiting_test", "test_in_progress"}),
-    "auditor": frozenset({"awaiting_audit", "audit_in_progress"}),
-}
-
-ROLE_ALLOWED_SIGNAL_ROUTES: Final[dict[Role, dict[str, frozenset[Role]]]] = {
-    "orchestrator": {
-        "planning": frozenset({"planner"}),
-        "closed": frozenset({"planner"}),
-    },
-    "planner": {
-        "awaiting_dev_start": frozenset({"developer"}),
-        "planning": frozenset({"planner"}),
-        "closed": frozenset({"planner"}),
-    },
-    "developer": {
-        "awaiting_test": frozenset({"test"}),
-        "awaiting_audit": frozenset({"auditor"}),
-        "needs_fix": frozenset({"developer"}),
-    },
-    "test": {
-        "awaiting_audit": frozenset({"auditor"}),
-        "needs_fix": frozenset({"developer"}),
-    },
-    "auditor": {
-        "passed": frozenset({"planner"}),
-        "needs_fix": frozenset({"developer"}),
-        "audit_in_progress": frozenset({"auditor"}),
-    },
-}
-
 AUDIT_INCOMPLETE_STATUSES: Final[frozenset[str]] = frozenset(
     {"AUDIT_INCOMPLETE", "INCOMPLETE"}
 )
@@ -425,6 +389,10 @@ def _utc_now() -> str:
     return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
+# Retained only for the existing test suite's direct calls (see
+# test_v2_session_orchestration.py). No longer consulted by
+# apply_role_return_signal()/build_role_session_plan() — both now go
+# through Topology (see topology.py) exclusively.
 def next_role_for_state(state_name: str) -> Role:
     state = state_name.strip()
     if state in {"intake", "planning", "passed", "closed"}:
