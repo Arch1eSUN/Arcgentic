@@ -48,7 +48,9 @@ def test_render_status_summary_text_no_active_round() -> None:
 
 def test_render_status_summary_text_no_verdict_yet() -> None:
     state = _state_with_progress()
-    del state["current_round"]["audit_verdict"]  # type: ignore[index]
+    current_round = state["current_round"]
+    assert isinstance(current_round, dict)
+    del current_round["audit_verdict"]
     text = render_status_summary_text(state)
     assert "No audit verdict yet" in text
 

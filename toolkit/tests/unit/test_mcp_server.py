@@ -66,7 +66,9 @@ def test_build_apps_registers_tool_bound_to_resource() -> None:
     apps = server.build_apps()
     tools = apps.tools()
     assert len(tools) == 1
-    assert tools[0].meta["ui"]["resourceUri"] == server.RESOURCE_URI
+    meta = tools[0].meta
+    assert meta is not None
+    assert meta["ui"]["resourceUri"] == server.RESOURCE_URI
     resources = apps.resources()
     assert len(resources) == 1
     assert resources[0].resource.uri == server.RESOURCE_URI
