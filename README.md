@@ -68,7 +68,7 @@ Related reading:
 | Platform | V2 status | Verification |
 |---|---|---|
 | **Codex** | Complete V2 | Verified in a real Codex project workflow, including automatic Orchestrator thread setup and role-thread dispatch. |
-| **Claude Code** | Complete V2 | Verified in a real Claude Code session for `single-session-subagent` mode via a foreground `Agent` tier-0 broker dispatch — see `tests/dogfood/gate-3-claude-code-native-broker/RESULT.md`. The `SendMessage`-based footer-correction retry path and `ListAgents` were not exercised by this gate (the footer was valid on the first attempt), and `multi-session-subthread` mode and the hook-backed fallback path remain unverified. |
+| **Claude Code** | Complete V2 | Verified in a real Claude Code session for `single-session-subagent` mode via a foreground `Agent` tier-0 broker dispatch — see `tests/dogfood/gate-3-claude-code-native-broker/RESULT.md`. That gate covered a single Planner role dispatch, not a full Planner→Developer→Auditor round loop. The `SendMessage`-based footer-correction retry path and `ListAgents` were not exercised by this gate (the footer was valid on the first attempt), and `multi-session-subthread` mode and the hook-backed fallback path remain unverified. |
 
 Codex is the best current experience. In the verified Codex path, the current
 project conversation becomes `Orchestrator`; Arcgentic then creates or reuses
