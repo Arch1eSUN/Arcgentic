@@ -1,0 +1,91 @@
+from __future__ import annotations
+
+from arcgentic.mcp.panel import (
+    render_error_panel_html,
+    render_status_panel_html,
+    render_status_summary_text,
+)
+
+
+def _state_with_progress() -> dict[str, object]:
+    return {
+        "current_round": {
+            "id": "R7",
+            "state": "audit_in_progress",
+            "audit_verdict": {
+                "outcome": "PASS",
+                "fact_table_total": 5,
+                "fact_table_pass": 5,
+            },
+        },
+        "project": {
+            "arcgentic_v2": {
+                "next_role": "auditor",
+                "role_sessions": {
+                    "orchestrator": {"thread_id": "t1"},
+                    "planner": {"thread_id": "t2"},
+                    "developer": {"thread_id": "t3"},
+                },
+            }
+        },
+    }
+
+
+def test_render_status_summary_text_lists_round_and_roles() -> None:
+    text = render_status_summary_text(_state_with_progress())
+    assert "R7" in text
+    assert "audit_in_progress" in text
+    assert "Auditor: active" in text
+    assert "Developer: recorded" in text
+    assert "Test: pending" in text
+    assert "PASS (5/5 facts passed)" in text
+
+
+def test_render_status_summary_text_no_active_round() -> None:
+    text = render_status_summary_text({})
+    assert "no active round" in text
+
+
+def test_render_status_summary_text_no_verdict_yet() -> None:
+    state = _state_with_progress()
+    del state["current_round"]["audit_verdict"]  # type: ignore[index]
+    text = render_status_summary_text(state)
+    assert "No audit verdict yet" in text
+
+
+def test_render_status_panel_html_contains_round_and_role_rows() -> None:
+    html = render_status_panel_html(_state_with_progress())
+    assert "R7" in html
+    assert "Auditor: active" in html
+    assert "<button id=\"dispatch-btn\">" in html
+    assert "PASS (5/5 facts passed)" in html
+
+
+def test_render_status_panel_html_hides_dispatch_button_when_closed() -> None:
+    state = _state_with_progress()
+    state["current_round"]["state"] = "closed"  # type: ignore[index]
+    html = render_status_panel_html(state)
+    assert "dispatch-btn" not in html
+
+
+def test_render_status_panel_html_no_active_round_is_error_panel() -> None:
+    html = render_status_panel_html({})
+    assert "No active round" in html
+    assert "dispatch-btn" not in html
+
+
+def test_render_status_panel_html_has_polling_script_targeting_the_tool() -> None:
+    html = render_status_panel_html(_state_with_progress())
+    assert "setInterval(callTool, 5000)" in html
+    assert '"toolName": "round_status_panel"' in html or "'toolName': 'round_status_panel'" in html
+
+
+def test_render_status_panel_html_dispatch_button_sends_prompt_action() -> None:
+    html = render_status_panel_html(_state_with_progress())
+    assert '"type": "prompt"' in html or "'type': 'prompt'" in html
+    assert "请派发下一个角色" in html
+
+
+def test_render_error_panel_html_shows_message() -> None:
+    html = render_error_panel_html("state.yaml is not valid YAML")
+    assert "state.yaml is not valid YAML" in html
