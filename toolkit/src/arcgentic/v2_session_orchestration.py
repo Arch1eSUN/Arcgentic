@@ -1023,7 +1023,10 @@ def build_role_session_plan(
     round_id, current_state = _current_round(state)
     sessions = _role_sessions(v2)
     orchestrator_status = str(v2.get("orchestrator_status") or "active")
-    next_role = next_role_for_state(current_state)
+    try:
+        next_role = Topology.from_state(state).default_next_role(current_state)
+    except TopologyError as exc:
+        raise V2SessionOrchestrationError(str(exc)) from exc
     if orchestrator_status == "sleeping":
         pending_role = normalize_role(v2.get("pending_role"))
         return SessionPlan(
