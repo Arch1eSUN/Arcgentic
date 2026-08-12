@@ -101,6 +101,16 @@
                 "auditor": { "$ref": "#/$defs/v2_role_session" }
               }
             },
+            "topology": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "Optional project-defined role/state routing graph. Omit to use the built-in default (today's fixed 5-role sequence). See toolkit/src/arcgentic/topology.py.",
+              "properties": {
+                "roles": { "type": "object" },
+                "routes": { "type": "object" },
+                "default_next_role": { "type": "object" }
+              }
+            },
             "last_signal": { "$ref": "#/$defs/v2_role_return_signal" }
           }
         }
@@ -114,7 +124,8 @@
         "id": { "type": "string", "description": "Round identifier following project.round_naming convention. Empty string allowed in intake state before a round id is assigned." },
         "state": {
           "type": "string",
-          "enum": ["intake", "planning", "awaiting_dev_start", "dev_in_progress", "awaiting_test", "test_in_progress", "awaiting_audit", "audit_in_progress", "passed", "needs_fix", "fix_in_progress", "closed"]
+          "minLength": 1,
+          "description": "Round state. Validated against the project's active topology at runtime (project.arcgentic_v2.topology if set, else the built-in default 12-state graph) — not by this schema, which cannot express that cross-field constraint."
         },
         "state_history": {
           "type": "array",
