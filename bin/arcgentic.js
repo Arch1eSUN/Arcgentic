@@ -9,7 +9,7 @@ const root = path.resolve(__dirname, "..");
 const ownRealpath = fs.realpathSync(process.argv[1]);
 
 function printHelp() {
-  process.stdout.write(`Arcgentic npm bundle v2.0.0
+  process.stdout.write(`Arcgentic npm bundle v2.2.0
 
 Usage:
   arcgentic install-codex-local [--home PATH] [--skip-validate]

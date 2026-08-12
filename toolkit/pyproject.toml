@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "arcgentic"
-version = "2.1.0"
+version = "2.2.0"
 description = "Moirai-derived gated engineering workflow for AI coding — Python CLI for Arcgentic V2"
 readme = "README.md"
 requires-python = ">=3.13"

@@ -1,6 +1,6 @@
 {
   "name": "arcgentic",
-  "version": "2.0.0",
+  "version": "2.2.0",
   "description": "Moirai-derived gated engineering workflow for AI coding with verified Codex V2 orchestration.",
   "author": {
     "name": "Arc Studio"
