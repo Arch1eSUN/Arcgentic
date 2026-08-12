@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "arcgentic"
-version = "2.0.0"
+version = "2.1.0"
 description = "Moirai-derived gated engineering workflow for AI coding — Python CLI for Arcgentic V2"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -21,14 +21,17 @@ classifiers = [
 dependencies = [
     "pyyaml>=6.0",
     "jsonschema>=4.0",
-    "mcp>=2.0.0",
 ]
 
 [project.optional-dependencies]
+mcp = [
+    "mcp>=2.0.0",
+]
 dev = [
     "mypy>=1.14",
     "pytest>=8.0",
     "ruff>=0.15",
+    "mcp>=2.0.0",
 ]
 
 [project.scripts]

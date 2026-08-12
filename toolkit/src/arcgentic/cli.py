@@ -918,7 +918,14 @@ def main(argv: list[str] | None = None) -> int:
         return broker_main(args.broker_args)
 
     elif args.command == "mcp-serve":
-        from .mcp.server import run_server
+        try:
+            from .mcp.server import run_server
+        except ImportError:
+            print(
+                "mcp-serve failed: the 'mcp' package is not installed. "
+                "Install it with: pip install 'arcgentic[mcp]'"
+            )
+            return 1
 
         run_server()
         return 0
