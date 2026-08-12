@@ -163,3 +163,7 @@ def test_default_next_role_candidate_list_requires_unconditioned_fallback_last()
         match="default_next_role\\[audit_in_progress\\] must end with an unconditioned candidate",
     ):
         Topology.from_state(state)
+
+
+def test_default_next_role_strips_state_name() -> None:
+    assert DEFAULT_TOPOLOGY.default_next_role(" passed ") == "planner"

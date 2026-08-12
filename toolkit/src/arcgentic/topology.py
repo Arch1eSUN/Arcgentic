@@ -74,6 +74,7 @@ class Topology:
     def default_next_role(
         self, state_name: str, artifacts: dict[str, object] | None = None
     ) -> Role:
+        state_name = state_name.strip()
         candidates = self.default_next_role_table.get(state_name)
         if not candidates:
             raise TopologyError(f"unsupported round state for V2 routing: {state_name}")
