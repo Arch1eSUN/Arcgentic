@@ -1268,3 +1268,57 @@ def test_apply_role_return_signal_rejects_wrong_next_role_for_state() -> None:
         assert "cannot recommend next role 'auditor'" in str(exc)
     else:
         raise AssertionError("expected wrong next role to be rejected")
+
+
+def test_apply_role_return_signal_uses_custom_topology_condition() -> None:
+    custom_topology = {
+        "roles": {
+            "orchestrator": {"allowed_current_states": ["intake", "planning", "passed", "closed"]},
+            "planner": {"allowed_current_states": ["intake", "planning", "passed", "closed"]},
+            "developer": {
+                "allowed_current_states": [
+                    "awaiting_dev_start",
+                    "dev_in_progress",
+                    "needs_fix",
+                    "fix_in_progress",
+                ]
+            },
+            "test": {"allowed_current_states": ["awaiting_test", "test_in_progress"]},
+            "auditor": {"allowed_current_states": ["awaiting_audit", "audit_in_progress"]},
+        },
+        "routes": {
+            "auditor": {
+                "passed": ["developer", "planner"],
+                "needs_fix": ["developer"],
+                "audit_in_progress": ["auditor"],
+            },
+        },
+        "default_next_role": {
+            "passed": [
+                {
+                    "role": "developer",
+                    "condition": {"path": "audit_verdict.rush_release", "equals": True},
+                },
+                {"role": "planner"},
+            ],
+        },
+    }
+    state = {
+        "project": {"arcgentic_v2": {"host": "codex", "topology": custom_topology}},
+        "current_round": {"id": "R1", "state": "audit_in_progress"},
+    }
+    signal = RoleReturnSignal(
+        role="auditor",
+        status="PASS",
+        round_id="R1",
+        state="passed",
+        artifacts={
+            "verdict": "docs/audits/R1.md",
+            "commit": "a" * 40,
+            "audit_verdict": {"rush_release": True},
+        },
+    )
+
+    updated = apply_role_return_signal(state, signal)
+
+    assert updated["project"]["arcgentic_v2"]["next_role"] == "developer"
