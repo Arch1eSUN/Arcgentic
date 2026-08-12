@@ -48,7 +48,7 @@ def test_from_state_returns_default_when_topology_absent() -> None:
 
 
 def test_from_state_parses_custom_routes_and_allowed_states() -> None:
-    state = {
+    state: dict[str, object] = {
         "project": {
             "arcgentic_v2": {
                 "topology": {
@@ -77,7 +77,7 @@ def test_from_state_parses_custom_routes_and_allowed_states() -> None:
 
 
 def test_from_state_requires_all_five_roles() -> None:
-    state = {
+    state: dict[str, object] = {
         "project": {
             "arcgentic_v2": {
                 "topology": {
@@ -93,7 +93,7 @@ def test_from_state_requires_all_five_roles() -> None:
 
 
 def test_default_next_role_evaluates_condition_candidates_in_order() -> None:
-    state = {
+    state: dict[str, object] = {
         "project": {
             "arcgentic_v2": {
                 "topology": {
@@ -135,7 +135,7 @@ def test_default_next_role_evaluates_condition_candidates_in_order() -> None:
 
 
 def test_default_next_role_candidate_list_requires_unconditioned_fallback_last() -> None:
-    state = {
+    state: dict[str, object] = {
         "project": {
             "arcgentic_v2": {
                 "topology": {
@@ -192,7 +192,7 @@ def _full_roles_block() -> dict[str, object]:
 def test_from_state_rejects_unknown_role_key_in_roles() -> None:
     roles = _full_roles_block()
     roles["auditr"] = {"allowed_current_states": ["awaiting_audit"]}
-    state = {
+    state: dict[str, object] = {
         "project": {
             "arcgentic_v2": {
                 "topology": {
@@ -208,7 +208,7 @@ def test_from_state_rejects_unknown_role_key_in_roles() -> None:
 
 
 def test_from_state_rejects_unknown_role_key_in_routes() -> None:
-    state = {
+    state: dict[str, object] = {
         "project": {
             "arcgentic_v2": {
                 "topology": {
@@ -224,7 +224,7 @@ def test_from_state_rejects_unknown_role_key_in_routes() -> None:
 
 
 def test_from_state_accepts_routes_state_with_matching_default_next_role() -> None:
-    state = {
+    state: dict[str, object] = {
         "project": {
             "arcgentic_v2": {
                 "topology": {
@@ -250,7 +250,7 @@ def test_from_state_rejects_routes_state_missing_default_next_role() -> None:
     # with no matching default_next_role entry lets apply_role_return_signal
     # write current_round.state = "second_opinion" while
     # build_role_session_plan can never route from it, wedging the round.
-    state = {
+    state: dict[str, object] = {
         "project": {
             "arcgentic_v2": {
                 "topology": {

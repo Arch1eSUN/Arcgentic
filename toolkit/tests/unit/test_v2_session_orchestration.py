@@ -1323,4 +1323,4 @@ def test_apply_role_return_signal_uses_custom_topology_condition() -> None:
 
     updated = apply_role_return_signal(state, signal)
 
-    assert updated["project"]["arcgentic_v2"]["next_role"] == "developer"
+    assert updated["project"]["arcgentic_v2"]["next_role"] == "developer"  # type: ignore[index]
