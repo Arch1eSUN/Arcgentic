@@ -1301,6 +1301,8 @@ def test_apply_role_return_signal_uses_custom_topology_condition() -> None:
                 },
                 {"role": "planner"},
             ],
+            "needs_fix": "developer",
+            "audit_in_progress": "auditor",
         },
     }
     state = {

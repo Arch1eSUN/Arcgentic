@@ -156,6 +156,17 @@ def _parse_topology(raw: dict[str, object]) -> Topology:
         candidates = _parse_default_next_role_value(state_name, value)
         default_next_role_table[state_name] = candidates
 
+    routed_states = {
+        state for role_routes in routes.values() for state in role_routes
+    }
+    missing_default_states = sorted(routed_states - set(default_next_role_table))
+    if missing_default_states:
+        joined = ", ".join(repr(s) for s in missing_default_states)
+        raise TopologyError(
+            f"topology.routes references state {joined} with no matching "
+            "topology.default_next_role entry"
+        )
+
     return Topology(
         allowed_current_states_by_role=allowed_current_states_by_role,
         routes=routes,

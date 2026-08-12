@@ -64,6 +64,7 @@ def test_from_state_parses_custom_routes_and_allowed_states() -> None:
                     },
                     "default_next_role": {
                         "dev_in_progress": "developer",
+                        "awaiting_test": "test",
                     },
                 }
             }
@@ -219,4 +220,49 @@ def test_from_state_rejects_unknown_role_key_in_routes() -> None:
         }
     }
     with pytest.raises(TopologyError, match="auditr"):
+        Topology.from_state(state)
+
+
+def test_from_state_accepts_routes_state_with_matching_default_next_role() -> None:
+    state = {
+        "project": {
+            "arcgentic_v2": {
+                "topology": {
+                    "roles": _full_roles_block(),
+                    "routes": {"auditor": {"second_opinion": ["auditor"]}},
+                    "default_next_role": {
+                        "intake": "planner",
+                        "audit_in_progress": "auditor",
+                        "second_opinion": "auditor",
+                    },
+                }
+            }
+        }
+    }
+    topology = Topology.from_state(state)
+    assert topology.routes_for_role("auditor") == {
+        "second_opinion": frozenset({"auditor"})
+    }
+
+
+def test_from_state_rejects_routes_state_missing_default_next_role() -> None:
+    # Reproduces the reviewer's finding: a routes entry for "second_opinion"
+    # with no matching default_next_role entry lets apply_role_return_signal
+    # write current_round.state = "second_opinion" while
+    # build_role_session_plan can never route from it, wedging the round.
+    state = {
+        "project": {
+            "arcgentic_v2": {
+                "topology": {
+                    "roles": _full_roles_block(),
+                    "routes": {"auditor": {"second_opinion": ["auditor"]}},
+                    "default_next_role": {
+                        "intake": "planner",
+                        "audit_in_progress": "auditor",
+                    },
+                }
+            }
+        }
+    }
+    with pytest.raises(TopologyError, match="second_opinion"):
         Topology.from_state(state)
