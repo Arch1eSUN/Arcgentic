@@ -760,7 +760,10 @@ def apply_role_return_signal(
             f"unsupported orchestrator_status: {orchestrator_status}"
         )
 
-    topology = Topology.from_state(state)
+    try:
+        topology = Topology.from_state(state)
+    except TopologyError as exc:
+        raise V2SessionOrchestrationError(str(exc)) from exc
     try:
         allowed_current_states = topology.allowed_current_states(signal.role)
     except TopologyError as exc:
