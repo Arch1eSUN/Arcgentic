@@ -48,3 +48,26 @@ claude-code, codex, code-review, software-audit, workflow, ai-coding-agents, dev
 ## Compatible agents
 
 Claude Code, Codex
+
+## Submitted listing (2026-10-02)
+
+Submitted for review on 2026-10-02 as a free listing. Agensi auto-generates most of the
+listing from the zip (block description, demo session, tags, permissions, FAQ). These
+auto-generated claims were wrong and were corrected before submission. Re-check them
+whenever the zip is re-uploaded:
+
+- Permissions: auto-detect ticked **Terminal / Shell**; the entry skill runs no commands,
+  so only **Read Files** is ticked (it checks whether the plugin is installed).
+- FAQ "what is included": claimed a "proprietary harness configuration". It is MIT and free,
+  and the package is only SKILL.md + LICENSE.
+- FAQ "is install automated": claimed the CLI "installs the necessary Node.js plugins". The
+  user runs the install commands; nothing is installed without their go-ahead.
+- FAQ "updates": claimed updates come through Agensi. The plugin updates via the Claude Code
+  plugin marketplace, npm, and PyPI; only this entry skill updates on Agensi.
+- Frameworks text: claimed Node.js is needed for plugin management. Only the Codex npm
+  install needs Node.js 18+; the CLI and MCP panel need Python 3.13+.
+- Demo result: added the optional Test role and the first-run session-mode recommendation.
+
+Known platform behaviour that cannot be edited from the form: the live preview attaches an
+auto-generated "example file" PDF to the demo session and says the skill writes it into the
+workspace. The known-limitations text states that the skill writes no files.
