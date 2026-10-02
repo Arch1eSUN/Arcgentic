@@ -9,6 +9,7 @@ from mcp.server import MCPServer
 from mcp.server.apps import APP_MIME_TYPE, Apps
 from mcp.server.mcpserver.resources.types import FunctionResource
 
+from arcgentic import __version__
 from arcgentic.mcp.panel import (
     render_error_panel_html,
     render_status_panel_html,
@@ -74,5 +75,5 @@ def build_apps() -> Apps:
 
 def run_server() -> None:
     apps = build_apps()
-    server = MCPServer("arcgentic", extensions=[apps])
+    server = MCPServer("arcgentic", version=__version__, extensions=[apps])
     server.run(transport="stdio")

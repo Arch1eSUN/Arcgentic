@@ -107,3 +107,31 @@ def test_build_apps_registers_tool_bound_to_resource() -> None:
     # Must not leak the Python callback's function name (a leading-underscore
     # implementation detail) into the MCP protocol's resources/list output.
     assert resources[0].resource.name == "round-status-panel"
+
+
+def test_run_server_reports_package_version(monkeypatch: pytest.MonkeyPatch) -> None:
+    from arcgentic import __version__
+
+    captured: dict[str, object] = {}
+
+    class _FakeServer:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            captured.update(kwargs)
+
+        def run(self, transport: str) -> None:
+            captured["transport"] = transport
+
+    monkeypatch.setattr(server, "MCPServer", _FakeServer)
+    server.run_server()
+    assert captured["version"] == __version__
+    assert captured["transport"] == "stdio"
+
+
+def test_package_version_matches_pyproject() -> None:
+    import tomllib
+
+    from arcgentic import __version__
+
+    pyproject = Path(__file__).resolve().parents[2] / "pyproject.toml"
+    declared = tomllib.loads(pyproject.read_text(encoding="utf-8"))["project"]["version"]
+    assert __version__ == declared

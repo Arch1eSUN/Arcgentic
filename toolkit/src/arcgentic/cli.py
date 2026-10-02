@@ -43,6 +43,14 @@ import sys
 
 
 def main(argv: list[str] | None = None) -> int:
+    if argv is None:
+        argv = sys.argv[1:]
+    # Accept the npm shim's `python -- <args>` passthrough form too, so
+    # `.mcp.json` (`arcgentic python -- mcp-serve`) starts whichever
+    # `arcgentic` comes first on PATH.
+    if argv[:2] == ["python", "--"]:
+        argv = argv[2:]
+
     parser = argparse.ArgumentParser(
         prog="arcgentic",
         description="arcgentic Python CLI — algorithm backend for the Claude Code plugin.",

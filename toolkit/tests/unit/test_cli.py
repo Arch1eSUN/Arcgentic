@@ -1518,3 +1518,17 @@ current_round:
     assert payload["current_round"] == "R1"
     assert "Current round: R1" in payload["actions"][0]["prompt"]
     assert "id: R1" in state.read_text(encoding="utf-8")
+
+
+def test_python_passthrough_reaches_mcp_serve() -> None:
+    # .mcp.json launches `arcgentic python -- mcp-serve` so it works through
+    # the npm shim (bin/arcgentic.js). When the Python console script is the
+    # `arcgentic` on PATH instead, the same argv must still start the server.
+    with patch("arcgentic.mcp.server.run_server") as run_server:
+        exit_code = main(["python", "--", "mcp-serve"])
+    assert exit_code == 0
+    run_server.assert_called_once_with()
+
+
+def test_python_passthrough_forwards_exit_code() -> None:
+    assert main(["python", "--"]) == 1
