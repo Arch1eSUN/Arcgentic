@@ -36,3 +36,6 @@ references/
 # But skill reference docs inside the plugin itself ARE tracked
 !skills/*/references/
 !skills/*/references/**
+
+# Agensi upload artifact (rebuilt from packaging/agensi/arcgentic/)
+packaging/agensi/dist/
